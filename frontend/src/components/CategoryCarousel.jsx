@@ -58,7 +58,7 @@ export default function CategoryCarousel() {
       return;
     }
     api
-      .get("/categories", { params: { lang: lng } })
+      .get("/products/categories", { params: { lang: lng } })
       .then(({ data }) => {
         const map = {};
         (data || []).forEach((c) => { map[c.value] = c.label; });
