@@ -1,0 +1,30 @@
+[
+  {
+    "content": "Phase 1: Copy repo files to /app (preserve protected .env vars)",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 1: Configure backend .env (DB_NAME, JWT_SECRET, EMERGENT_LLM_KEY, test payment keys)",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 1: Install backend + frontend dependencies",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 1: Restart services and verify auto catalog sync (174 products)",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 2: Smoke test core flows (home, shop, PDP, cart, admin login)",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 2: End-to-end testing with testing agent (all user stories)",
+    "status": "in_progress"
+  },
+  {
+    "content": "Phase 2: Fix any issues found in testing",
+    "status": "pending"
+  }
+]

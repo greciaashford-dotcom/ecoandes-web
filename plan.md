@@ -1,0 +1,291 @@
+# EcoAndes BIO — Plan de Continuación (UI → Blogs → Testing → Catálogo/Precios/IVA → Envíos → Pagos → SEO/GEO → Imágenes)
+
+## 1) Objetivos
+
+### Objetivos ya completados (iteración anterior)
+- Modernizar la UI manteniendo identidad de marca (sage/terracotta/bone) con **bordes redondeados** y **micro‑animaciones** sin romper flujos. **(COMPLETADO)**
+- Actualizar el **Blog**: mejorar 6 posts existentes y crear 6 nuevos (12 total) con imágenes WebP locales y fuentes citadas. **(COMPLETADO)**
+- Ejecutar **testing end‑to‑end** para asegurar estabilidad (checkout/cupón/búsqueda/registro/blogs/UI). **(COMPLETADO)**
+
+**Estado (sobre lo anterior):** UI + Blog listos. Testing general anterior: **98.5% PASS** (Backend 36/37; Frontend 100%).
+
+### Objetivos del scope mayor (estado actual)
+- **Fase 1 (P0): Catálogo + Precios + IVA (Excel‑driven)**
+  - Alinear productos existentes con los Excel, eliminar lo que no corresponda y crear lo que falte.
+  - Modelar IVA, pesos y formatos para habilitar reglas de envíos y checkout correctos.
+  - **Estado:** **COMPLETADO**.
+- **Fase 2 (P0): Motor de envíos** por **tipo de usuario + zona + peso**, administrable vía JSON.
+  - **Estado:** **COMPLETADO** + validado E2E.
+- **Fase 3 (P1): Métodos de pago** por rol (sin contrareembolso) + scaffolding para credenciales futuras.
+  - **Estado:** **COMPLETADO** (lógica + UI + validación server‑side). Credenciales **pendientes**.
+- **Fase 4 (P1): SEO + GEO** por ficha de producto, con generación automática multi‑idioma y render en frontend.
+  - **Estado:** **EN PROGRESO** (infraestructura completada y verificada; generación IA corriendo en background).
+- **Fase 5 (P1): Migración P0 de imágenes** a almacenamiento propio (WebP + resize + caché 1 año) una vez estabilizado el catálogo.
+  - **Estado:** **PENDIENTE**.
+
+---
+
+## 2) Pasos de Implementación
+
+### Fase 1 — POC (Core UI Modernization) — **COMPLETADO**
+**User stories (POC):**
+1. Como usuario, quiero que botones y tarjetas respondan con animaciones sutiles.
+2. Como usuario, quiero esquinas redondeadas en componentes clave.
+3. Como usuario, quiero hovers fluidos sin CLS.
+4. Como usuario, quiero rendimiento estable.
+5. Como admin/usuario, quiero que nada funcional se rompa.
+
+**Acciones ejecutadas:**
+- Ajustado `--radius` en `/app/frontend/src/index.css`: `0.25rem → 0.85rem`.
+- Tokens UI: `--shadow-sm/md/lg`, `--ease-soft`.
+- Utilidades: `.hover-lift`, `.card-soft`, `.press`, `.reveal-fade`, `.reveal-scale`.
+- `prefers-reduced-motion`.
+
+---
+
+### Fase 2 — Desarrollo V1 (UI Modernization completa) — **COMPLETADO**
+**Cambios principales aplicados:**
+- Botones pill, inputs redondeados y focus ring consistente.
+- `ProductCard`, `Navbar`, `SearchBar`, `Blog` y `BlogPost` modernizados.
+
+**Checkpoint:** Home / Tienda / Blog / Post Blog: OK.
+
+---
+
+### Fase 3 — Blogs (12 posts en `blogPosts.js`) — **COMPLETADO**
+- 12 entradas completas con `cover: "/blog/*.webp"`, `sources` (FAO/EFSA/USDA/NIH/Harvard/BEDCA), disclaimer y `related_query` exacto.
+- `BlogPost.jsx` renderiza bloque “Fuentes” y productos relacionados.
+
+---
+
+### Fase 4 — Testing end‑to‑end (Phase G) — **COMPLETADO**
+- `testing_agent_v3` (backend + frontend) → **98.5% PASS**.
+- Incidencia menor preexistente: un producto sin campos opcionales `badges/web_rating/web_reviews` (LOW).
+
+---
+
+### Fase 5 — Catálogo + Precios + IVA (Excel‑driven) — **COMPLETADO (P0)**
+
+#### 5.1 Fuente de datos (confirmado)
+- **Excel PRO** = master: contiene `FAMILIA`, `Código (SKU)`, `Descripción`, `Formato`, `IVA`, `Origen*`, **precio profesional sin IVA**, EAN.
+- **Excel WEB**: contiene `Código (SKU)`, `Descripción`, `Formato`, `Grupo (Retail/Granel)`, **PVP sin IVA**, EAN, **peso en kg**.
+- Cobertura real tras análisis:
+  - PRO: **388 SKUs**
+  - WEB: **390 SKUs**
+  - Intersección: **388**
+  - WEB‑only: **AMG100**, **SGR100** (importados como retail-only).
+- Agrupación por producto base: **174 productos base** (agrupando SKUs por prefijo; heurística: “quitar dígitos finales”).
+
+#### 5.2 Reglas de catálogo (confirmadas e implementadas)
+- Productos no presentes en Excel → **eliminados de tienda y dashboard** mediante archivado reversible.
+- Productos presentes en Excel y no presentes en BD → **creados**.
+- Productos presentes en ambos → **sincronizados**:
+  - Nombre limpio (sin ruido de formato/pack), categoría (FAMILIA), origen.
+  - Formatos/variaciones, EAN.
+  - Precios B2C/B2B **sin IVA** + metadato `vat_rate`.
+  - Peso por variación (`weight_kg`) + `is_bulk`.
+
+#### 5.3 Entregables técnicos (implementados)
+- Importador idempotente:
+  - Ruta: `/app/backend/scripts/import_catalog.py`
+  - Modo por defecto: **dry-run**; `--commit` aplica.
+  - Agrupación: 390 SKUs → **174 productos**.
+- Archivado reversible:
+  - Colección: `products_archive`.
+  - Resultado inicial: **42** productos legacy archivados (verificados como ausentes del Excel).
+
+#### 5.4 Cambios de modelo (implementados)
+- Producto:
+  - `vat_rate` (4/10/21 y **2%** para sésamo pelado según Excel/cliente)
+  - `origin_country`
+  - `seo` (estructura: `meta_title`, `meta_description`, `keywords`, `geo_region`)
+- Variación:
+  - `weight_kg`, `is_bulk`
+  - `ean`
+  - `available_retail`, `available_professional`
+
+#### 5.5 Motor de precios / IVA (implementado)
+- Backend (`/app/backend/routes/products.py`): `_decorate` devuelve:
+  - `display_price` y `display_price_ex_vat` en producto y variaciones.
+  - B2C: `display_price` **con IVA incluido**.
+  - B2B (professional/admin): `display_price` **sin IVA**.
+  - `price_includes_vat` para UI.
+- Frontend:
+  - `price.js` consume `display_price`.
+  - `CartContext` guarda: `unit_price`, `unit_price_ex_vat`, `vat_rate`, `weight_kg`.
+  - Exposición de totales: `subtotal`, `subtotalExVat`, `subtotalWithVat`, `vatAmount`, `totalWeightKg`, `hasBulk`.
+  - Ficha de producto (`ProductDetail.jsx`) muestra nota: **IVA incluido** (B2C) / **Precio sin IVA** (B2B).
+
+#### 5.6 Datos/estado actual (post‑fase)
+- Catálogo en BD: **174 productos activos / 390 formatos**.
+- IVA sésamo:
+  - Sésamo crudo y negro: 4%
+  - **Sésamo pelado: 2%** (confirmado por cliente y reflejado desde Excel)
+- Imágenes:
+  - ~29 productos nuevos carecen de imagen (se resuelve en Fase 9).
+
+#### 5.7 Bug crítico detectado y resuelto (stock)
+- Problema: el importador dejaba `stock=0` en productos/variaciones → el frontend deshabilitaba “Añadir al carrito”.
+- Solución: stock por defecto **999** en producto y variaciones en el importador; re‑aplicado.
+- Estado: **COMPLETADO**.
+
+---
+
+### Fase 6 — Motor de Envíos (zonas + reglas + escala por peso) — **COMPLETADO (P0)**
+
+#### 6.1 Reglas B2C (implementadas)
+- ES + PT peninsular + Baleares: ≥ 50€ (**con IVA**) → gratis; si no → 4,99€.
+- Francia: ≥ 70€ (**con IVA**) → gratis; si no → 10€.
+- Ceuta/Melilla/Canarias: envío bloqueado.
+- Otros países (B2C): bloqueado.
+
+#### 6.2 Reglas B2B (implementadas)
+- ES + PT peninsular + Baleares:
+  - Gratis si **base sin IVA > 150€** y el carrito contiene **solo formatos ≤ 1 kg**.
+  - Si existe **cualquier ítem > 1 kg** → siempre coste por escala de peso.
+  - Si base sin IVA ≤ 150€ → escala por peso.
+  - Ítems < 1 kg: aplican al primer tramo (4€).
+  - Límite superior > 100 kg → presupuesto manual.
+- Canarias y resto de Europa: coste pendiente (presupuesto manual).
+
+#### 6.3 Detección de zona (implementada)
+- País + prefijo postal:
+  - 07 Baleares
+  - 35/38 Canarias
+  - 51 Ceuta
+  - 52 Melilla
+
+#### 6.4 Estructura JSON en BD (implementada)
+- Colección: `shipping_config` (documento versionado).
+- Seed automático en primera llamada.
+
+#### 6.5 Implementación (realizada)
+- Motor en `/app/backend/core/shipping.py`:
+  - `DEFAULT_SHIPPING_CONFIG`
+  - `detect_zone` (por país + prefijo postal)
+  - `evaluate_shipping` (flat/free/blocked/manual/escala por peso)
+- Endpoint actualizado:
+  - `POST /api/orders/shipping-quote` → usa motor y campos: `country`, `postal_code`, `subtotal_with_vat`, `subtotal_ex_vat`, `total_weight_kg`, `has_bulk`.
+- Endpoints config:
+  - `GET /api/orders/shipping-config` (público)
+  - `PUT /api/orders/shipping-config` (admin)
+- Pedido (`POST /api/orders`):
+  - Recalcula server-side: `subtotal_ex_vat`, `vat_amount`, `subtotal_with_vat`, `total_weight_kg`, `has_bulk`.
+  - Bloquea zonas restringidas (HTTP 400).
+  - Persiste: `shipping_cost`, `shipping_status`, `shipping_zone`, `total_weight_kg`.
+- Frontend Checkout:
+  - Envía los datos al motor.
+  - Muestra: desglose IVA, estados de envío (gratis/fijo/tramo/bloqueado/manual), y deshabilita el botón si está bloqueado.
+
+#### 6.6 Validación
+- Testing `iteration_6`: Backend **15/15 = 100%**, frontend verificado (IVA y checkout).
+- Captura E2E confirmada: subtotal IVA incl., envío 4,99€, restante para envío gratis.
+
+---
+
+### Fase 7 — Métodos de Pago (por rol) — **COMPLETADO (P1)**
+
+#### 7.1 Reglas (implementadas)
+- Prohibición global: **sin contrareembolso**.
+- **B2C (particulares):** Tarjeta (Stripe) / PayPal / Transferencia bancaria.
+- **B2B (profesionales):** Tarjeta (Stripe) / PayPal / Transferencia bancaria / **Otro (domiciliación / confirming)**.
+- **Restricción por entrega:** si `delivery_method = pickup` → solo **Stripe/PayPal**.
+
+#### 7.2 Backend (implementado)
+- `PaymentMethod` extendido: incluye `"other"`.
+- Validación server-side en `POST /api/orders` según rol + entrega.
+- Stripe/PayPal siguen usando variables de entorno (sin hardcode):
+  - `STRIPE_API_KEY`
+  - `PAYPAL_CLIENT_ID`, `PAYPAL_SECRET`
+
+#### 7.3 Frontend (implementado)
+- Checkout:
+  - Transferencia disponible para **B2C y B2B** (solo envío a domicilio).
+  - Método **Other** visible solo para profesionales y solo con envío.
+  - Al seleccionar recogida se resetean `transfer/other` → `stripe`.
+- Flujo offline:
+  - `transfer` y `other` redirigen a `/pago/success?offline=1&method={transfer|other}`.
+  - `PaymentSuccess` muestra mensaje específico para `other`.
+
+#### 7.4 Pendiente de completar cuando el cliente entregue credenciales/datos
+- Stripe: API keys (live/test según entorno).
+- PayPal: client id/secret.
+- Transferencia: IBAN, beneficiario, banco, concepto y plantilla de email.
+- Operativa “Other”: flujo de aprobación/admin, textos legales y comunicación.
+
+---
+
+### Fase 8 — SEO + GEO (multi‑idioma) — **EN PROGRESO (P1)**
+
+#### 8.1 Backend (COMPLETADO)
+- `translator.py`:
+  - Añadido `generate_product_seo(only_missing, batch_size)`.
+  - Estado `SEO_STATUS`.
+  - Prompt `_SEO_RULES` GEO-aware: incluye país de origen, marca EcoAndes, BIO, “a granel”, keywords localizadas.
+  - Persistencia:
+    - ES: `product.seo`
+    - Idiomas: `translations.{lang}.seo`
+- `products.py`:
+  - `_apply_lang` ahora superpone `seo` por idioma.
+  - Endpoints admin:
+    - `POST /api/products/seo/run?only_missing=true`
+    - `GET /api/products/seo/status`
+
+#### 8.2 Frontend (COMPLETADO)
+- Nuevo componente `/app/frontend/src/components/Seo.jsx` (sin dependencias):
+  - `<title>`
+  - meta description/keywords
+  - OpenGraph/Twitter
+  - canonical
+  - hreflang alternates (**7 idiomas + x-default**)
+  - JSON‑LD opcional
+- Integración:
+  - `ProductDetail.jsx`: JSON‑LD Product + Offer/AggregateOffer + `countryOfOrigin`.
+  - `Home.jsx`: JSON‑LD Organization.
+  - `Shop.jsx`: SEO base de tienda.
+
+#### 8.3 Estado actual de generación (EN CURSO)
+- Generación IA arrancada y corriendo en background.
+- Progreso observado (ejemplo): **ES 96/174** ya con `seo.meta_title` (y aumentando) y continuará para los 6 idiomas restantes.
+- Calidad validada en muestra: incluye origen (Perú/Colombia), “BIO”, “a granel” y keywords localizadas.
+- Fallback temporal (hasta que llegue el SEO IA por producto): algunos productos usan `short_description` heredado (p.ej. “Bulk - 7.18 Eur/kg”) como `meta_description`.
+
+#### 8.4 Pendiente (para cerrar la fase)
+- Esperar a que `SEO_STATUS.running=false` y `done=7/7`.
+- Revisión aleatoria de calidad (10–15 productos) en ES/EN/FR.
+- (Opcional) Endpoints/UX admin para editar manualmente `seo` por producto.
+
+---
+
+### Fase 9 — Migración P0 de Imágenes (tras SEO estable) — **PENDIENTE (P1)**
+**Contexto actual:**
+- Parte del catálogo aún usa imágenes externas (hotlink) y ~29 productos nuevos no tienen imagen.
+
+**Objetivo:**
+- Descargar imágenes externas → convertir a **WebP** + redimensionar → subir a object storage (`/api/files/...`) → actualizar `image_url`/`gallery`.
+
+**Caché:**
+- Subir cache de `/api/files/` a 1 año (`max-age=31536000, immutable`).
+
+**Salvaguarda:**
+- Guardar `legacy_image_url` para reversión.
+
+---
+
+## 3) Próximas Acciones (inmediatas)
+1. **Cerrar Fase 8 (SEO/GEO):** esperar fin de generación IA + spot-check + (opcional) editor admin.
+2. **Fase 9 (P1): migración de imágenes** (P0) una vez se congelen los productos finales.
+3. **Credenciales de pago (cuando el cliente las entregue):** completar configuración Stripe/PayPal + plantilla transferencia + operativa `other`.
+4. Testing E2E adicional tras SEO completo + migración de imágenes + credenciales.
+
+---
+
+## 4) Criterios de Éxito
+- **UI**: radios redondeados coherentes, hover/focus modernos, animaciones sutiles; sin degradación de rendimiento. **(Cumplido)**
+- **Blog**: 12 posts completos con imágenes WebP locales y fuentes; productos relacionados funcionan. **(Cumplido)**
+- **Catálogo**: BD coincide con Excel: **174 productos / 390 formatos**; archivado reversible de legacy; categorías y origen cargados; pesos por variación; stock operable. **(Cumplido)**
+- **IVA**: cálculo dinámico consistente y visualización B2C con IVA / B2B sin IVA; desglose en checkout y persistencia en pedido. **(Cumplido)**
+- **Envíos**: reglas por rol y zona + escala por peso correctas (incluye excepciones B2B y zonas restringidas) + bloqueo/quote manual. **(Cumplido)**
+- **Pagos**: métodos por rol, sin COD; validación backend + UI; credenciales desacopladas. **(Cumplido; credenciales pendientes)**
+- **SEO/GEO**: metadatos multi‑idioma generados y renderizados; canonical + hreflang + JSON‑LD correcto. **(En progreso; infraestructura OK, generación IA en curso)**
+- **Imágenes**: assets propios (WebP) + caché 1 año; no dependencia externa; productos nuevos con imagen. **(Pendiente)**
