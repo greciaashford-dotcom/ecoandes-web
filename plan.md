@@ -289,3 +289,16 @@
 - **Pagos**: métodos por rol, sin COD; validación backend + UI; credenciales desacopladas. **(Cumplido; credenciales pendientes)**
 - **SEO/GEO**: metadatos multi‑idioma generados y renderizados; canonical + hreflang + JSON‑LD correcto. **(En progreso; infraestructura OK, generación IA en curso)**
 - **Imágenes**: assets propios (WebP) + caché 1 año; no dependencia externa; productos nuevos con imagen. **(Pendiente)**
+
+---
+
+## 5) Clonación a nuevo entorno (2026-07) — COMPLETADO
+- Repo clonado desde GitHub a este entorno (código exacto, sin cambios funcionales).
+- `.env` backend reconstruido (MONGO_URL/DB_NAME preservados, JWT_SECRET, EMERGENT_LLM_KEY, STRIPE_API_KEY=sk_test_emergent; PayPal/Resend/Cloudinary vacíos por decisión del usuario).
+- Auto-reconciliación de catálogo OK al arrancar: 174 productos / 390 formatos desde Excel. Admin seed + hero (5 slides) + worker de traducciones/SEO en background.
+- Testing E2E (iteraciones 11-12): Backend 100% (83/83), Frontend 95%+.
+- Fixes aplicados durante la clonación:
+  1. `CategoryCarousel.jsx`: endpoint corregido `/categories` → `/products/categories` (labels traducidos del carrusel de categorías en Home).
+  2. `CookieBanner.jsx`: añadido botón X para cerrar el banner rápidamente (sesión actual, sin registrar consentimiento; RGPD intacto).
+- Flujo de compra verificado end-to-end: PDP → carrito → checkout (envío 4,99€ Madrid) → pago transferencia → pedido ECO-1 visible en admin.
+- Credenciales test: admin@ecoandes.com / Admin123!

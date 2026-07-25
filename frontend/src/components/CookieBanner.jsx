@@ -43,7 +43,15 @@ export default function CookieBanner() {
       className="fixed inset-x-0 bottom-0 z-[60] px-4 pb-4 sm:px-6 sm:pb-6 pointer-events-none"
       data-testid="cookie-banner"
     >
-      <div className="pointer-events-auto max-w-5xl mx-auto bg-white border border-bone-200 shadow-[0_-4px_30px_rgba(0,0,0,0.08)] rounded-sm overflow-hidden">
+      <div className="pointer-events-auto relative max-w-5xl mx-auto bg-white border border-bone-200 shadow-[0_-4px_30px_rgba(0,0,0,0.08)] rounded-sm overflow-hidden">
+        <button
+          onClick={() => setVisible(false)}
+          aria-label={t("nav.close")}
+          className="absolute top-2 right-2 p-1.5 text-ink-soft hover:text-ink transition-colors"
+          data-testid="cookie-dismiss"
+        >
+          <X size={16} />
+        </button>
         <div className="p-5 sm:p-6 grid grid-cols-1 md:grid-cols-[auto_1fr_auto] gap-4 items-start">
           <div className="hidden md:flex w-12 h-12 bg-sage-100 items-center justify-center rounded-sm shrink-0">
             <Cookie size={20} className="text-sage-700" />
