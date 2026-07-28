@@ -302,3 +302,15 @@
   2. `CookieBanner.jsx`: añadido botón X para cerrar el banner rápidamente (sesión actual, sin registrar consentimiento; RGPD intacto).
 - Flujo de compra verificado end-to-end: PDP → carrito → checkout (envío 4,99€ Madrid) → pago transferencia → pedido ECO-1 visible en admin.
 - Credenciales test: admin@ecoandes.com / Admin123!
+
+---
+
+## 6) Mejoras Dashboard + Credenciales (2026-07) — COMPLETADO
+- **Resend**: API key del cliente configurada y probada (email de confirmación enviado OK).
+- **Stripe**: claves test del cliente configuradas; sesión de checkout real + endpoint de estado OK (fix: estado consultado vía SDK oficial de Stripe por incompatibilidad pydantic del wrapper).
+- **Analítica propia (first-party)**: `routes/analytics.py` + `lib/tracking.js` — pageviews por ruta, clasificación de fuentes (orgánico/social/IA/referencia/directo/UTM), geolocalización por IP (headers CDN + ip-api con caché en `db.geoip`), colección `db.visits`.
+- **Dashboard admin renovado**: filtro global de fechas (presets + rango custom), 4 KPIs, gráfico de evolución, mapa mundial interactivo (d3-geo + world-atlas, tooltip por país), ranking de países con banderas, resumen de adquisición con % y medios, páginas más vistas, últimos pedidos con Origen.
+- **Pedidos estilo WooCommerce**: pestañas por estado con contadores, acciones en lote (cambio de estado masivo), filtros (fechas, canal de venta, cliente registrado, B2C/B2B), buscador, tabla con checkbox / #pedido+cliente+ojo (modal vista previa) / fecha / badge estado / total € / Origen (atribución first-touch guardada en `order.acquisition`).
+- **Productos**: columna SEO con puntos rojo/naranja/verde (score 0-100 sobre meta título, descripción, keywords, contenido e imagen) + tooltip con desglose.
+- **Archivos**: subida múltiple simultánea de imágenes y PDFs con progreso.
+- Testing E2E iteración 13: Backend 14/14 (100%), Frontend 100%.
