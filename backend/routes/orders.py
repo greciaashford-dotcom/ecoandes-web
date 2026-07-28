@@ -291,6 +291,23 @@ async def create_order(
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
+    # First-touch traffic attribution (connects orders with the analytics dashboard)
+    acq_raw = payload.acquisition or {}
+    from routes.analytics import classify_traffic
+
+    acq_source, acq_medium, acq_ref_host = classify_traffic(
+        acq_raw.get("referrer", "") or "",
+        acq_raw.get("utm_source") or None,
+        acq_raw.get("utm_medium") or None,
+    )
+    order_doc["acquisition"] = {
+        "source": acq_source,
+        "medium": acq_medium,
+        "referrer_host": acq_ref_host,
+        "utm_source": (acq_raw.get("utm_source") or "")[:100],
+        "utm_campaign": (acq_raw.get("utm_campaign") or "")[:150],
+        "landing_page": (acq_raw.get("landing_page") or "")[:300],
+    }
     await db.orders.insert_one(order_doc)
     order_doc.pop("_id", None)
     # Register coupon redemption (usage counter for admin panel)
@@ -330,15 +347,72 @@ async def my_orders(user: dict = Depends(get_current_user_optional)):
 async def admin_list_orders(
     status: Optional[str] = None,
     customer_type: Optional[str] = None,
+    search: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    source: Optional[str] = None,
+    registered: Optional[str] = None,
     limit: int = Query(200, le=1000),
 ):
+    import re as _re
+
     query: dict = {}
     if status:
         query["status"] = status
     if customer_type:
         query["customer_type"] = customer_type
+    if source:
+        query["acquisition.source"] = source
+    if registered == "1":
+        query["user_id"] = {"$ne": None}
+    elif registered == "0":
+        query["user_id"] = None
+    if date_from or date_to:
+        rng: dict = {}
+        if date_from:
+            rng["$gte"] = f"{date_from}T00:00:00"
+        if date_to:
+            rng["$lte"] = f"{date_to}T23:59:59.999999+00:00"
+        query["created_at"] = rng
+    if search:
+        rx = _re.compile(_re.escape(search.strip()), _re.IGNORECASE)
+        query["$or"] = [
+            {"order_number": rx},
+            {"email": rx},
+            {"shipping_address.full_name": rx},
+        ]
     orders = await db.orders.find(query, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(limit)
     return orders
+
+
+ORDER_STATUSES = ["Pendiente", "Pagado", "Enviado", "Completado", "Cancelado"]
+
+
+@router.get("/admin/status-counts", dependencies=[Depends(require_admin)])
+async def admin_status_counts():
+    """Counts per status for the WooCommerce-style quick filter tabs."""
+    counts = {"all": await db.orders.count_documents({})}
+    for s in ORDER_STATUSES:
+        counts[s] = await db.orders.count_documents({"status": s})
+    return counts
+
+
+class BulkStatusUpdate(BaseModel):
+    ids: List[str]
+    status: str
+
+
+@router.post("/admin/bulk-status", dependencies=[Depends(require_admin)])
+async def admin_bulk_status(payload: BulkStatusUpdate):
+    if payload.status not in ORDER_STATUSES:
+        raise HTTPException(status_code=400, detail="Estado no válido")
+    if not payload.ids:
+        raise HTTPException(status_code=400, detail="Sin pedidos seleccionados")
+    result = await db.orders.update_many(
+        {"id": {"$in": payload.ids}},
+        {"$set": {"status": payload.status, "updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    return {"updated": result.modified_count}
 
 
 @router.get("/admin/stats", dependencies=[Depends(require_admin)])

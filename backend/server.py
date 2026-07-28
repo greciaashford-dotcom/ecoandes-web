@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from core.auth import hash_password  # noqa: E402
 from core.config import ADMIN_EMAIL, ADMIN_PASSWORD, db  # noqa: E402
 from routes.admin import router as admin_router  # noqa: E402
+from routes.analytics import router as analytics_router  # noqa: E402
 from routes.auth import router as auth_router  # noqa: E402
 from routes.community import router as community_router  # noqa: E402
 from routes.files import router as files_router  # noqa: E402
@@ -59,6 +60,7 @@ app.include_router(community_router)
 app.include_router(whatsapp_router)
 app.include_router(coupons_router)
 app.include_router(refunds_router)
+app.include_router(analytics_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -101,6 +103,9 @@ async def _ensure_indexes():
     await db.payment_transactions.create_index("session_id")
     await db.reviews.create_index([("product_id", 1), ("user_id", 1)], unique=True)
     await db.reviews.create_index("product_id")
+    await db.visits.create_index("date")
+    await db.visits.create_index("session_id")
+    await db.geoip.create_index("ip", unique=True)
 
 
 async def _seed_products_if_empty():

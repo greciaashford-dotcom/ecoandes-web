@@ -4,6 +4,48 @@ import { toast } from "sonner";
 import { Save, Pencil, Search, Star, Trash2 } from "lucide-react";
 import ProductEditorModal from "./ProductEditorModal";
 
+// WooCommerce-style SEO score: green (alta) / orange (media) / red (baja).
+function seoScore(p) {
+  const seo = p.seo || {};
+  const checks = [];
+  let score = 0;
+  const t = (seo.meta_title || "").length;
+  if (t >= 30 && t <= 65) { score += 30; checks.push("Meta título óptimo"); }
+  else if (t > 0) { score += 15; checks.push("Meta título mejorable (30-65 caracteres)"); }
+  else checks.push("Falta meta título");
+  const d = (seo.meta_description || "").length;
+  if (d >= 80 && d <= 170) { score += 30; checks.push("Meta descripción óptima"); }
+  else if (d > 0) { score += 15; checks.push("Meta descripción mejorable (80-170 caracteres)"); }
+  else checks.push("Falta meta descripción");
+  const k = (seo.keywords || []).length;
+  if (k >= 3) { score += 20; checks.push(`${k} keywords`); }
+  else if (k > 0) { score += 10; checks.push("Pocas keywords (mínimo 3)"); }
+  else checks.push("Faltan keywords");
+  if (p.description || p.short_description) { score += 10; checks.push("Descripción presente"); }
+  else checks.push("Falta descripción");
+  if (p.image_url) { score += 10; checks.push("Imagen principal presente"); }
+  else checks.push("Falta imagen principal");
+  return { score, checks };
+}
+
+function SeoDot({ product }) {
+  const { score, checks } = seoScore(product);
+  const level = score >= 75 ? "alta" : score >= 45 ? "media" : "baja";
+  const color = level === "alta" ? "bg-green-500" : level === "media" ? "bg-orange-400" : "bg-red-500";
+  const label = level === "alta" ? "Alta" : level === "media" ? "Media" : "Baja";
+  return (
+    <span
+      className="inline-flex items-center gap-1.5"
+      title={`SEO ${label} (${score}/100)\n· ${checks.join("\n· ")}`}
+      data-testid={`seo-score-${product.sku}`}
+      data-seo-level={level}
+    >
+      <span className={`w-3 h-3 rounded-full ${color} ring-2 ring-offset-1 ring-transparent`} />
+      <span className="text-[11px] text-ink-soft">{score}</span>
+    </span>
+  );
+}
+
 export default function AdminProducts() {
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState("");
@@ -80,6 +122,7 @@ export default function AdminProducts() {
               <th className="p-3 pl-4">Producto</th>
               <th className="p-3">SKUs (por formato)</th>
               <th className="p-3">Categoría</th>
+              <th className="p-3">SEO</th>
               <th className="p-3">PVP</th>
               <th className="p-3">B2B</th>
               <th className="p-3 w-44">Stock</th>
@@ -89,7 +132,7 @@ export default function AdminProducts() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} className="p-8 text-center text-ink-soft">Cargando…</td></tr>
+              <tr><td colSpan={9} className="p-8 text-center text-ink-soft">Cargando…</td></tr>
             ) : products.map((p) => (
               <tr key={p.id} className="border-b border-bone-100 hover:bg-bone-50" data-testid={`product-row-${p.sku}`}>
                 <td className="p-3 pl-4">
@@ -108,6 +151,7 @@ export default function AdminProducts() {
                     : <span>{p.sku || "—"}</span>}
                 </td>
                 <td className="p-3 text-ink-soft text-xs">{p.category}</td>
+                <td className="p-3"><SeoDot product={p} /></td>
                 <td className="p-3">{formatEUR(p.price_retail)}</td>
                 <td className="p-3">{formatEUR(p.price_professional)}</td>
                 <td className="p-3">

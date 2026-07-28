@@ -73,15 +73,15 @@ export default function AdminFiles() {
           <h1 className="font-heading text-3xl font-light">Archivos y Medios</h1>
           <p className="text-ink-soft text-sm mt-2 max-w-2xl">
             Biblioteca de medios de la tienda: imágenes de productos, portada y fichas técnicas (PDF).
-            Sube archivos y copia su URL para usarla donde la necesites.
+            Puedes seleccionar y subir varios archivos a la vez; copia su URL para usarla donde la necesites.
           </p>
         </div>
         <div className="flex gap-3 items-center">
           <button onClick={load} className="btn-outline inline-flex items-center gap-2" data-testid="files-refresh">
             <RefreshCcw size={15} /> Actualizar
           </button>
-          <UploadButton kind="image" label="Subir imagen" testid="files-upload-image" onUploaded={() => load()} />
-          <UploadButton kind="pdf" label="Subir PDF" testid="files-upload-pdf" onUploaded={() => load()} />
+          <UploadButton kind="image" label="Subir imágenes" multiple testid="files-upload-image" onUploaded={() => load()} />
+          <UploadButton kind="pdf" label="Subir PDFs" multiple testid="files-upload-pdf" onUploaded={() => load()} />
         </div>
       </div>
 

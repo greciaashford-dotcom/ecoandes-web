@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Truck, Store, Tag, X, Sparkles } from "lucide-react";
 import { api, formatEUR } from "../lib/api";
+import { getAcquisition } from "../lib/tracking";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import { STORE } from "../data/storeInfo";
@@ -149,6 +150,7 @@ export default function Checkout() {
         payment_method: method,
         delivery_method: delivery,
         coupon_code: couponState.applied ? coupon.trim() : null,
+        acquisition: getAcquisition(),
       };
       const { data: order } = await api.post("/orders", payload);
 

@@ -226,6 +226,7 @@ class OrderCreate(BaseModel):
     notes: Optional[str] = None
     coupon_code: Optional[str] = None
     origin_url: Optional[str] = None
+    acquisition: Optional[dict] = None  # first-touch traffic attribution (referrer/utm)
 
 
 class Order(BaseModel):

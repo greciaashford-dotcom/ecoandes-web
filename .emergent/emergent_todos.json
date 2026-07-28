@@ -1,34 +1,42 @@
 [
   {
-    "content": "Phase 1: Copy repo files to /app (preserve protected .env vars)",
-    "status": "completed"
+    "content": "Configure Resend + Stripe keys in .env and test both integrations",
+    "status": "in_progress"
   },
   {
-    "content": "Phase 1: Configure backend .env (DB_NAME, JWT_SECRET, EMERGENT_LLM_KEY, test payment keys)",
-    "status": "completed"
+    "content": "Backend: visit tracking system (pageview endpoint, source classification, geo-IP country)",
+    "status": "pending"
   },
   {
-    "content": "Phase 1: Install backend + frontend dependencies",
-    "status": "completed"
+    "content": "Backend: analytics summary endpoints (date range, sources, countries)",
+    "status": "pending"
   },
   {
-    "content": "Phase 1: Restart services and verify auto catalog sync (174 products)",
-    "status": "completed"
+    "content": "Backend: orders admin improvements (status counts, search, bulk actions, origin field)",
+    "status": "pending"
   },
   {
-    "content": "Phase 2: Smoke test core flows (home, shop, PDP, cart, admin login)",
-    "status": "completed"
+    "content": "Frontend: tracking hook (pageview + first-touch source persisted, sent with orders)",
+    "status": "pending"
   },
   {
-    "content": "Phase 2: End-to-end testing with testing agent (all user stories)",
-    "status": "completed"
+    "content": "Frontend: Traffic analytics dashboard (date filter, interactive map, acquisition, countries chart)",
+    "status": "pending"
   },
   {
-    "content": "Phase 2: Fix any issues found in testing (CategoryCarousel endpoint + cookie banner dismiss)",
-    "status": "completed"
+    "content": "Frontend: WooCommerce-style orders Data Table (tabs, toolbar, badges, origin column)",
+    "status": "pending"
   },
   {
-    "content": "Phase 2: Verify full checkout flow end-to-end (order ECO-1 in admin)",
-    "status": "completed"
+    "content": "Frontend: SEO score dots in products list",
+    "status": "pending"
+  },
+  {
+    "content": "Frontend: multi-file upload in Archivos (PDFs + images)",
+    "status": "pending"
+  },
+  {
+    "content": "End-to-end testing with testing agent",
+    "status": "pending"
   }
 ]

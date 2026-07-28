@@ -13,6 +13,7 @@ import CookieBanner from "./components/CookieBanner";
 import WhatsappFab from "./components/WhatsappFab";
 import AnnouncementBar from "./components/AnnouncementBar";
 import ScrollToTop from "./components/ScrollToTop";
+import TrackPageviews from "./components/TrackPageviews";
 
 import Home from "./pages/Home";
 import Shop from "./pages/Shop";
@@ -86,6 +87,7 @@ export default function App() {
         <WishlistProvider>
         <BrowserRouter>
           <ScrollToTop />
+          <TrackPageviews />
           <Toaster position="bottom-right" richColors={false} closeButton theme="light" />
           <CookieBanner />
           <WhatsappFab />

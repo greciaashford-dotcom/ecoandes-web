@@ -141,9 +141,15 @@ async def _mark_paid_if_needed(order_id: str, session_id: str, background: Backg
 
 @router.get("/stripe/status/{session_id}")
 async def stripe_status(session_id: str, request: Request, background: BackgroundTasks):
-    stripe_checkout_obj = _build_stripe(request)
+    # Retrieve directly via the official Stripe SDK (the wrapper's pydantic model
+    # rejects StripeObject metadata under pydantic v2 strict dict validation).
+    import asyncio as _asyncio
+
+    import stripe as _stripe
+
+    _stripe.api_key = STRIPE_API_KEY
     try:
-        status = await stripe_checkout_obj.get_checkout_status(session_id)
+        session = await _asyncio.to_thread(_stripe.checkout.Session.retrieve, session_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al consultar Stripe: {e}")
 
@@ -152,14 +158,16 @@ async def stripe_status(session_id: str, request: Request, background: Backgroun
         raise HTTPException(status_code=404, detail="Sesión no encontrada")
     order_id = tx["order_id"]
 
-    if status.payment_status == "paid" or status.status == "complete":
+    payment_status = getattr(session, "payment_status", "") or ""
+    sess_status = getattr(session, "status", "") or ""
+    if payment_status == "paid" or sess_status == "complete":
         await _mark_paid_if_needed(order_id, session_id, background)
     order = await db.orders.find_one({"id": order_id}, {"_id": 0})
     return {
-        "payment_status": status.payment_status,
-        "status": status.status,
-        "amount_total": status.amount_total,
-        "currency": status.currency,
+        "payment_status": payment_status,
+        "status": sess_status,
+        "amount_total": getattr(session, "amount_total", 0),
+        "currency": getattr(session, "currency", "eur"),
         "order": order,
     }
 

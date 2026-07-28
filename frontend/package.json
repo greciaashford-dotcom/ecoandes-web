@@ -36,9 +36,11 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "cra-template": "1.2.0",
+    "d3-geo": "^3.1.1",
     "date-fns": "^4.1.0",
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.38.0",
+    "i18n-iso-countries": "^7.14.0",
     "i18next": "^26.3.0",
     "i18next-browser-languagedetector": "^8.2.1",
     "input-otp": "^1.4.2",
@@ -56,7 +58,9 @@
     "sonner": "^2.0.3",
     "tailwind-merge": "^3.2.0",
     "tailwindcss-animate": "^1.0.7",
+    "topojson-client": "^3.1.0",
     "vaul": "^1.1.2",
+    "world-atlas": "^2.0.2",
     "zod": "^3.24.4"
   },
   "scripts": {
