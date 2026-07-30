@@ -1,42 +1,30 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { api } from "../lib/api";
+import { api, resolveAsset } from "../lib/api";
 
-// Carrusel infinito de categorías: cada imagen enlaza a la tienda
-// filtrada por su categoría real de la base de datos (?cat=...).
-const CATEGORY_ITEMS = [
-  { title: "CEREALES EN GRANO", cat: "PSEUDOCEREALES Y CEREALES EN GRANO", img: "https://assets.zyrosite.com/w7wEiJrqV2hbSrVN/cereales-en-grano-nvN4HZZDlUud1P7E.png" },
-  { title: "SUPER ALIMENTOS", cat: "SUPERALIMENTOS EN POLVO U HOJA", img: "https://assets.zyrosite.com/w7wEiJrqV2hbSrVN/superalimentos-cuL4v4KFXGJdYA83.png" },
-  { title: "ARROCES", cat: "ARROCES", img: "https://assets.zyrosite.com/w7wEiJrqV2hbSrVN/arroces-c0rZdaWC9njktmzt.png" },
-  { title: "AZÚCARES Y ENDULZANTES", cat: "AZUCARES Y ENDULZANTES", img: "https://assets.zyrosite.com/w7wEiJrqV2hbSrVN/azucares-y-endulzantes-X3Y6m6GRLw4EKlMp.png" },
-  { title: "CACAO Y DERIVADOS", cat: "CACAO Y DERIVADOS", img: "https://assets.zyrosite.com/w7wEiJrqV2hbSrVN/cacao-y-derivados-kW3mfwsnGSMmBDZ9.png" },
-  { title: "COPOS", cat: "COPOS", img: "https://assets.zyrosite.com/w7wEiJrqV2hbSrVN/copos-Ha6zriYnCD5hsKyc.png" },
-  { title: "ESPECIAS", cat: "ESPECIAS Y CONDIMENTOS", img: "https://assets.zyrosite.com/w7wEiJrqV2hbSrVN/especias-UPhOHHOvtQnLOuMR.png" },
-  { title: "SEMILLAS", cat: "SEMILLAS", img: "https://assets.zyrosite.com/w7wEiJrqV2hbSrVN/semillas-wLokHer8QfRzl1L0.png" },
-  { title: "FRUTOS SECOS", cat: "FRUTOS SECOS", img: "https://assets.zyrosite.com/w7wEiJrqV2hbSrVN/frutos-secos-cvXFfd8j2BynRD0R.png" },
-  { title: "HARINAS", cat: "HARINAS", img: "https://assets.zyrosite.com/w7wEiJrqV2hbSrVN/harinas-PKEQ39X53eDRxXPh.png" },
-  { title: "HINCHADOS", cat: "HINCHADOS y MUESLIS", img: "https://assets.zyrosite.com/w7wEiJrqV2hbSrVN/hinchados-VzCmOzf0TBU5aAGU.png" },
-  { title: "LEGUMBRES", cat: "LEGUMBRES", img: "https://assets.zyrosite.com/w7wEiJrqV2hbSrVN/legunbres-HqdovJLrgEPM7t90.png" },
-  { title: "ALMIDONES Y ESPESANTES", cat: "ALMIDONES y ESPESANTES", img: "https://assets.zyrosite.com/w7wEiJrqV2hbSrVN/almidones-y-espezantes-Y5mIqThw5z9KDtqF.png" },
-  { title: "FRUTA DESHIDRATADA", cat: "FRUTA DESHIDRATADA", img: "https://assets.zyrosite.com/w7wEiJrqV2hbSrVN/fruta-deshidratada-pUTD6MmhXkp8iefs.png" },
-  { title: "TEXTURIZADOS Y PROTEÍNAS", cat: "PROTEÍNAS", img: "https://assets.zyrosite.com/w7wEiJrqV2hbSrVN/texturizados-y-proteinas-kLTsjYFc5z2c9RJv.png" },
-];
+// Carrusel infinito de categorías, editable desde el dashboard (/admin/carrusel).
+// Auto-scroll continuo + arrastrable con el ratón o el dedo: al soltar, el
+// movimiento automático se reanuda solo.
+
+const AUTO_SPEED = 32; // px por segundo
 
 function CategoryCard({ item, label, index }) {
   return (
     <Link
-      to={`/tienda?cat=${encodeURIComponent(item.cat)}`}
-      className="group w-[190px] sm:w-[220px] shrink-0 text-center"
+      to={item.cat ? `/tienda?cat=${encodeURIComponent(item.cat)}` : "/tienda"}
+      className="group w-[190px] sm:w-[220px] shrink-0 text-center select-none"
+      draggable={false}
       data-testid={`category-carousel-item-${index}`}
     >
       <div className="aspect-square rounded-full overflow-hidden bg-white border border-bone-200 group-hover:border-sage-400 group-hover:shadow-[0_10px_28px_rgba(45,51,47,0.10)] transition-all duration-300">
         <img
-          src={item.img}
+          src={resolveAsset(item.img)}
           alt={label}
           loading="lazy"
           decoding="async"
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
+          draggable={false}
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05] pointer-events-none"
         />
       </div>
       <div className="mt-3 text-[11.5px] uppercase tracking-[0.16em] text-ink group-hover:text-sage-700 transition-colors font-medium leading-snug px-1">
@@ -49,8 +37,25 @@ function CategoryCard({ item, label, index }) {
 export default function CategoryCarousel() {
   const { t, i18n } = useTranslation();
   const [labels, setLabels] = useState({});
+  const [items, setItems] = useState([]);
 
-  // Translate category titles using the store's category translations
+  const trackRef = useRef(null);
+  const offsetRef = useRef(0);
+  const halfRef = useRef(1);
+  const draggingRef = useRef(false);
+  const movedRef = useRef(0);
+  const dragStartX = useRef(0);
+  const dragStartOffset = useRef(0);
+
+  // Items editables desde el dashboard
+  useEffect(() => {
+    api
+      .get("/carousel-categories")
+      .then(({ data }) => setItems(data.items || []))
+      .catch(() => setItems([]));
+  }, []);
+
+  // Traducción de los títulos con las traducciones de categorías de la tienda
   useEffect(() => {
     const lng = (i18n.resolvedLanguage || "es").slice(0, 2);
     if (lng === "es") {
@@ -67,7 +72,71 @@ export default function CategoryCarousel() {
       .catch(() => setLabels({}));
   }, [i18n.resolvedLanguage]);
 
-  const doubled = [...CATEGORY_ITEMS, ...CATEGORY_ITEMS];
+  const doubled = useMemo(() => [...items, ...items], [items]);
+
+  // Medir la mitad del track (una vuelta completa) para el bucle infinito
+  useEffect(() => {
+    const measure = () => {
+      if (trackRef.current) halfRef.current = Math.max(1, trackRef.current.scrollWidth / 2);
+    };
+    measure();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
+    if (ro && trackRef.current) ro.observe(trackRef.current);
+    window.addEventListener("resize", measure);
+    return () => {
+      if (ro) ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [doubled.length]);
+
+  // Bucle de animación: auto-scroll continuo salvo mientras se arrastra
+  useEffect(() => {
+    if (doubled.length === 0) return undefined;
+    let raf;
+    let last = performance.now();
+    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    const tick = (now) => {
+      const dt = Math.min(0.1, (now - last) / 1000);
+      last = now;
+      if (!draggingRef.current && !reduced) {
+        offsetRef.current -= AUTO_SPEED * dt;
+      }
+      const half = halfRef.current;
+      if (offsetRef.current <= -half) offsetRef.current += half;
+      if (offsetRef.current > 0) offsetRef.current -= half;
+      if (trackRef.current) trackRef.current.style.transform = `translate3d(${offsetRef.current}px,0,0)`;
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [doubled.length]);
+
+  const onPointerDown = (e) => {
+    draggingRef.current = true;
+    movedRef.current = 0;
+    dragStartX.current = e.clientX;
+    dragStartOffset.current = offsetRef.current;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  };
+  const onPointerMove = (e) => {
+    if (!draggingRef.current) return;
+    const dx = e.clientX - dragStartX.current;
+    movedRef.current = Math.max(movedRef.current, Math.abs(dx));
+    offsetRef.current = dragStartOffset.current + dx;
+  };
+  const endDrag = () => {
+    // al soltar, el auto-scroll se reanuda solo (draggingRef vuelve a false)
+    draggingRef.current = false;
+  };
+  const onClickCapture = (e) => {
+    // si el usuario arrastró, no interpretar como click en la categoría
+    if (movedRef.current > 6) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
+
+  if (items.length === 0) return null;
 
   return (
     <section className="py-16 overflow-hidden" data-testid="category-carousel">
@@ -75,10 +144,20 @@ export default function CategoryCarousel() {
         <div className="overline mb-3">{t("categoryCarousel.overline")}</div>
         <h2 className="font-heading text-3xl md:text-4xl font-light">{t("categoryCarousel.title")}</h2>
       </div>
-      <div className="marquee-row" style={{ "--marquee-duration": "90s" }}>
-        <div className="marquee-track items-start">
+      <div
+        className="marquee-row cursor-grab active:cursor-grabbing"
+        style={{ touchAction: "pan-y" }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onPointerLeave={endDrag}
+        onClickCapture={onClickCapture}
+        data-testid="category-carousel-draggable"
+      >
+        <div ref={trackRef} className="flex gap-5 w-max px-2.5 items-start will-change-transform">
           {doubled.map((item, i) => (
-            <CategoryCard key={`${item.cat}-${i}`} item={item} label={labels[item.cat] || item.title} index={i} />
+            <CategoryCard key={`${item.id || item.cat}-${i}`} item={item} label={labels[item.cat] || item.title} index={i} />
           ))}
         </div>
       </div>

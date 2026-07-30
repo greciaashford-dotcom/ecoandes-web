@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import {
   Minus, Plus, ChevronRight, Heart, Scale, MessageCircle, Share2,
-  Check, Leaf, FileDown, AlertCircle,
+  Check, Leaf, FileDown, AlertCircle, Link as LinkIcon,
 } from "lucide-react";
 import { api, formatEUR, resolveAsset } from "../lib/api";
 import { getPriceRange, sortVariations, variationPrice } from "../lib/price";
@@ -13,7 +13,6 @@ import { useAuth } from "../context/AuthContext";
 import { useWishlist } from "../context/WishlistContext";
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "../components/ui/select";
 import ProductGallery from "../components/ProductGallery";
 import TrustBadges from "../components/TrustBadges";
 import ProductCarousel from "../components/ProductCarousel";
@@ -41,6 +40,7 @@ export default function ProductDetail() {
   const [related, setRelated] = useState([]);
   const [bestSellers, setBestSellers] = useState([]);
   const [allCategories, setAllCategories] = useState([]);
+  const [shareOpen, setShareOpen] = useState(false);
   const { addItem } = useCart();
   const { user } = useAuth();
   const { isWished, isCompared, toggleWishlist, toggleCompare } = useWishlist();
@@ -118,17 +118,26 @@ export default function ProductDetail() {
     addItem(product, selectedVariation, quantity, isPro);
   };
 
-  const handleShare = async () => {
-    const url = window.location.href;
+  const copyLink = async () => {
     try {
-      if (navigator.share) {
-        await navigator.share({ title: product.name, url });
-      } else {
-        await navigator.clipboard.writeText(url);
-        toast.success(t("product.shareCopied"));
-      }
-    } catch { /* cancelled */ }
+      await navigator.clipboard.writeText(window.location.href);
+      toast.success(t("product.shareCopied"));
+    } catch {
+      toast.error("No se pudo copiar el enlace");
+    }
+    setShareOpen(false);
   };
+
+  const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+  const shareText = `${product.name} · EcoAndes BIO`;
+  const shareLinks = [
+    { name: "WhatsApp", href: `https://wa.me/?text=${encodeURIComponent(`${shareText} ${shareUrl}`)}` },
+    { name: "Facebook", href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}` },
+    { name: "X (Twitter)", href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}` },
+    { name: "LinkedIn", href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}` },
+    { name: "Telegram", href: `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}` },
+    { name: "Pinterest", href: `https://pinterest.com/pin/create/button/?url=${encodeURIComponent(shareUrl)}&description=${encodeURIComponent(shareText)}` },
+  ];
 
   const askLink = `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(
     `Hola, tengo una pregunta sobre: ${product.name} (SKU ${product.sku})`
@@ -231,7 +240,7 @@ export default function ProductDetail() {
             </span>
             {range.min !== range.max && (
               <span className="text-sm text-ink-muted">
-                {t("product.priceRange")}: {formatEUR(range.min)} – {formatEUR(range.max)}
+                {t("product.priceRange")}: {formatEUR(range.min)} → {formatEUR(range.max)}
               </span>
             )}
             {isPro && currentPrice > 0 && (
@@ -251,25 +260,34 @@ export default function ProductDetail() {
             </Link>
           )}
 
-          {/* Variation selector */}
+          {/* Variation selector: one-click format pills */}
           {sortedVariations.length > 0 && (
             <div className="mt-6">
               <div className="overline mb-2">{t("product.format")}</div>
-              <Select
-                value={selectedVariation?.sku}
-                onValueChange={(sku) => setSelectedVariation(sortedVariations.find((v) => v.sku === sku))}
-              >
-                <SelectTrigger className="w-full bg-white" data-testid="product-variant-select">
-                  <SelectValue placeholder={t("product.format")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {sortedVariations.map((v) => (
-                    <SelectItem key={v.sku} value={v.sku} data-testid={`variant-option-${v.sku}`}>
-                      {v.name} — {formatEUR(variationPrice(v, isPro))}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex flex-wrap gap-2" data-testid="product-variant-pills">
+                {sortedVariations.map((v) => {
+                  const active = selectedVariation?.sku === v.sku;
+                  return (
+                    <button
+                      key={v.sku}
+                      type="button"
+                      onClick={() => setSelectedVariation(v)}
+                      data-testid={`variant-option-${v.sku}`}
+                      aria-pressed={active}
+                      className={`px-4 py-2.5 rounded-xl border text-sm transition-all ${
+                        active
+                          ? "border-sage-600 bg-sage-50 text-sage-800 font-semibold shadow-sm ring-1 ring-sage-500/40"
+                          : "border-bone-200 bg-white text-ink-soft hover:border-sage-400 hover:text-sage-700"
+                      }`}
+                    >
+                      <span className="block leading-tight">{v.name}</span>
+                      <span className={`block text-[11px] mt-0.5 ${active ? "text-sage-700" : "text-ink-muted"}`}>
+                        {formatEUR(variationPrice(v, isPro))}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
 
@@ -318,9 +336,38 @@ export default function ProductDetail() {
             <a href={askLink} target="_blank" rel="noopener noreferrer" className={secondaryBtn} data-testid="ask-about-product-button">
               <MessageCircle size={15} /> {t("product.ask")}
             </a>
-            <button onClick={handleShare} className={secondaryBtn} data-testid="share-button">
-              <Share2 size={15} /> {t("product.share")}
-            </button>
+            <div className="relative">
+              <button onClick={() => setShareOpen((s) => !s)} className={`${secondaryBtn} ${shareOpen ? "border-sage-600 text-sage-700" : ""}`} data-testid="share-button">
+                <Share2 size={15} /> {t("product.share")}
+              </button>
+              {shareOpen && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setShareOpen(false)} />
+                  <div className="absolute z-40 mt-2 left-0 bg-white border border-bone-200 rounded-xl shadow-lg p-2 w-52" data-testid="share-menu">
+                    {shareLinks.map((s) => (
+                      <a
+                        key={s.name}
+                        href={s.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setShareOpen(false)}
+                        className="block px-3 py-2 text-sm text-ink hover:bg-sage-50 hover:text-sage-700 rounded-md transition-colors"
+                        data-testid={`share-${s.name.split(" ")[0].toLowerCase()}`}
+                      >
+                        {s.name}
+                      </a>
+                    ))}
+                    <button
+                      onClick={copyLink}
+                      className="w-full text-left px-3 py-2 text-sm text-ink hover:bg-sage-50 hover:text-sage-700 rounded-md transition-colors border-t border-bone-100 mt-1 pt-2.5 flex items-center gap-2"
+                      data-testid="share-copy-link"
+                    >
+                      <LinkIcon size={13} /> {t("product.copyLink", "Copiar enlace")}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Metadata */}

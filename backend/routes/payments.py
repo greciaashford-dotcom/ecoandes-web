@@ -15,7 +15,7 @@ from core.config import (
     STRIPE_API_KEY,
     db,
 )
-from core.mailer import send_order_confirmation, send_pickup_notification
+from core.mailer import send_order_confirmation, send_pickup_notification, send_company_order_notice
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/payments", tags=["payments"])
@@ -134,6 +134,7 @@ async def _mark_paid_if_needed(order_id: str, session_id: str, background: Backg
     order = await db.orders.find_one({"id": order_id}, {"_id": 0})
     if order:
         background.add_task(send_order_confirmation, order)
+        background.add_task(send_company_order_notice, order)
         if order.get("delivery_method") == "pickup":
             background.add_task(send_pickup_notification, order)
     return order

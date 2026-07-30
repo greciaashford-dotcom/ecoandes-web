@@ -1,6 +1,6 @@
 import React from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Package, Users, ShoppingCart, FileSpreadsheet, LogOut, Leaf, ImageIcon, Mail, MessageCircle, FolderOpen, TicketPercent, RotateCcw } from "lucide-react";
+import { LayoutDashboard, Package, Users, ShoppingCart, FileSpreadsheet, LogOut, Leaf, ImageIcon, Mail, MessageCircle, FolderOpen, TicketPercent, RotateCcw, GalleryHorizontal, Sparkles, ScrollText } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
 export default function AdminLayout() {
@@ -44,6 +44,9 @@ export default function AdminLayout() {
             <NavLink to="/admin/whatsapp" className={linkCls} data-testid="admin-nav-whatsapp"><MessageCircle size={16} /> WhatsApp</NavLink>
             <NavLink to="/admin/productos" className={linkCls} data-testid="admin-nav-products"><Package size={16} /> Productos</NavLink>
             <NavLink to="/admin/portada" className={linkCls} data-testid="admin-nav-hero"><ImageIcon size={16} /> Portada</NavLink>
+            <NavLink to="/admin/carrusel" className={linkCls} data-testid="admin-nav-carousel"><GalleryHorizontal size={16} /> Carrusel categorías</NavLink>
+            <NavLink to="/admin/seo" className={linkCls} data-testid="admin-nav-seo"><Sparkles size={16} /> SEO (IA)</NavLink>
+            <NavLink to="/admin/legal" className={linkCls} data-testid="admin-nav-legal"><ScrollText size={16} /> Páginas legales</NavLink>
             <NavLink to="/admin/archivos" className={linkCls} data-testid="admin-nav-files"><FolderOpen size={16} /> Archivos</NavLink>
             <NavLink to="/admin/cupones" className={linkCls} data-testid="admin-nav-coupons"><TicketPercent size={16} /> Cupones</NavLink>
             <NavLink to="/admin/reembolsos" className={linkCls} data-testid="admin-nav-refunds"><RotateCcw size={16} /> Reembolsos</NavLink>

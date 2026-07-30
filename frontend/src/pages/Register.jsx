@@ -32,7 +32,7 @@ export default function Register() {
     phone: "",
   });
   const [loading, setLoading] = useState(false);
-  const [pendingPro, setPendingPro] = useState(false);
+  const [proResult, setProResult] = useState(null); // "manual" | "failed"
 
   const onChange = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -48,9 +48,16 @@ export default function Register() {
       }
       const u = await register(payload);
       if (form.role === "professional") {
-        // Professional accounts require manual admin approval.
-        setPendingPro(true);
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        if (u.verification === "auto" && u.approved) {
+          // NIF/CIF verificado automáticamente con BeeL (AEAT): cuenta activa
+          toast.success("¡Registro profesional completado!", {
+            description: "Hemos verificado tus datos fiscales automáticamente. Ya puedes iniciar sesión con precios profesionales.",
+          });
+          nav("/login");
+        } else {
+          setProResult(u.verification === "failed" ? "failed" : "manual");
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
       } else {
         toast.success(t("register.created"), { description: `${t("register.welcome")} ${u.first_name}` });
         nav("/");
@@ -62,7 +69,31 @@ export default function Register() {
     }
   };
 
-  if (pendingPro) {
+  if (proResult === "failed") {
+    return (
+      <div className="max-w-2xl mx-auto px-6 py-20 text-center" data-testid="register-pro-failed">
+        <div className="w-16 h-16 rounded-full bg-terracotta/15 text-terracotta flex items-center justify-center mx-auto mb-6">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16.5v.01"/></svg>
+        </div>
+        <h1 className="font-heading text-3xl font-light">Verificación no completada</h1>
+        <p className="mt-4 text-ink-soft leading-relaxed" data-testid="register-failed-message">
+          Su registro no se ha completado automáticamente por que sus datos no han podido ser
+          verificados, en caso seas Autónomo o puedas justificar la veracidad de tus datos
+          comunícate directamente con soporte al cliente para darte de alta de forma manual.
+        </p>
+        <p className="mt-3 text-ink-soft text-sm">
+          Escríbenos a <a href="mailto:info@productosecoandes.com" className="text-sage-600 hover:text-sage-700">info@productosecoandes.com</a> o
+          contáctanos por WhatsApp y te ayudaremos con el alta manual.
+        </p>
+        <div className="mt-8 flex gap-3 justify-center">
+          <button onClick={() => nav("/atencion-cliente")} className="btn-primary" data-testid="pro-failed-support">Soporte al cliente</button>
+          <button onClick={() => nav("/")} className="btn-outline" data-testid="pro-failed-home">Ir al inicio</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (proResult === "manual") {
     return (
       <div className="max-w-2xl mx-auto px-6 py-20 text-center" data-testid="register-pro-pending">
         <div className="w-16 h-16 rounded-full bg-sage-100 text-sage-700 flex items-center justify-center mx-auto mb-6">
@@ -117,8 +148,9 @@ export default function Register() {
         {form.role === "professional" && (
           <>
             <p className="md:col-span-2 text-xs text-ink-soft bg-sage-50 border border-sage-200 rounded-sm px-3 py-2" data-testid="register-pro-note">
-              Las cuentas profesionales requieren aprobación manual del equipo. Tras registrarte, tu
-              solicitud quedará en revisión (máx. 24 h) y recibirás un correo cuando se active.
+              Verificamos tu NIF/CIF automáticamente contra el censo de la AEAT. Si la verificación
+              es correcta, tu cuenta profesional se activa al instante; en caso contrario, quedará
+              en revisión manual (máx. 24 h) y te avisaremos por correo.
             </p>
             <input className="input-eco" placeholder={t("register.company")} required value={form.company} onChange={onChange("company")} data-testid="register-company" />
             <input className="input-eco" placeholder={t("register.taxId")} required value={form.tax_id} onChange={onChange("tax_id")} data-testid="register-tax-id" />

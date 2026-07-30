@@ -28,6 +28,7 @@ def _public(u: dict) -> dict:
         "business_type": u.get("business_type"),
         "phone": u.get("phone"),
         "approved": u.get("approved", True),
+        "verification": u.get("verification"),
         "created_at": u.get("created_at"),
     }
 
@@ -39,9 +40,26 @@ async def register(payload: UserRegister):
         raise HTTPException(status_code=400, detail="Este email ya está registrado")
     import uuid
 
-    # Professional (B2B) accounts require MANUAL admin approval before they get
-    # professional pricing/access. Retail accounts are auto-approved.
+    from core.beel import verify_professional_tax_id
+    from core.mailer import (
+        send_company_registration_notice,
+        send_professional_review,
+        send_registration_failed_verification,
+        send_registration_welcome,
+    )
+
     is_professional = payload.role == "professional"
+
+    # --- Verificación automática del NIF/CIF con BeeL (censo AEAT) ---
+    verification = "retail"
+    verified_company_name = None
+    if is_professional:
+        result = await verify_professional_tax_id(payload.tax_id or "")
+        verification = result["verification"]  # auto | manual | failed
+        verified_company_name = result.get("company_name")
+
+    approved = True if not is_professional else verification == "auto"
+
     doc = {
         "id": str(uuid.uuid4()),
         "email": payload.email.lower(),
@@ -53,15 +71,26 @@ async def register(payload: UserRegister):
         "tax_id": payload.tax_id,
         "business_type": payload.business_type,
         "phone": payload.phone,
-        "approved": not is_professional,  # professionals start pending review
+        "approved": approved,
+        "verification": verification if is_professional else None,
+        "verified_company_name": verified_company_name,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.users.insert_one(doc)
-    # Notify professional applicant that their request is under review (24h).
+
+    # --- Emails automáticos (cliente + empresa) en segundo plano ---
     if is_professional:
-        from core.mailer import send_professional_review
-        import asyncio as _asyncio
-        _asyncio.create_task(send_professional_review(doc))
+        if verification == "auto":
+            asyncio.create_task(send_registration_welcome(doc))
+        elif verification == "failed":
+            asyncio.create_task(send_registration_failed_verification(doc))
+        else:  # manual review (24 h)
+            asyncio.create_task(send_professional_review(doc))
+        asyncio.create_task(send_company_registration_notice(doc, verification))
+    else:
+        asyncio.create_task(send_registration_welcome(doc))
+        asyncio.create_task(send_company_registration_notice(doc, "retail"))
+
     return _public(doc)
 
 

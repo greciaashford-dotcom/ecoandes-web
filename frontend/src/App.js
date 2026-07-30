@@ -47,6 +47,9 @@ import AdminCustomers from "./pages/admin/AdminCustomers";
 import AdminProducts from "./pages/admin/AdminProducts";
 import AdminPriceImport from "./pages/admin/AdminPriceImport";
 import AdminHero from "./pages/admin/AdminHero";
+import AdminCarousel from "./pages/admin/AdminCarousel";
+import AdminSeo from "./pages/admin/AdminSeo";
+import AdminLegal from "./pages/admin/AdminLegal";
 import AdminBuyers from "./pages/admin/AdminBuyers";
 import AdminWhatsappLeads from "./pages/admin/AdminWhatsappLeads";
 import AdminFiles from "./pages/admin/AdminFiles";
@@ -125,6 +128,9 @@ export default function App() {
                 <Route path="whatsapp" element={<AdminWhatsappLeads />} />
                 <Route path="productos" element={<AdminProducts />} />
                 <Route path="portada" element={<AdminHero />} />
+                <Route path="carrusel" element={<AdminCarousel />} />
+                <Route path="seo" element={<AdminSeo />} />
+                <Route path="legal" element={<AdminLegal />} />
                 <Route path="archivos" element={<AdminFiles />} />
                 <Route path="cupones" element={<AdminCoupons />} />
                 <Route path="reembolsos" element={<AdminRefunds />} />

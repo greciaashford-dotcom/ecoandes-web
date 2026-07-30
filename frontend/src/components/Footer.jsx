@@ -37,7 +37,7 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-6 lg:px-12 py-16 sm:py-20 grid grid-cols-2 md:grid-cols-4 gap-10 sm:gap-12">
         <div className="col-span-2 md:col-span-2">
           <img
-            src="/logo-ecoandes.png"
+            src="/logo-ecoandes-white.png"
             alt="EcoAndes · Organic Ingredients"
             className="h-20 w-auto object-contain mb-6"
           />

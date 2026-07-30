@@ -114,9 +114,9 @@ export default function Shop() {
 
           {/* Right categories sidebar */}
           <aside className="hidden lg:block" data-testid="shop-categories-sidebar">
-            <div className="sticky top-24 border border-bone-200 rounded-md bg-white p-5">
+            <div className="sticky top-24 border border-bone-200 rounded-md bg-white p-5 flex flex-col max-h-[calc(100vh-8rem)]">
               <div className="overline mb-4">{t("shop.categoriesTitle", "Categorías")}</div>
-              <ul className="space-y-1">
+              <ul className="space-y-1 overflow-y-auto eco-scroll pr-1 flex-1 min-h-0">
                 {chips.map((c) => {
                   const active = (c.value || "") === (cat || "");
                   return (

@@ -16,6 +16,9 @@ from core.auth import hash_password  # noqa: E402
 from core.config import ADMIN_EMAIL, ADMIN_PASSWORD, db  # noqa: E402
 from routes.admin import router as admin_router  # noqa: E402
 from routes.analytics import router as analytics_router  # noqa: E402
+from routes.carousel import router as carousel_router, seed_carousel_if_empty  # noqa: E402
+from routes.legal import router as legal_router, seed_legal_if_empty  # noqa: E402
+from routes.seo import router as seo_router  # noqa: E402
 from routes.auth import router as auth_router  # noqa: E402
 from routes.community import router as community_router  # noqa: E402
 from routes.files import router as files_router  # noqa: E402
@@ -61,6 +64,9 @@ app.include_router(whatsapp_router)
 app.include_router(coupons_router)
 app.include_router(refunds_router)
 app.include_router(analytics_router)
+app.include_router(carousel_router)
+app.include_router(legal_router)
+app.include_router(seo_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -162,6 +168,9 @@ async def on_startup():
         logger.error("Object storage init failed: %s", e)
     # run seeding + translation generation in background so startup isn't blocked
     asyncio.create_task(_seed_and_translate())
+    # scheduler: reporte diario 08:00 Madrid + análisis SEO semanal
+    from core.scheduler import scheduler_loop
+    asyncio.create_task(scheduler_loop())
 
 
 async def _seed_and_translate():
@@ -175,6 +184,19 @@ async def _seed_and_translate():
         await seed_hero_if_empty()
     except Exception as e:  # noqa: BLE001
         logger.error("Hero seed failed: %s", e)
+    try:
+        await seed_carousel_if_empty()
+    except Exception as e:  # noqa: BLE001
+        logger.error("Carousel seed failed: %s", e)
+    try:
+        await seed_legal_if_empty()
+    except Exception as e:  # noqa: BLE001
+        logger.error("Legal pages seed failed: %s", e)
+    try:
+        from core.enrichment_seed import apply_enrichment_seed
+        await apply_enrichment_seed()
+    except Exception as e:  # noqa: BLE001
+        logger.error("Enrichment seed failed: %s", e)
     try:
         await seed_default_coupon()
     except Exception as e:  # noqa: BLE001

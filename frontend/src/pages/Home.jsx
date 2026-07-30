@@ -51,6 +51,9 @@ export default function Home() {
       />
       <HeroCarousel />
 
+      {/* Carrusel de categorías (editable desde el dashboard) */}
+      <CategoryCarousel />
+
       {/* Values strip */}
       <section className="max-w-7xl mx-auto px-6 lg:px-12 py-20 grid grid-cols-1 md:grid-cols-3 gap-10" data-testid="values-strip">
         {[
@@ -118,9 +121,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-
-      {/* Carrusel infinito de categorías */}
-      <CategoryCarousel />
 
       {/* B2B Banner */}
       {/* Reseñas de clientes: carrusel infinito */}

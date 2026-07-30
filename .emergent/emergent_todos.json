@@ -1,42 +1,30 @@
 [
   {
-    "content": "Configure Resend + Stripe keys in .env and test both integrations",
+    "content": "A: Fase A completa (color, logo, sidebar, pills, compartir)",
     "status": "completed"
   },
   {
-    "content": "Backend: visit tracking system (pageview endpoint, source classification, geo-IP country)",
+    "content": "B: Carrusel de categorías editable + arrastrable + tras hero",
     "status": "completed"
   },
   {
-    "content": "Backend: analytics summary endpoints (date range, sources, countries)",
+    "content": "C: BeeL NIF/CIF + emails automatizados + reporte diario",
     "status": "completed"
   },
   {
-    "content": "Backend: orders admin improvements (status counts, search, bulk actions, origin field)",
+    "content": "D: SEO IA + editor páginas legales",
     "status": "completed"
   },
   {
-    "content": "Frontend: tracking hook (pageview + first-touch source persisted, sent with orders)",
+    "content": "E: 154 productos enriquecidos desde PDFs + seed persistente en repo",
     "status": "completed"
   },
   {
-    "content": "Frontend: Traffic analytics dashboard (date filter, interactive map, acquisition, countries chart)",
-    "status": "completed"
+    "content": "F: Testing E2E completo",
+    "status": "in_progress"
   },
   {
-    "content": "Frontend: WooCommerce-style orders Data Table (tabs, toolbar, badges, origin column)",
-    "status": "completed"
-  },
-  {
-    "content": "Frontend: SEO score dots in products list",
-    "status": "completed"
-  },
-  {
-    "content": "Frontend: multi-file upload in Archivos (PDFs + images)",
-    "status": "completed"
-  },
-  {
-    "content": "End-to-end testing with testing agent",
-    "status": "completed"
+    "content": "F: Corregir bugs del testing",
+    "status": "pending"
   }
 ]

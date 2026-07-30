@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from core.auth import get_current_user_optional, require_admin
 from core.config import db
-from core.mailer import send_order_confirmation
+from core.mailer import send_company_order_notice, send_order_confirmation
 from core.models import (
     Order,
     OrderCreate,
@@ -319,6 +319,8 @@ async def create_order(
     await _register_buyer(order_doc, user)
     # Send confirmation email in background (non-blocking, even for B2B bank transfers)
     background.add_task(send_order_confirmation, order_doc)
+    # Aviso interno a la empresa: nuevo pedido recibido
+    background.add_task(send_company_order_notice, order_doc)
     return order_doc
 
 

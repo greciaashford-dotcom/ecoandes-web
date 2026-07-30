@@ -230,6 +230,12 @@ async def refund_order(order_id: str, payload: RefundIn):
     email_id = None
     if payload.notify:
         email_id = await send_refund_notification(order, refund_doc)
+    # Aviso interno a la empresa (siempre)
+    import asyncio as _asyncio
+
+    from core.mailer import send_company_refund_notice
+
+    _asyncio.create_task(send_company_refund_notice(order, refund_doc))
 
     return {
         "ok": True,

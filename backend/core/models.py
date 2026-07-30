@@ -49,6 +49,7 @@ class UserPublic(BaseModel):
     business_type: Optional[str] = None
     phone: Optional[str] = None
     approved: bool = True
+    verification: Optional[str] = None  # auto | manual | failed (alta profesional)
     created_at: str
 
 
