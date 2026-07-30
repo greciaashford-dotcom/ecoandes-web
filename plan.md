@@ -314,3 +314,20 @@
 - **Productos**: columna SEO con puntos rojo/naranja/verde (score 0-100 sobre meta título, descripción, keywords, contenido e imagen) + tooltip con desglose.
 - **Archivos**: subida múltiple simultánea de imágenes y PDFs con progreso.
 - Testing E2E iteración 13: Backend 14/14 (100%), Frontend 100%.
+
+---
+
+## 7) Lote de 12 mejoras (2026-07) — COMPLETADO
+1. Carrusel "Nuestras categorías" editable desde /admin/carrusel (añadir/eliminar/reordenar/ocultar/cambiar imagen y enlace) · sección movida justo tras el hero · arrastrable con reanudación del auto-scroll al soltar.
+2. Color principal cambiado #2C402E → #72A638 (sage-800 en tailwind).
+3. Logo blanco en el footer (/logo-ecoandes-white.png).
+4. Sidebar de categorías de la Tienda con scroll independiente (sticky + max-height + overflow).
+5. Validación NIF/CIF con API BeeL (core/beel.py): checksum oficial + censo AEAT → auto / manual (24h) / failed con el mensaje exacto pedido en /registro. Key en .env (BEEL_API_KEY).
+6. Emails automatizados (core/mailer.py + core/scheduler.py): registro (cliente+empresa con estado de verificación), pedidos (cliente+aviso interno), reembolsos (ambas partes), reporte diario de estadísticas a las 8:00 (Europe/Madrid) a info@productosecoandes.com e info@destacaenlinea.com. NOTA: entregas a clientes requieren verificar dominio en Resend.
+7. /admin/seo: análisis SEO con IA (Gemini) semanal automático + botón "Analizar ahora"; informes en db.seo_reports.
+8. /admin/legal: editor de Aviso Legal, Cookies, Privacidad y Condiciones (db.legal_pages); páginas públicas renderizadas desde la API.
+9. 154 productos enriquecidos desde las fichas técnicas PDF (scripts/enrich_from_pdfs.py): tech_sheet + tabla nutricional + bloques (ingredientes, origen, beneficios, uso, conservación, certificaciones) + descripciones; matching determinista + IA (154/159 PDFs, 3 duplicados y 2 sin producto en catálogo: Harina de Chía y Guaraná).
+10. Selector de formato en ficha de producto como botones pill de un click; rango de precios con flecha →.
+11. Enriquecimiento persistido en /app/backend/data/product_enrichment.json + seed automático al arrancar (core/enrichment_seed.py) → los datos viajan con el código a nuevos entornos.
+12. Botón compartir con menú (WhatsApp, Facebook, X, LinkedIn, Telegram, Pinterest, copiar enlace).
+- Testing E2E iteración 14: Backend 100% (20/20), Frontend 95%, sin bugs.

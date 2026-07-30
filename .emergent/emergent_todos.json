@@ -21,10 +21,10 @@
   },
   {
     "content": "F: Testing E2E completo",
-    "status": "in_progress"
+    "status": "completed"
   },
   {
-    "content": "F: Corregir bugs del testing",
-    "status": "pending"
+    "content": "F: Corregir bugs del testing (0 bugs)",
+    "status": "completed"
   }
 ]
