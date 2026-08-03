@@ -214,13 +214,19 @@ async def build():
             used_prior_ids.add(prior["id"])
             doc["id"] = prior["id"]
             doc["slug"] = prior.get("slug") or slugify(name)
+            # Migración SEO: si el producto fue renombrado al nombre legacy de la
+            # web antigua, el Excel NO debe revertirlo (name/slug quedan blindados).
+            if prior.get("legacy_name_applied"):
+                doc["name"] = prior["name"]
+                doc["legacy_name_applied"] = True
             doc["image_url"] = prior.get("image_url", "")
             doc["gallery"] = prior.get("gallery", []) or []
             doc["created_at"] = prior.get("created_at") or datetime.now(timezone.utc).isoformat()
             doc["featured"] = prior.get("featured", False)
             doc["best_seller"] = prior.get("best_seller", False)
             for keep in ("translations", "description", "short_description", "highlights",
-                         "description_blocks", "nutrition", "badges", "tech_sheet", "seo"):
+                         "description_blocks", "nutrition", "badges", "tech_sheet", "seo",
+                         "slug_aliases", "previous_name"):
                 if prior.get(keep):
                     doc[keep] = prior[keep]
             doc["_action"] = "update"

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import {
@@ -33,6 +33,7 @@ const CERTIFICATIONS = [
 export default function ProductDetail() {
   const { t, i18n } = useTranslation();
   const { slug } = useParams();
+  const navigate = useNavigate();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedVariation, setSelectedVariation] = useState(null);
@@ -53,6 +54,12 @@ export default function ProductDetail() {
       try {
         const { data } = await api.get(`/products/slug/${slug}`);
         if (!alive) return;
+        // Redirección SEO: si se entró por un slug antiguo (alias), reemplazar
+        // la URL por la canónica sin añadir entrada al historial.
+        if (data.redirected_from && data.slug && data.slug !== slug) {
+          navigate(`/producto/${data.slug}`, { replace: true });
+          return;
+        }
         setProduct(data);
         const sorted = sortVariations(data.variations || []);
         setSelectedVariation(sorted.length ? sorted[0] : null);

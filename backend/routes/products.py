@@ -191,6 +191,13 @@ async def get_by_slug(
 ):
     product = await db.products.find_one({"slug": slug, "active": True}, {"_id": 0})
     if not product:
+        # Migración SEO legacy: el slug antiguo vive en slug_aliases -> devolver
+        # el producto canónico marcando la redirección (el frontend hace replace).
+        product = await db.products.find_one({"slug_aliases": slug, "active": True}, {"_id": 0})
+        if product:
+            product["redirected_from"] = slug
+            product["canonical_slug"] = product.get("slug")
+    if not product:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return _decorate(product, user, lang)
 
@@ -312,3 +319,118 @@ async def seo_status():
 
     jobs = await content_jobs_status()
     return {**SEO_STATUS, "job": jobs}
+
+
+# ---------- SEO manual por producto e idioma (admin) ----------
+_ALL_LANGS = ["es"] + [c for c in TARGET_LANGS]
+
+
+@router.get("/{product_id}/seo", dependencies=[Depends(require_admin)])
+async def get_product_seo(product_id: str):
+    """SEO por idioma para el editor manual del admin (ES + 6 idiomas)."""
+    p = await db.products.find_one(
+        {"id": product_id},
+        {"_id": 0, "id": 1, "name": 1, "slug": 1, "seo": 1, "translations": 1},
+    )
+    if not p:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+    tr = p.get("translations") or {}
+    seo_by_lang = {"es": p.get("seo") or {}}
+    for code in TARGET_LANGS:
+        seo_by_lang[code] = (tr.get(code) or {}).get("seo") or {}
+    return {"id": p["id"], "name": p.get("name"), "slug": p.get("slug"),
+            "langs": _ALL_LANGS, "seo": seo_by_lang}
+
+
+@router.put("/{product_id}/seo", dependencies=[Depends(require_admin)])
+async def update_product_seo(product_id: str, payload: dict):
+    """Guarda el SEO editado manualmente para un idioma. Marca manual=true para
+    que la generación IA nunca lo sobrescriba."""
+    lang = (payload.get("lang") or "es").lower()
+    if lang != "es" and lang not in TARGET_LANGS:
+        raise HTTPException(status_code=400, detail="Idioma no soportado")
+    seo_in = payload.get("seo") or {}
+    kws = seo_in.get("keywords") or []
+    if isinstance(kws, str):
+        kws = [k.strip() for k in kws.split(",") if k.strip()]
+    seo_doc = {
+        "meta_title": (seo_in.get("meta_title") or "").strip(),
+        "meta_description": (seo_in.get("meta_description") or "").strip(),
+        "keywords": kws,
+        "geo_region": (seo_in.get("geo_region") or "").strip(),
+        "manual": True,
+    }
+    field = "seo" if lang == "es" else f"translations.{lang}.seo"
+    result = await db.products.update_one(
+        {"id": product_id},
+        {"$set": {field: seo_doc, "updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+    return {"ok": True, "lang": lang, "seo": seo_doc}
+
+
+# ---------- Migración SEO: aplicar nombres legacy (admin) ----------
+@router.post("/legacy-names/apply", dependencies=[Depends(require_admin)])
+async def apply_legacy_names(dry_run: bool = False):
+    """Aplica el mapeo aprobado (data/seo_name_mapping.json): renombra cada
+    producto al nombre EXACTO de la web antigua, regenera el slug desde ese
+    nombre y guarda el slug anterior en slug_aliases (redirección al canónico).
+    Idempotente: los ya aplicados se saltan."""
+    import json as _json
+    from pathlib import Path
+
+    fp = Path(__file__).resolve().parent.parent / "data" / "seo_name_mapping.json"
+    if not fp.exists():
+        raise HTTPException(status_code=404, detail="No existe data/seo_name_mapping.json")
+    data = _json.loads(fp.read_text(encoding="utf-8"))
+    mapping = data.get("mapping") or {}
+    slug_hints = data.get("slugs") or {}
+    now = datetime.now(timezone.utc).isoformat()
+    applied = skipped = 0
+    not_found: list = []
+    changes: list = []
+    for cur_name, legacy in mapping.items():
+        ors = [{"name": cur_name}, {"name": legacy}]
+        hint = slug_hints.get(cur_name)
+        if hint:
+            ors += [{"slug": hint}, {"slug_aliases": hint}]
+        p = await db.products.find_one({"$or": ors}, {"_id": 0})
+        if not p:
+            not_found.append(cur_name)
+            continue
+        new_slug = slugify(legacy)
+        clash = await db.products.find_one(
+            {"slug": new_slug, "id": {"$ne": p["id"]}}, {"_id": 0, "id": 1}
+        )
+        if clash:
+            new_slug = f"{new_slug}-{(p.get('sku') or p['id'][:5]).lower()}"
+        if p.get("name") == legacy and p.get("slug") == new_slug:
+            skipped += 1
+            continue
+        aliases = set(p.get("slug_aliases") or [])
+        if p.get("slug") and p["slug"] != new_slug:
+            aliases.add(p["slug"])
+        aliases.discard(new_slug)
+        changes.append({
+            "before": {"name": p.get("name"), "slug": p.get("slug")},
+            "after": {"name": legacy, "slug": new_slug},
+        })
+        if not dry_run:
+            await db.products.update_one({"id": p["id"]}, {"$set": {
+                "name": legacy,
+                "slug": new_slug,
+                "slug_aliases": sorted(aliases),
+                "legacy_name_applied": True,
+                "previous_name": p.get("previous_name") or p.get("name"),
+                "updated_at": now,
+            }})
+        applied += 1
+    return {
+        "dry_run": dry_run,
+        "applied": applied,
+        "skipped_already_applied": skipped,
+        "not_found": not_found,
+        "sin_equivalente": data.get("sin_equivalente", []),
+        "changes": changes,
+    }

@@ -1,4 +1,4 @@
-# EcoAndes BIO — Plan de Continuación (UI → Blogs → Testing → Catálogo/Precios/IVA → Envíos → Pagos → SEO/GEO → Imágenes)
+# EcoAndes BIO — Plan de Continuación (UI → Blogs → Testing → Catálogo/Precios/IVA → Envíos → Pagos → SEO/GEO → Imágenes → **SEO Manual + Nombres Legacy + Redirecciones**)
 
 ## 1) Objetivos
 
@@ -22,6 +22,12 @@
   - **Estado:** **EN PROGRESO** (infraestructura completada y verificada; generación IA corriendo en background).
 - **Fase 5 (P1): Migración P0 de imágenes** a almacenamiento propio (WebP + resize + caché 1 año) una vez estabilizado el catálogo.
   - **Estado:** **PENDIENTE**.
+- **Fase 6 (P0/P1): SEO Manual + Nombres Legacy + Redirecciones**
+  - Editor admin para **SEO manual por idioma (7 idiomas)**.
+  - Aplicación de **nombres legacy** (nombre visible + slug/URL) para conservar SEO histórico.
+  - Redirecciones de slugs antiguos → slugs nuevos.
+  - Blindaje para que la auto‑reconciliación Excel no revierta los cambios.
+  - **Estado:** **EN PROGRESO** (confirmado por usuario; pendiente de implementación).
 
 ---
 
@@ -248,12 +254,12 @@
 - Generación IA arrancada y corriendo en background.
 - Progreso observado (ejemplo): **ES 96/174** ya con `seo.meta_title` (y aumentando) y continuará para los 6 idiomas restantes.
 - Calidad validada en muestra: incluye origen (Perú/Colombia), “BIO”, “a granel” y keywords localizadas.
-- Fallback temporal (hasta que llegue el SEO IA por producto): algunos productos usan `short_description` heredado (p.ej. “Bulk - 7.18 Eur/kg”) como `meta_description`.
+- Fallback temporal (hasta que llegue el SEO IA por producto): algunos productos usan `short_description` heredado como `meta_description`.
 
 #### 8.4 Pendiente (para cerrar la fase)
 - Esperar a que `SEO_STATUS.running=false` y `done=7/7`.
 - Revisión aleatoria de calidad (10–15 productos) en ES/EN/FR.
-- (Opcional) Endpoints/UX admin para editar manualmente `seo` por producto.
+- (Antes era opcional) **Ahora requerido**: editor admin para SEO manual multi‑idioma (ver Fase 10).
 
 ---
 
@@ -272,12 +278,93 @@
 
 ---
 
+### Fase 10 — **SEO Manual (Admin) + Nombres Legacy + Redirecciones 301** — **EN PROGRESO (P0/P1)**
+
+#### 10.1 Editor SEO manual (Admin) — **P0**
+**Objetivo:** editar por producto y por idioma (7 tabs):
+- `meta_title`
+- `meta_description`
+- `keywords` (lista)
+- `geo_region`
+
+**Backend (a implementar):**
+- `GET /api/products/{id}/seo` (admin):
+  - Devuelve SEO ES y `translations.{lang}.seo` para `en, zh, fr, ja, it, pt`.
+  - Devuelve flags `manual: true/false` por idioma (y/o por bloque SEO).
+- `PUT /api/products/{id}/seo` (admin):
+  - Permite actualizar SEO por idioma.
+  - Guarda `manual=true` cuando el admin edita.
+- Blindaje IA:
+  - `generate_product_seo(...)` debe **respetar** `manual=true` y **no sobrescribir** ese idioma.
+  - Incluso con `force` (si se usa en el futuro), no debe pisar manual salvo operación explícita de “reset”.
+
+**Frontend (a implementar):**
+- Integrar en `ProductEditorModal.jsx` un nuevo tab “SEO” con:
+  - Sub‑tabs por idioma (ES, EN, ZH, FR, JA, IT, PT).
+  - Contadores de caracteres y recomendaciones.
+  - Botón “Guardar” que llama al `PUT /api/products/{id}/seo`.
+
+#### 10.2 Aplicar nombres legacy (nombre visible + slug) — **P0**
+**Regla confirmada por usuario:**
+- El **nombre visible** y el **slug/URL** pasan al **nombre legacy exacto**.
+
+**Fuente:**
+- `/app/backend/data/seo_name_mapping.json`
+  - `mapping` (162 pares actuales→legacy)
+  - `sin_equivalente` (3 legacy sin equivalente: Albahaca, Harina de Chía, Soja texturizada extra fina)
+
+**Backend (a implementar):**
+- `POST /api/products/legacy-names/apply` (admin)
+  - Soporta `dry_run=true|false`.
+  - Aplica sobre los **162** productos mapeados:
+    - `name = legacy_name`
+    - `slug = slugify(legacy_name)` (asegurando unicidad)
+    - `slug_aliases`: añade el slug anterior.
+    - Metadatos de auditoría: `legacy_name_applied=true`, `previous_name`, `previous_slug`, `legacy_name`.
+- Resolver slugs antiguos:
+  - Ampliar `GET /api/products/slug/{slug}` para:
+    - Buscar primero por `slug`.
+    - Si no existe, buscar por `slug_aliases`.
+    - Si viene por alias, devolver el producto canónico + `redirected_from: <slug_antiguo>` + `canonical_slug: <slug_nuevo>`.
+
+**Frontend (a implementar):**
+- `ProductDetail.jsx`:
+  - Si la API devuelve `redirected_from`, hacer `navigate(`/producto/${canonical_slug}`, { replace: true })`.
+  - Mantener `<Seo>` con canonical correcto (URL final tras replace).
+
+#### 10.3 Blindaje contra auto‑reconciliación Excel — **P0**
+**Problema a evitar:** `import_catalog.py` vuelve a poner `name` desde Excel y puede revertir nombres legacy.
+
+**Solución (a implementar):**
+- En `/app/backend/scripts/import_catalog.py`:
+  - Si `prior.legacy_name_applied == true`:
+    - Preservar `name` y `slug` actuales.
+    - Preservar `slug_aliases`, `previous_name`, `previous_slug`, `legacy_name`, `legacy_name_applied`.
+  - Seguir sincronizando:
+    - precios, IVA, variaciones, pesos, disponibilidad, etc.
+  - Preservar también `translations` y `seo` existentes (ya lo hace para `seo`/`translations` si existen).
+
+#### 10.4 Ejecución + verificación — **P1**
+- Ejecutar:
+  - `POST /api/products/legacy-names/apply?dry_run=true` (reporte)
+  - `POST /api/products/legacy-names/apply?dry_run=false` (aplicar)
+- Verificar con curl:
+  - Producto antes/después: slug antiguo retorna 200 con `redirected_from` y `canonical_slug`.
+  - Navegación SPA reemplaza URL.
+- Ejecutar `testing_agent_v3`:
+  - Acceso por slug antiguo y redirección.
+  - SEO head tags y canonical.
+  - Admin editor SEO (guardar y re‑leer).
+
+---
+
 ## 3) Próximas Acciones (inmediatas)
-1. **Cerrar Fase 8 (SEO/GEO):** esperar fin de generación IA + spot-check + (opcional) editor admin.
-2. **Fase 9 (P1): migración de imágenes** (P0) una vez se congelen los productos finales.
-3. **Credenciales de pago (cuando el cliente las entregue):** completar configuración Stripe/PayPal + plantilla transferencia + operativa `other`.
-4. **Testing E2E adicional** tras SEO completo + migración de imágenes + credenciales.
-5. **Validación de portabilidad de binarios en entorno nuevo:** confirmar que los ficheros (object storage) referenciados por la BD se resuelven correctamente tras migración/restauración (ver fase de snapshot más abajo).
+1. **Implementar Fase 10.1**: endpoints SEO manual + UI admin (7 idiomas con pestañas) + flag `manual`.
+2. **Implementar Fase 10.2**: aplicar nombres legacy con `dry_run` + persistencia de `slug_aliases` + resolución de slugs antiguos.
+3. **Implementar Fase 10.3**: blindaje del importador Excel para no revertir `name/slug` legacy.
+4. **Aplicar mapeo legacy** (162 productos) y verificar en frontend.
+5. **Testing E2E** completo del cambio (incluye redirección y SEO manual).
+6. Retomar Fase 9 (imágenes) cuando el catálogo y SEO queden estables.
 
 ---
 
@@ -288,7 +375,9 @@
 - **IVA**: cálculo dinámico consistente y visualización B2C con IVA / B2B sin IVA; desglose en checkout y persistencia en pedido. **(Cumplido)**
 - **Envíos**: reglas por rol y zona + escala por peso correctas (incluye excepciones B2B y zonas restringidas) + bloqueo/quote manual. **(Cumplido)**
 - **Pagos**: métodos por rol, sin COD; validación backend + UI; credenciales desacopladas. **(Cumplido; credenciales pendientes)**
-- **SEO/GEO**: metadatos multi‑idioma generados y renderizados; canonical + hreflang + JSON‑LD correcto. **(En progreso; infraestructura OK, generación IA en curso)**
+- **SEO/GEO**: metadatos multi‑idioma generados y renderizados; canonical + hreflang + JSON‑LD correcto. **(En progreso)**
+- **SEO Manual (nuevo):** admin puede editar SEO en 7 idiomas; `manual=true` evita sobrescritura por IA. **(Pendiente)**
+- **Legacy names + redirect (nuevo):** nombre + slug actualizados a legacy; slugs antiguos resuelven y redirigen a canónico en SPA; canonical correcto. **(Pendiente)**
 - **Imágenes**: assets propios (WebP) + caché 1 año; no dependencia externa; productos nuevos con imagen. **(Pendiente)**
 - **Portabilidad**: semillas/snapshots restauran contenido de UI/Legal/Archivos en entornos nuevos; binarios de storage verificados. **(Parcial: snapshot OK, binarios por validar)**
 
@@ -369,3 +458,24 @@
   - Sin bugs críticos; sin action items.
 
 ---
+
+## 9) Lote 8 — **Editor SEO Manual + Aplicar Nombres Legacy + Redirecciones** — **EN PROGRESO (2026-08)**
+
+### 9.1 Alcance confirmado por usuario
+- Al aplicar legacy:
+  - **Nombre visible + slug/URL** pasan al **nombre legacy exacto**.
+- Redirecciones:
+  - No hay listado de URLs antiguas; se generarán **slugs nuevos** desde nombres legacy y se redirigirá **slug actual → slug nuevo**.
+- Editor SEO:
+  - Editable en **los 7 idiomas** con pestañas.
+
+### 9.2 Entregables
+- Admin: editor SEO multi‑idioma (7 tabs) con guardado persistente.
+- Backend: aplicar nombres legacy (162 productos), mantener `slug_aliases`, resolver alias.
+- Frontend: redirección SPA `replace` cuando se entra por slug antiguo; canonical consistente.
+- Blindaje importador Excel para preservar renombres legacy.
+
+### 9.3 Estado
+- Diseño y reglas: **confirmadas**.
+- Implementación: **pendiente**.
+- Testing: **pendiente**.

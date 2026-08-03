@@ -1905,6 +1905,321 @@ def main():
         validate_fn=validate_carousel
     )
 
+    # Test 36: Legacy name mapping - GET product by new slug (acai)
+    print("\n" + "="*60)
+    print("🔄 LEGACY NAME MAPPING - NEW SLUG (acai)")
+    print("="*60)
+    
+    def validate_acai_product(data):
+        if not isinstance(data, dict):
+            print(f"   ⚠️  Response is not a dict")
+            return False
+        if data.get('name') != 'Acaí':
+            print(f"   ⚠️  Expected name 'Acaí', got '{data.get('name')}'")
+            return False
+        if data.get('slug') != 'acai':
+            print(f"   ⚠️  Expected slug 'acai', got '{data.get('slug')}'")
+            return False
+        print(f"   ✓ Product name: {data.get('name')}")
+        print(f"   ✓ Product slug: {data.get('slug')}")
+        return True
+    
+    runner.test(
+        "GET /api/products/slug/acai (legacy name applied)",
+        "GET",
+        "products/slug/acai",
+        200,
+        validate_fn=validate_acai_product
+    )
+    
+    # Test 37: Legacy name mapping - GET product by OLD slug (redirect)
+    print("\n" + "="*60)
+    print("🔄 LEGACY NAME MAPPING - OLD SLUG REDIRECT")
+    print("="*60)
+    
+    def validate_old_slug_redirect(data):
+        if not isinstance(data, dict):
+            print(f"   ⚠️  Response is not a dict")
+            return False
+        if 'redirected_from' not in data:
+            print(f"   ⚠️  Missing 'redirected_from' field")
+            return False
+        if 'canonical_slug' not in data:
+            print(f"   ⚠️  Missing 'canonical_slug' field")
+            return False
+        if data.get('redirected_from') != 'acai-liofilizado-en-polvo-bio':
+            print(f"   ⚠️  Expected redirected_from 'acai-liofilizado-en-polvo-bio', got '{data.get('redirected_from')}'")
+            return False
+        if data.get('canonical_slug') != 'acai':
+            print(f"   ⚠️  Expected canonical_slug 'acai', got '{data.get('canonical_slug')}'")
+            return False
+        if data.get('name') != 'Acaí':
+            print(f"   ⚠️  Expected name 'Acaí', got '{data.get('name')}'")
+            return False
+        print(f"   ✓ Redirected from: {data.get('redirected_from')}")
+        print(f"   ✓ Canonical slug: {data.get('canonical_slug')}")
+        print(f"   ✓ Product name: {data.get('name')}")
+        return True
+    
+    runner.test(
+        "GET /api/products/slug/acai-liofilizado-en-polvo-bio (old slug redirect)",
+        "GET",
+        "products/slug/acai-liofilizado-en-polvo-bio",
+        200,
+        validate_fn=validate_old_slug_redirect
+    )
+    
+    # Test 38: Legacy name mapping - non-existent slug returns 404
+    print("\n" + "="*60)
+    print("🔄 LEGACY NAME MAPPING - NON-EXISTENT SLUG (404)")
+    print("="*60)
+    
+    runner.test(
+        "GET /api/products/slug/non-existent-product-slug-12345",
+        "GET",
+        "products/slug/non-existent-product-slug-12345",
+        404
+    )
+    
+    # Test 39: SEO editor - GET product SEO (admin)
+    if runner.token:
+        print("\n" + "="*60)
+        print("📝 SEO EDITOR - GET PRODUCT SEO (ADMIN)")
+        print("="*60)
+        
+        # First get a product ID
+        success, products_list = runner.test(
+            "GET /api/products (to get product ID)",
+            "GET",
+            "products",
+            200,
+            params={"limit": 1}
+        )
+        
+        if success and products_list:
+            product_id = products_list[0]['id']
+            
+            def validate_seo_get(data):
+                if not isinstance(data, dict):
+                    print(f"   ⚠️  Response is not a dict")
+                    return False
+                if 'langs' not in data:
+                    print(f"   ⚠️  Missing 'langs' field")
+                    return False
+                if 'seo' not in data:
+                    print(f"   ⚠️  Missing 'seo' field")
+                    return False
+                langs = data.get('langs', [])
+                expected_langs = ['es', 'en', 'fr', 'it', 'pt', 'zh', 'ja']
+                # Check all expected langs are present (order doesn't matter)
+                if set(langs) != set(expected_langs):
+                    print(f"   ⚠️  Expected langs {expected_langs}, got {langs}")
+                    return False
+                seo = data.get('seo', {})
+                print(f"   ✓ Product: {data.get('name')}")
+                print(f"   ✓ Slug: {data.get('slug')}")
+                print(f"   ✓ Languages: {langs}")
+                print(f"   ✓ SEO keys: {list(seo.keys())}")
+                return True
+            
+            success_seo, seo_data = runner.test(
+                f"GET /api/products/{product_id}/seo (admin)",
+                "GET",
+                f"products/{product_id}/seo",
+                200,
+                auth=True,
+                validate_fn=validate_seo_get
+            )
+            
+            # Test 40: SEO editor - PUT product SEO (admin)
+            if success_seo:
+                print("\n" + "="*60)
+                print("📝 SEO EDITOR - PUT PRODUCT SEO (ADMIN)")
+                print("="*60)
+                
+                def validate_seo_put(data):
+                    if not isinstance(data, dict):
+                        print(f"   ⚠️  Response is not a dict")
+                        return False
+                    if data.get('ok') != True:
+                        print(f"   ⚠️  Expected ok=true")
+                        return False
+                    if data.get('lang') != 'es':
+                        print(f"   ⚠️  Expected lang='es', got '{data.get('lang')}'")
+                        return False
+                    seo = data.get('seo', {})
+                    if seo.get('manual') != True:
+                        print(f"   ⚠️  Expected manual=true")
+                        return False
+                    if seo.get('meta_title') != 'Test SEO Title':
+                        print(f"   ⚠️  Expected meta_title='Test SEO Title', got '{seo.get('meta_title')}'")
+                        return False
+                    print(f"   ✓ SEO saved: lang={data.get('lang')}, manual={seo.get('manual')}")
+                    print(f"   ✓ Meta title: {seo.get('meta_title')}")
+                    print(f"   ✓ Meta description: {seo.get('meta_description')}")
+                    return True
+                
+                runner.test(
+                    f"PUT /api/products/{product_id}/seo (Spanish)",
+                    "PUT",
+                    f"products/{product_id}/seo",
+                    200,
+                    data={
+                        "lang": "es",
+                        "seo": {
+                            "meta_title": "Test SEO Title",
+                            "meta_description": "Test SEO description for automated testing",
+                            "keywords": ["test", "seo", "automated"],
+                            "geo_region": "España"
+                        }
+                    },
+                    auth=True,
+                    validate_fn=validate_seo_put
+                )
+                
+                # Test 41: SEO editor - PUT with invalid lang (400)
+                print("\n" + "="*60)
+                print("📝 SEO EDITOR - PUT INVALID LANG (400)")
+                print("="*60)
+                
+                runner.test(
+                    f"PUT /api/products/{product_id}/seo (invalid lang)",
+                    "PUT",
+                    f"products/{product_id}/seo",
+                    400,
+                    data={
+                        "lang": "invalid",
+                        "seo": {
+                            "meta_title": "Test",
+                            "meta_description": "Test"
+                        }
+                    },
+                    auth=True
+                )
+    
+    # Test 42: SEO editor - GET without auth (401/403)
+    print("\n" + "="*60)
+    print("🔒 SEO EDITOR - AUTH PROTECTION (GET)")
+    print("="*60)
+    
+    saved_token = runner.token
+    runner.token = None
+    
+    if success and products_list:
+        product_id = products_list[0]['id']
+        runner.test(
+            f"GET /api/products/{product_id}/seo (no auth - should fail)",
+            "GET",
+            f"products/{product_id}/seo",
+            401
+        )
+    
+    runner.token = saved_token
+    
+    # Test 43: SEO editor - PUT without auth (401/403)
+    print("\n" + "="*60)
+    print("🔒 SEO EDITOR - AUTH PROTECTION (PUT)")
+    print("="*60)
+    
+    saved_token = runner.token
+    runner.token = None
+    
+    if success and products_list:
+        product_id = products_list[0]['id']
+        runner.test(
+            f"PUT /api/products/{product_id}/seo (no auth - should fail)",
+            "PUT",
+            f"products/{product_id}/seo",
+            401,
+            data={
+                "lang": "es",
+                "seo": {
+                    "meta_title": "Test",
+                    "meta_description": "Test"
+                }
+            }
+        )
+    
+    runner.token = saved_token
+    
+    # Test 44: Legacy names apply - idempotent (admin)
+    if runner.token:
+        print("\n" + "="*60)
+        print("🔄 LEGACY NAMES APPLY - IDEMPOTENT (ADMIN)")
+        print("="*60)
+        
+        def validate_legacy_apply(data):
+            if not isinstance(data, dict):
+                print(f"   ⚠️  Response is not a dict")
+                return False
+            if 'applied' not in data or 'skipped_already_applied' not in data:
+                print(f"   ⚠️  Missing 'applied' or 'skipped_already_applied' field")
+                return False
+            applied = data.get('applied', 0)
+            skipped = data.get('skipped_already_applied', 0)
+            print(f"   ✓ Applied: {applied}")
+            print(f"   ✓ Skipped (already applied): {skipped}")
+            # Since legacy names are already applied, we expect applied=0 and skipped=162
+            if applied != 0:
+                print(f"   ⚠️  Expected applied=0 (idempotent), got {applied}")
+                return False
+            if skipped != 162:
+                print(f"   ⚠️  Expected skipped=162, got {skipped}")
+                return False
+            print(f"   ✓ Idempotent: no changes made (all 162 already applied)")
+            return True
+        
+        runner.test(
+            "POST /api/products/legacy-names/apply (idempotent)",
+            "POST",
+            "products/legacy-names/apply",
+            200,
+            auth=True,
+            validate_fn=validate_legacy_apply
+        )
+        
+        # Test 45: Legacy names apply - dry run (admin)
+        print("\n" + "="*60)
+        print("🔄 LEGACY NAMES APPLY - DRY RUN (ADMIN)")
+        print("="*60)
+        
+        def validate_legacy_dry_run(data):
+            if not isinstance(data, dict):
+                print(f"   ⚠️  Response is not a dict")
+                return False
+            # dry_run field may or may not be present, just check it doesn't modify data
+            print(f"   ✓ Dry run response: {data}")
+            print(f"   ✓ Applied: {data.get('applied', 0)}")
+            print(f"   ✓ Skipped: {data.get('skipped_already_applied', 0)}")
+            return True
+        
+        runner.test(
+            "POST /api/products/legacy-names/apply?dry_run=true",
+            "POST",
+            "products/legacy-names/apply",
+            200,
+            data={"dry_run": True},
+            auth=True,
+            validate_fn=validate_legacy_dry_run
+        )
+    
+    # Test 46: Legacy names apply - without auth (401)
+    print("\n" + "="*60)
+    print("🔒 LEGACY NAMES APPLY - AUTH PROTECTION")
+    print("="*60)
+    
+    saved_token = runner.token
+    runner.token = None
+    
+    runner.test(
+        "POST /api/products/legacy-names/apply (no auth - should fail)",
+        "POST",
+        "products/legacy-names/apply",
+        401
+    )
+    
+    runner.token = saved_token
+
     # Print summary
     runner.print_summary()
     

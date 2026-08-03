@@ -64,7 +64,9 @@ export const Seo = ({
   const lang = i18n.language || "es";
 
   useEffect(() => {
-    const fullTitle = title ? `${title} | ${SITE_NAME}` : `${SITE_NAME} · Ingredientes ecológicos a granel`;
+    const fullTitle = title
+      ? (title.includes(SITE_NAME) ? title : `${title} | ${SITE_NAME}`)
+      : `${SITE_NAME} · Ingredientes ecológicos a granel`;
     document.title = fullTitle;
     document.documentElement.setAttribute("lang", lang);
 

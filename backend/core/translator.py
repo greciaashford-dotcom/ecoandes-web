@@ -388,6 +388,15 @@ def _seo_missing(p: dict, lang: str) -> bool:
     return not ((block.get("seo") or {}).get("meta_title"))
 
 
+def _seo_manual(p: dict, lang: str) -> bool:
+    """True si el SEO de ese idioma fue editado a mano en el admin: la IA no
+    debe sobrescribirlo nunca (ni siquiera con force)."""
+    if lang == "es":
+        return bool((p.get("seo") or {}).get("manual"))
+    block = (p.get("translations") or {}).get(lang) or {}
+    return bool((block.get("seo") or {}).get("manual"))
+
+
 async def generate_product_seo(only_missing: bool = True, batch_size: int = 8) -> None:
     """Generate SEO/GEO metadata (meta_title/description/keywords) for every product
     in Spanish + all target languages. Idempotent when only_missing."""
@@ -407,7 +416,9 @@ async def generate_product_seo(only_missing: bool = True, batch_size: int = 8) -
         SEO_STATUS["total"] = len(all_langs)
         for code in all_langs:
             SEO_STATUS["lang"] = code
-            pending = [p for p in products if (not only_missing) or _seo_missing(p, code)]
+            pending = [p for p in products
+                       if not _seo_manual(p, code)
+                       and ((not only_missing) or _seo_missing(p, code))]
             logger.info("[seo/%s] %d pending", code, len(pending))
             for start in range(0, len(pending), batch_size):
                 chunk = pending[start:start + batch_size]

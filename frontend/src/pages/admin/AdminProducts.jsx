@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { api, formatEUR, resolveAsset } from "../../lib/api";
 import { toast } from "sonner";
-import { Save, Pencil, Search, Star, Trash2 } from "lucide-react";
+import { Save, Pencil, Search, Star, Trash2, Globe2 } from "lucide-react";
 import ProductEditorModal from "./ProductEditorModal";
+import SeoEditorModal from "./SeoEditorModal";
 
 // WooCommerce-style SEO score: green (alta) / orange (media) / red (baja).
 function seoScore(p) {
@@ -51,6 +52,8 @@ export default function AdminProducts() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all"); // all | bestseller | lowstock
   const [editing, setEditing] = useState(null);
+  const [seoEditing, setSeoEditing] = useState(null);
+  const [applyingLegacy, setApplyingLegacy] = useState(false);
   const [stockEdits, setStockEdits] = useState({}); // id -> value
   const [loading, setLoading] = useState(true);
 
@@ -96,6 +99,27 @@ export default function AdminProducts() {
     }
   };
 
+  const applyLegacyNames = async () => {
+    if (!window.confirm(
+      "¿Aplicar los nombres SEO de la web antigua?\n\n" +
+      "· El nombre visible y la URL de 162 productos pasarán al nombre legacy exacto.\n" +
+      "· Las URLs actuales seguirán funcionando (redirigen a la nueva).\n" +
+      "· La operación es idempotente: los ya aplicados se saltan."
+    )) return;
+    setApplyingLegacy(true);
+    try {
+      const { data } = await api.post("/products/legacy-names/apply");
+      toast.success("Nombres legacy aplicados", {
+        description: `${data.applied} renombrados · ${data.skipped_already_applied} ya aplicados · ${(data.not_found || []).length} no encontrados`,
+      });
+      load();
+    } catch (err) {
+      toast.error("Error al aplicar nombres legacy", { description: err?.response?.data?.detail || err.message });
+    } finally {
+      setApplyingLegacy(false);
+    }
+  };
+
   return (
     <div data-testid="admin-products-page">
       <div className="overline mb-2">Catálogo</div>
@@ -108,6 +132,15 @@ export default function AdminProducts() {
           <input className="input-eco !pl-10 w-72" value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => e.key === "Enter" && load()} placeholder="Buscar por nombre o SKU" data-testid="products-search" />
         </div>
         <button onClick={load} className="btn-outline">Buscar</button>
+        <button
+          onClick={applyLegacyNames}
+          disabled={applyingLegacy}
+          className="btn-outline inline-flex items-center gap-2 disabled:opacity-60"
+          title="Renombra los productos al nombre exacto de la web antigua (mapeo SEO aprobado) manteniendo redirecciones desde las URLs actuales"
+          data-testid="apply-legacy-names-btn"
+        >
+          <Globe2 size={14} /> {applyingLegacy ? "Aplicando…" : "Aplicar nombres legacy"}
+        </button>
         <div className="flex gap-2 ml-auto">
           {[["all", "Todos"], ["bestseller", "Más vendidos"], ["lowstock", "Stock bajo"]].map(([k, label]) => (
             <button key={k} onClick={() => setFilter(k)} className={`text-xs uppercase tracking-[0.14em] px-3 py-2 rounded-sm border transition-colors ${filter === k ? "border-sage-500 text-sage-700 bg-sage-50" : "border-bone-200 text-ink-soft bg-white"}`} data-testid={`filter-${k}`}>{label}</button>
@@ -151,7 +184,20 @@ export default function AdminProducts() {
                     : <span>{p.sku || "—"}</span>}
                 </td>
                 <td className="p-3 text-ink-soft text-xs">{p.category}</td>
-                <td className="p-3"><SeoDot product={p} /></td>
+                <td className="p-3">
+                  <div className="flex items-center gap-2">
+                    <SeoDot product={p} />
+                    <button
+                      onClick={() => setSeoEditing({ ...p })}
+                      className="text-ink-muted hover:text-sage-700"
+                      title="Editar SEO (7 idiomas)"
+                      aria-label={`Editar SEO de ${p.name}`}
+                      data-testid={`edit-seo-${p.sku}`}
+                    >
+                      <Pencil size={13} />
+                    </button>
+                  </div>
+                </td>
                 <td className="p-3">{formatEUR(p.price_retail)}</td>
                 <td className="p-3">{formatEUR(p.price_professional)}</td>
                 <td className="p-3">
@@ -189,6 +235,9 @@ export default function AdminProducts() {
 
       {editing && (
         <ProductEditorModal product={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />
+      )}
+      {seoEditing && (
+        <SeoEditorModal product={seoEditing} onClose={() => setSeoEditing(null)} onSaved={() => load()} />
       )}
     </div>
   );
