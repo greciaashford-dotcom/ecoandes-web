@@ -9,14 +9,14 @@
   },
   {
     "content": "Ejecutar testing agent para validar el lote completo (sidebar, carrusel móvil, imágenes, footer)",
-    "status": "in_progress"
+    "status": "completed"
   },
   {
     "content": "Corregir bugs detectados y actualizar plan.md",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "Entregar resumen final con JSON de mapeo",
-    "status": "pending"
+    "status": "completed"
   }
 ]

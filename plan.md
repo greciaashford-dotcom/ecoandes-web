@@ -276,7 +276,8 @@
 1. **Cerrar Fase 8 (SEO/GEO):** esperar fin de generación IA + spot-check + (opcional) editor admin.
 2. **Fase 9 (P1): migración de imágenes** (P0) una vez se congelen los productos finales.
 3. **Credenciales de pago (cuando el cliente las entregue):** completar configuración Stripe/PayPal + plantilla transferencia + operativa `other`.
-4. Testing E2E adicional tras SEO completo + migración de imágenes + credenciales.
+4. **Testing E2E adicional** tras SEO completo + migración de imágenes + credenciales.
+5. **Validación de portabilidad de binarios en entorno nuevo:** confirmar que los ficheros (object storage) referenciados por la BD se resuelven correctamente tras migración/restauración (ver fase de snapshot más abajo).
 
 ---
 
@@ -289,6 +290,7 @@
 - **Pagos**: métodos por rol, sin COD; validación backend + UI; credenciales desacopladas. **(Cumplido; credenciales pendientes)**
 - **SEO/GEO**: metadatos multi‑idioma generados y renderizados; canonical + hreflang + JSON‑LD correcto. **(En progreso; infraestructura OK, generación IA en curso)**
 - **Imágenes**: assets propios (WebP) + caché 1 año; no dependencia externa; productos nuevos con imagen. **(Pendiente)**
+- **Portabilidad**: semillas/snapshots restauran contenido de UI/Legal/Archivos en entornos nuevos; binarios de storage verificados. **(Parcial: snapshot OK, binarios por validar)**
 
 ---
 
@@ -331,3 +333,39 @@
 11. Enriquecimiento persistido en /app/backend/data/product_enrichment.json + seed automático al arrancar (core/enrichment_seed.py) → los datos viajan con el código a nuevos entornos.
 12. Botón compartir con menú (WhatsApp, Facebook, X, LinkedIn, Telegram, Pinterest, copiar enlace).
 - Testing E2E iteración 14: Backend 100% (20/20), Frontend 95%, sin bugs.
+
+---
+
+## 8) Lote de 7 mejoras (mensaje 338) — **COMPLETADO (2026-08)**
+1. **Dashboard:** scroll independiente en el sidebar (`overflow-y: auto`) sin desplazar el contenido principal.
+2. **Home / Nuestras Categorías:** carrusel igual de funcional en móvil (viewport 390×844), con drag táctil y responsive; sin overflow horizontal.
+3. **Home / COLECCIÓN PRINCIPAL:** imagen reemplazada y optimizada:
+   - `/app/frontend/public/coleccion-principal.webp` (~197KB)
+   - fallback `/app/frontend/public/coleccion-principal.jpg` (~293KB)
+4. **Home / CANAL PROFESIONAL:** overlay verde eliminado → overlay neutro muy ligero (observado `rgba(0,0,0,0.3)`), manteniendo legibilidad.
+5. **Footer:** rediseño completo mobile-first:
+   - banda superior newsletter,
+   - layout responsive (4 columnas en desktop),
+   - barra inferior legal/copyright,
+   - enlaces funcionan y envío de newsletter muestra feedback (toast/mensaje).
+   - Implementación: `/app/frontend/src/components/Footer.jsx` + `/app/frontend/src/components/Footer.css`.
+6. **Persistencia/migración:** snapshot exportable/restaurable:
+   - Export: `/app/backend/scripts/export_site_snapshot.py` → `/app/backend/data/site_snapshot.json`
+   - Restore: `/app/backend/core/snapshot_seed.py` aplicado en el arranque (server.py)
+   - Cobertura export reportada: hero + 15 items carrusel + 4 páginas legales + 177 registros de archivos.
+   - **Caveat**: el snapshot preserva registros/configuración, pero la disponibilidad de los **binarios** en object storage debe validarse en el entorno destino.
+7. **SEO (migración de nombres legacy):** mapeo completo **165/165** en:
+   - `/app/backend/data/seo_name_mapping.json`
+   - Resultado: **162 mapeados** + **3 marcados `sin_equivalente`** por decisión del usuario (opción b):
+     - `Albahaca`
+     - `Harina de Chía`
+     - `Soja texturizada extra fina`
+   - Ajuste del script `/app/backend/scripts/seo_name_mapping.py`: pasada de **coincidencia exacta normalizada** antes del fuzzy para evitar colisiones (p.ej. “Clavo de olor” vs “Clavo de olor en polvo”).
+
+**Validación (testing):**
+- `testing_agent_v3` → `iteration_15`:
+  - Backend: **97.3% (71/73)**
+  - Frontend desktop/móvil/admin: **100%**
+  - Sin bugs críticos; sin action items.
+
+---
