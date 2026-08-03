@@ -13,7 +13,7 @@ function CategoryCard({ item, label, index }) {
   return (
     <Link
       to={item.cat ? `/tienda?cat=${encodeURIComponent(item.cat)}` : "/tienda"}
-      className="group w-[190px] sm:w-[220px] shrink-0 text-center select-none"
+      className="group w-[140px] sm:w-[200px] lg:w-[220px] shrink-0 text-center select-none"
       draggable={false}
       data-testid={`category-carousel-item-${index}`}
     >
@@ -116,12 +116,16 @@ export default function CategoryCarousel() {
     movedRef.current = 0;
     dragStartX.current = e.clientX;
     dragStartOffset.current = offsetRef.current;
-    e.currentTarget.setPointerCapture?.(e.pointerId);
+    try { e.currentTarget.setPointerCapture?.(e.pointerId); } catch { /* ignore */ }
   };
   const onPointerMove = (e) => {
     if (!draggingRef.current) return;
     const dx = e.clientX - dragStartX.current;
     movedRef.current = Math.max(movedRef.current, Math.abs(dx));
+    // en táctil, si el gesto es claramente horizontal, evitamos el scroll vertical
+    if (e.pointerType === "touch" && movedRef.current > 8 && e.cancelable) {
+      e.preventDefault();
+    }
     offsetRef.current = dragStartOffset.current + dx;
   };
   const endDrag = () => {
@@ -140,9 +144,9 @@ export default function CategoryCarousel() {
 
   return (
     <section className="py-16 overflow-hidden" data-testid="category-carousel">
-      <div className="max-w-7xl mx-auto px-6 lg:px-12 mb-10 text-center">
+      <div className="max-w-7xl mx-auto px-6 lg:px-12 mb-8 sm:mb-10 text-center">
         <div className="overline mb-3">{t("categoryCarousel.overline")}</div>
-        <h2 className="font-heading text-3xl md:text-4xl font-light">{t("categoryCarousel.title")}</h2>
+        <h2 className="font-heading text-2xl sm:text-3xl md:text-4xl font-light">{t("categoryCarousel.title")}</h2>
       </div>
       <div
         className="marquee-row cursor-grab active:cursor-grabbing"
@@ -155,7 +159,7 @@ export default function CategoryCarousel() {
         onClickCapture={onClickCapture}
         data-testid="category-carousel-draggable"
       >
-        <div ref={trackRef} className="flex gap-5 w-max px-2.5 items-start will-change-transform">
+        <div ref={trackRef} className="flex gap-4 sm:gap-5 w-max px-2.5 items-start will-change-transform">
           {doubled.map((item, i) => (
             <CategoryCard key={`${item.id || item.cat}-${i}`} item={item} label={labels[item.cat] || item.title} index={i} />
           ))}

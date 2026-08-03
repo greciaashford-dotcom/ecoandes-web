@@ -174,6 +174,12 @@ async def on_startup():
 
 
 async def _seed_and_translate():
+    # 1º: restaurar el snapshot del sitio versionado en el repo (si la BD es nueva)
+    try:
+        from core.snapshot_seed import apply_site_snapshot
+        await apply_site_snapshot()
+    except Exception as e:  # noqa: BLE001
+        logger.error("Site snapshot restore failed: %s", e)
     await _seed_products_if_empty()
     # Reconcile catalog with the repo Excel files (self-healing on new environments)
     try:

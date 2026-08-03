@@ -1868,6 +1868,43 @@ def main():
             if waited >= max_wait:
                 print(f"   ⚠️  Sync did not complete within {max_wait} seconds")
 
+    # Test: Category Carousel endpoint (for home page)
+    print("\n" + "="*60)
+    print("🎠 CATEGORY CAROUSEL - PUBLIC ENDPOINT")
+    print("="*60)
+    
+    def validate_carousel(data):
+        if not isinstance(data, dict):
+            print(f"   ⚠️  Response is not a dict")
+            return False
+        if "items" not in data:
+            print(f"   ⚠️  Missing 'items' field")
+            return False
+        items = data.get("items", [])
+        if len(items) == 0:
+            print(f"   ⚠️  No carousel items returned")
+            return False
+        print(f"   ✓ Carousel has {len(items)} items")
+        # Check first item structure
+        first = items[0]
+        required_fields = ["id", "title", "cat", "img"]
+        missing = [f for f in required_fields if f not in first]
+        if missing:
+            print(f"   ⚠️  Missing fields in carousel item: {missing}")
+            return False
+        print(f"   ✓ First item: {first.get('title', 'N/A')}")
+        print(f"   ✓ Category: {first.get('cat', 'N/A')}")
+        print(f"   ✓ Image: {first.get('img', 'N/A')[:60]}...")
+        return True
+    
+    runner.test(
+        "GET /api/carousel-categories",
+        "GET",
+        "carousel-categories",
+        200,
+        validate_fn=validate_carousel
+    )
+
     # Print summary
     runner.print_summary()
     

@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Instagram, Facebook, Linkedin, Mail, Phone, MessageCircle, MapPin, Store, Clock } from "lucide-react";
+import { Instagram, Facebook, Linkedin, Mail, Phone, MessageCircle, MapPin } from "lucide-react";
+import { toast } from "sonner";
+import { api } from "../lib/api";
 import { STORE, STORE_HOURS, STORE_MAPS_URL, WAREHOUSE_MAPS_URL } from "../data/storeInfo";
-import NewsletterForm from "./NewsletterForm";
+import "./Footer.css";
 
 const PHONE_DISPLAY = "918 30 72 66";
 const PHONE_TEL = "+34918307266";
@@ -14,136 +16,146 @@ const ADDRESS_LINE_2 = "28880 Meco, Madrid";
 
 export default function Footer() {
   const { t } = useTranslation();
+  const [email, setEmail] = useState("");
+  const [sending, setSending] = useState(false);
   const waLink = `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(
     "Hola, tengo una consulta sobre los productos Ecoandes."
   )}`;
 
+  const subscribe = async (e) => {
+    e.preventDefault();
+    const value = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      toast.error(t("newsletter.invalid"));
+      return;
+    }
+    setSending(true);
+    try {
+      const { data } = await api.post("/newsletter/subscribe", { email: value });
+      toast.success(data.already ? t("newsletter.already") : t("newsletter.success"));
+      setEmail("");
+    } catch {
+      toast.error(t("newsletter.error"));
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
-    <footer className="bg-sage-800 text-bone-100 mt-20" data-testid="eco-footer">
-      {/* Newsletter band */}
-      <div className="border-b border-sage-700/50" data-testid="footer-newsletter">
-        <div className="max-w-7xl mx-auto px-6 lg:px-12 py-12 grid md:grid-cols-2 gap-8 items-center">
+    <footer className="eco-footer" data-testid="eco-footer">
+      {/* ---- 5.1 Newsletter (ancho completo, verde corporativo) ---- */}
+      <section className="eco-footer__newsletter" data-testid="footer-newsletter" aria-labelledby="footer-news-title">
+        <div className="eco-footer__container eco-footer__newsletter-inner">
           <div>
-            <div className="overline text-sage-200 mb-2">{t("footer.newsletterTitle")}</div>
-            <h3 className="font-heading text-2xl sm:text-3xl font-light text-bone-100">{t("newsletter.title")}</h3>
-            <p className="text-sm text-sage-100/80 mt-2 max-w-md">{t("newsletter.subtitle")}</p>
+            <h3 id="footer-news-title" className="eco-footer__newsletter-title font-heading">
+              {t("footer.joinCommunity", "\u00danete a la comunidad EcoAndes")}
+            </h3>
+            <p className="eco-footer__newsletter-sub">{t("newsletter.subtitle")}</p>
           </div>
-          <div>
-            <NewsletterForm variant="footer" />
+          <form className="eco-footer__form" onSubmit={subscribe} aria-label={t("footer.newsletterTitle", "Newsletter")}>
+            <input
+              type="email"
+              className="eco-footer__input"
+              placeholder={t("newsletter.placeholder", "Tu email")}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              aria-label={t("newsletter.placeholder", "Tu email")}
+              required
+              data-testid="footer-newsletter-input"
+            />
+            <button type="submit" className="eco-footer__submit" disabled={sending} aria-label={t("newsletter.cta", "Suscribirme")} data-testid="footer-newsletter-submit">
+              {sending ? "\u2026" : t("newsletter.cta", "Suscribirme")}
+            </button>
+          </form>
+        </div>
+      </section>
+
+      {/* ---- 5.2 Bloque principal: navegación y contacto ---- */}
+      <section className="eco-footer__main" aria-label={t("footer.mainNav", "Informaci\u00f3n y enlaces")}>
+        <div className="eco-footer__container eco-footer__grid">
+          {/* Columna 1 · Marca */}
+          <div data-testid="footer-brand">
+            <img src="/logo-ecoandes.png" alt="EcoAndes · Organic Ingredients" className="eco-footer__logo" loading="lazy" decoding="async" />
+            <p className="eco-footer__tagline">{t("footer.tagline")}</p>
+            <ul className="eco-footer__contact">
+              <li>
+                <a href={WAREHOUSE_MAPS_URL} target="_blank" rel="noopener noreferrer" data-testid="footer-address" aria-label="Dirección principal EcoAndes en Google Maps">
+                  <MapPin size={15} />
+                  <span>{ADDRESS_LINE_1}<br />{ADDRESS_LINE_2}</span>
+                </a>
+              </li>
+              <li>
+                <a href="mailto:info@productosecoandes.com" data-testid="footer-email" aria-label="Enviar email a EcoAndes">
+                  <Mail size={15} /> info@productosecoandes.com
+                </a>
+              </li>
+              <li>
+                <a href={`tel:${PHONE_TEL}`} data-testid="footer-phone" aria-label="Llamar a EcoAndes">
+                  <Phone size={15} /> {PHONE_DISPLAY}
+                </a>
+              </li>
+              <li>
+                <a href={waLink} target="_blank" rel="noopener noreferrer" data-testid="footer-whatsapp" aria-label="Abrir WhatsApp de EcoAndes">
+                  <MessageCircle size={15} /> WhatsApp {WHATSAPP_DISPLAY}
+                </a>
+              </li>
+            </ul>
+            <ul className="eco-footer__socials" data-testid="footer-socials">
+              <li>
+                <a href="https://www.facebook.com/EcoandesBio" target="_blank" rel="noopener noreferrer" className="eco-footer__social" aria-label="Facebook de EcoAndes" data-testid="footer-facebook">
+                  <Facebook size={16} />
+                </a>
+              </li>
+              <li>
+                <a href="https://www.instagram.com/ecoandesbio" target="_blank" rel="noopener noreferrer" className="eco-footer__social" aria-label="Instagram de EcoAndes" data-testid="footer-instagram">
+                  <Instagram size={16} />
+                </a>
+              </li>
+              <li>
+                <a href="https://www.linkedin.com/company/ecoandes-import-export-s-l-" target="_blank" rel="noopener noreferrer" className="eco-footer__social" aria-label="LinkedIn de EcoAndes" data-testid="footer-linkedin">
+                  <Linkedin size={16} />
+                </a>
+              </li>
+            </ul>
           </div>
-        </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-6 lg:px-12 py-16 sm:py-20 grid grid-cols-2 md:grid-cols-4 gap-10 sm:gap-12">
-        <div className="col-span-2 md:col-span-2">
-          <img
-            src="/logo-ecoandes-white.png"
-            alt="EcoAndes · Organic Ingredients"
-            className="h-20 w-auto object-contain mb-6"
-          />
-          <p className="text-sm text-sage-100/80 max-w-md leading-relaxed font-light">
-            {t("footer.tagline")}
-          </p>
-          <div className="mt-7 space-y-2.5 text-sm text-sage-100/90">
-            <a
-              href={WAREHOUSE_MAPS_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-start gap-2 hover:text-sage-200"
-              data-testid="footer-address"
-            >
-              <MapPin size={14} className="mt-0.5 shrink-0" />
-              <span>
-                {ADDRESS_LINE_1}<br />
-                {ADDRESS_LINE_2}
-              </span>
-            </a>
-            <a href="mailto:info@productosecoandes.com" className="flex items-center gap-2 hover:text-sage-200" data-testid="footer-email">
-              <Mail size={14} /> info@productosecoandes.com
-            </a>
-            <a href={`tel:${PHONE_TEL}`} className="flex items-center gap-2 hover:text-sage-200" data-testid="footer-phone">
-              <Phone size={14} /> {PHONE_DISPLAY}
-            </a>
-            <a
-              href={waLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 hover:text-sage-200"
-              data-testid="footer-whatsapp"
-            >
-              <MessageCircle size={14} /> WhatsApp {WHATSAPP_DISPLAY}
-            </a>
-          </div>
-          <div className="flex gap-3 mt-7" data-testid="footer-socials">
-            <a
-              href="https://www.facebook.com/EcoandesBio"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-10 h-10 rounded-full border border-sage-100/25 hover:border-sage-100 hover:bg-sage-100 hover:text-sage-800 flex items-center justify-center transition-all"
-              data-testid="footer-facebook"
-              aria-label="Facebook EcoAndes"
-            >
-              <Facebook size={16} />
-            </a>
-            <a
-              href="https://www.instagram.com/ecoandesbio"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-10 h-10 rounded-full border border-sage-100/25 hover:border-sage-100 hover:bg-sage-100 hover:text-sage-800 flex items-center justify-center transition-all"
-              data-testid="footer-instagram"
-              aria-label="Instagram EcoAndes"
-            >
-              <Instagram size={16} />
-            </a>
-            <a
-              href="https://www.linkedin.com/company/ecoandes-import-export-s-l-"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-10 h-10 rounded-full border border-sage-100/25 hover:border-sage-100 hover:bg-sage-100 hover:text-sage-800 flex items-center justify-center transition-all"
-              data-testid="footer-linkedin"
-              aria-label="LinkedIn EcoAndes"
-            >
-              <Linkedin size={16} />
-            </a>
-          </div>
-        </div>
+          {/* Columna 2 · Tienda */}
+          <nav aria-label={t("footer.shop", "Tienda")} data-testid="footer-col-shop">
+            <h4 className="eco-footer__heading">{t("footer.shop")}</h4>
+            <ul className="eco-footer__links">
+              <li><Link to="/tienda" data-testid="footer-link-shop">{t("footer.catalog")}</Link></li>
+              <li><Link to="/profesional" data-testid="footer-link-pro">{t("footer.proAccount")}</Link></li>
+              <li><Link to="/blog" data-testid="footer-link-blog">{t("footer.ourBlog")}</Link></li>
+              <li><Link to="/certificaciones" data-testid="footer-link-cert">{t("footer.certifications")}</Link></li>
+              <li><Link to="/sobre-nosotros" data-testid="footer-link-about">{t("footer.about")}</Link></li>
+            </ul>
+          </nav>
 
-        <div>
-          <div className="overline text-sage-200 mb-5">{t("footer.shop")}</div>
-          <ul className="space-y-3 text-sm">
-            <li><Link to="/tienda" className="hover:text-sage-200" data-testid="footer-link-shop">{t("footer.catalog")}</Link></li>
-            <li><Link to="/profesional" className="hover:text-sage-200" data-testid="footer-link-pro">{t("footer.proAccount")}</Link></li>
-            <li><Link to="/blog" className="hover:text-sage-200" data-testid="footer-link-blog">{t("footer.ourBlog")}</Link></li>
-            <li><Link to="/certificaciones" className="hover:text-sage-200" data-testid="footer-link-cert">{t("footer.certifications")}</Link></li>
-            <li><Link to="/sobre-nosotros" className="hover:text-sage-200" data-testid="footer-link-about">{t("footer.about")}</Link></li>
-          </ul>
-        </div>
+          {/* Columna 3 · Área de clientes */}
+          <nav aria-label={t("footer.customerArea", "\u00c1rea de clientes")} data-testid="footer-col-customers">
+            <h4 className="eco-footer__heading">{t("footer.customerArea")}</h4>
+            <ul className="eco-footer__links">
+              <li><Link to="/cuenta" data-testid="footer-link-account">{t("footer.myAccount")}</Link></li>
+              <li><Link to="/cuenta" data-testid="footer-link-orders">{t("footer.myOrders")}</Link></li>
+              <li><Link to="/lista-deseos" data-testid="footer-link-wishlist">{t("footer.wishlist")}</Link></li>
+              <li><Link to="/atencion-cliente" data-testid="footer-link-returns">{t("footer.returns")}</Link></li>
+              <li><Link to="/atencion-cliente" data-testid="footer-link-cs">{t("footer.customerService")}</Link></li>
+              <li><Link to="/contacto" data-testid="footer-link-contact">{t("footer.contact")}</Link></li>
+            </ul>
+          </nav>
 
-        <div>
-          <div className="overline text-sage-200 mb-5">{t("footer.customerArea")}</div>
-          <ul className="space-y-3 text-sm">
-            <li><Link to="/cuenta" className="hover:text-sage-200" data-testid="footer-link-account">{t("footer.myAccount")}</Link></li>
-            <li><Link to="/cuenta" className="hover:text-sage-200" data-testid="footer-link-orders">{t("footer.myOrders")}</Link></li>
-            <li><Link to="/lista-deseos" className="hover:text-sage-200" data-testid="footer-link-wishlist">{t("footer.wishlist")}</Link></li>
-            <li><Link to="/atencion-cliente" className="hover:text-sage-200" data-testid="footer-link-returns">{t("footer.returns")}</Link></li>
-            <li><Link to="/atencion-cliente" className="hover:text-sage-200" data-testid="footer-link-cs">{t("footer.customerService")}</Link></li>
-            <li><Link to="/contacto" className="hover:text-sage-200" data-testid="footer-link-contact">{t("footer.contact")}</Link></li>
-          </ul>
-        </div>
-
-        <div className="col-span-2 md:col-span-4 border-t border-sage-700/50 pt-10 grid grid-cols-1 md:grid-cols-2 gap-8" data-testid="footer-store">
-          <div>
-            <div className="flex items-center gap-2 overline text-sage-200 mb-4">
-              <Store size={14} /> {t("store.name")}
-            </div>
+          {/* Columna 4 · Tienda física y horarios */}
+          <div data-testid="footer-store">
+            <h4 className="eco-footer__heading">{t("store.name")}</h4>
             <a
               href={STORE_MAPS_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-start gap-2 text-sm text-sage-100/90 hover:text-sage-200 transition-colors"
+              className="eco-footer__store-address"
               data-testid="footer-store-address"
+              aria-label="Tienda física EcoAndes en Google Maps"
             >
-              <MapPin size={15} className="mt-0.5 shrink-0" />
+              <MapPin size={15} />
               <span>
                 {STORE.market}<br />
                 {STORE.addressLine1}<br />
@@ -151,35 +163,35 @@ export default function Footer() {
                 {STORE.addressLine3}
               </span>
             </a>
-          </div>
-          <div>
-            <div className="flex items-center gap-2 overline text-sage-200 mb-4">
-              <Clock size={14} /> {t("store.hoursTitle")}
-            </div>
-            <ul className="space-y-1.5 text-sm" data-testid="footer-store-hours">
+            <h4 className="eco-footer__heading">{t("store.hoursTitle")}</h4>
+            <ul className="eco-footer__hours" data-testid="footer-store-hours">
               {STORE_HOURS.map((h) => (
-                <li key={h.dayKey} className="flex items-center justify-between gap-4 max-w-sm">
-                  <span className="text-sage-100/80">{t(`hours.days.${h.dayKey}`)}</span>
-                  <span className={h.closed ? "text-sage-200/50" : "text-sage-100/95"}>{h.closed ? t("hours.closed") : h.value}</span>
+                <li key={h.dayKey}>
+                  <span className="eco-footer__day">{t(`hours.days.${h.dayKey}`)}</span>
+                  <span className={h.closed ? "eco-footer__time eco-footer__time--closed" : "eco-footer__time"}>
+                    {h.closed ? t("hours.closed") : h.value}
+                  </span>
                 </li>
               ))}
             </ul>
           </div>
         </div>
+      </section>
 
-        <div className="col-span-2 md:col-span-4">
-          <div className="overline text-sage-200 mb-5">{t("footer.legalInfo")}</div>
-          <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-            <li><Link to="/legal/aviso-legal" className="hover:text-sage-200" data-testid="footer-link-aviso">{t("footer.legalNotice")}</Link></li>
-            <li><Link to="/legal/politica-cookies" className="hover:text-sage-200" data-testid="footer-link-cookies">{t("footer.cookiePolicy")}</Link></li>
-            <li><Link to="/legal/politica-privacidad" className="hover:text-sage-200" data-testid="footer-link-privacy">{t("footer.privacyPolicy")}</Link></li>
-            <li><Link to="/legal/condiciones" className="hover:text-sage-200" data-testid="footer-link-terms">{t("footer.terms")}</Link></li>
+      {/* ---- 5.3 Barra inferior ---- */}
+      <section className="eco-footer__bottom" aria-label={t("footer.legalInfo", "Informaci\u00f3n legal")}>
+        <div className="eco-footer__container eco-footer__bottom-inner">
+          <p className="eco-footer__copyright" data-testid="footer-copyright">
+            © {new Date().getFullYear()} Productos EcoAndes S.L.
+          </p>
+          <ul className="eco-footer__legal" data-testid="footer-legal-links">
+            <li><Link to="/legal/aviso-legal" data-testid="footer-link-aviso">{t("footer.legalNotice")}</Link></li>
+            <li><Link to="/legal/politica-cookies" data-testid="footer-link-cookies">{t("footer.cookiePolicy")}</Link></li>
+            <li><Link to="/legal/politica-privacidad" data-testid="footer-link-privacy">{t("footer.privacyPolicy")}</Link></li>
+            <li><Link to="/legal/condiciones" data-testid="footer-link-terms">{t("footer.terms")}</Link></li>
           </ul>
         </div>
-      </div>
-      <div className="border-t border-sage-700/50 py-5 text-center text-[10px] sm:text-xs text-sage-200/70 tracking-[0.2em] uppercase px-4">
-        © {new Date().getFullYear()} {t("footer.rights")}
-      </div>
+      </section>
     </footer>
   );
 }

@@ -9,9 +9,9 @@ import CategoryCarousel from "../components/CategoryCarousel";
 import Seo from "../components/Seo";
 import { Leaf, Sprout, ShieldCheck } from "lucide-react";
 
-// COLECCIÓN PRINCIPAL: imagen web (horizontal) e imagen móvil (vertical)
-const COLLECTION_IMG = "https://assets.zyrosite.com/w7wEiJrqV2hbSrVN/8ba0ecee-a9c9-4669-a98e-5a88f6ff7cac-d1CUEVQLLtY5IRG5.png";
-const COLLECTION_IMG_MOBILE = "https://assets.zyrosite.com/w7wEiJrqV2hbSrVN/disea--o-sin-tatulo-1-FtypsJzJ7I0cOJaE.svg";
+// COLECCIÓN PRINCIPAL: imagen local optimizada (WebP con fallback JPG)
+const COLLECTION_IMG = "/coleccion-principal.webp";
+const COLLECTION_IMG_FALLBACK = "/coleccion-principal.jpg";
 // Fondos del banner B2B: imagen 1 para dispositivos verticales (portrait),
 // imagen 2 para dispositivos horizontales (landscape)
 const B2B_IMG_PORTRAIT = "https://assets.zyrosite.com/w7wEiJrqV2hbSrVN/90f2dc95-18ff-4a32-9b26-49c52abf3b38-ixZJMjIJezMiDrOG.png";
@@ -98,8 +98,8 @@ export default function Home() {
             data-testid="collection-main"
           >
             <picture className="absolute inset-0 block w-full h-full">
-              <source media="(orientation: portrait)" srcSet={COLLECTION_IMG_MOBILE} />
-              <img src={COLLECTION_IMG} alt={t("home.collectionImgAlt")} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]" />
+              <source type="image/webp" srcSet={COLLECTION_IMG} />
+              <img src={COLLECTION_IMG_FALLBACK} alt={t("home.collectionImgAlt")} loading="lazy" decoding="async" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]" />
             </picture>
             <div className="relative h-full flex flex-col justify-start p-8 md:p-10">
               <div className="overline mb-2">{t("home.collectionMainOverline")}</div>
@@ -134,7 +134,7 @@ export default function Home() {
             <source media="(orientation: portrait)" srcSet={B2B_IMG_PORTRAIT} />
             <img src={B2B_IMG_LANDSCAPE} alt="Profesional" className="w-full h-full object-cover" />
           </picture>
-          <div className="absolute inset-0 bg-sage-800/70" />
+          <div className="absolute inset-0 bg-black/30" />
         </div>
         <div className="relative max-w-7xl mx-auto px-6 lg:px-12 py-28 text-bone-100">
           <div className="max-w-xl">
