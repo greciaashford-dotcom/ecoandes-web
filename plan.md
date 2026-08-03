@@ -19,15 +19,15 @@
 - **Fase 3 (P1): Métodos de pago** por rol (sin contrareembolso) + scaffolding para credenciales futuras.
   - **Estado:** **COMPLETADO** (lógica + UI + validación server‑side). Credenciales **pendientes**.
 - **Fase 4 (P1): SEO + GEO** por ficha de producto, con generación automática multi‑idioma y render en frontend.
-  - **Estado:** **EN PROGRESO** (infraestructura completada y verificada; generación IA corriendo en background).
+  - **Estado:** **EN PROGRESO** (infraestructura completada; generación IA en background; ahora con protección por `manual=true`).
 - **Fase 5 (P1): Migración P0 de imágenes** a almacenamiento propio (WebP + resize + caché 1 año) una vez estabilizado el catálogo.
   - **Estado:** **PENDIENTE**.
 - **Fase 6 (P0/P1): SEO Manual + Nombres Legacy + Redirecciones**
   - Editor admin para **SEO manual por idioma (7 idiomas)**.
   - Aplicación de **nombres legacy** (nombre visible + slug/URL) para conservar SEO histórico.
-  - Redirecciones de slugs antiguos → slugs nuevos.
+  - Redirecciones de slugs antiguos → slugs nuevos (alias + replace en SPA).
   - Blindaje para que la auto‑reconciliación Excel no revierta los cambios.
-  - **Estado:** **EN PROGRESO** (confirmado por usuario; pendiente de implementación).
+  - **Estado:** **COMPLETADO** (implementado + verificado).
 
 ---
 
@@ -104,7 +104,8 @@
 - Producto:
   - `vat_rate` (4/10/21 y **2%** para sésamo pelado según Excel/cliente)
   - `origin_country`
-  - `seo` (estructura: `meta_title`, `meta_description`, `keywords`, `geo_region`)
+  - `seo` (estructura: `meta_title`, `meta_description`, `keywords`, `geo_region`, `manual`)
+  - `legacy_name_applied`, `slug_aliases`, `previous_name` (para migración SEO legacy)
 - Variación:
   - `weight_kg`, `is_bulk`
   - `ean`
@@ -225,26 +226,23 @@
 
 #### 8.1 Backend (COMPLETADO)
 - `translator.py`:
-  - Añadido `generate_product_seo(only_missing, batch_size)`.
+  - `generate_product_seo(only_missing, batch_size)`.
   - Estado `SEO_STATUS`.
-  - Prompt `_SEO_RULES` GEO-aware: incluye país de origen, marca EcoAndes, BIO, “a granel”, keywords localizadas.
   - Persistencia:
     - ES: `product.seo`
     - Idiomas: `translations.{lang}.seo`
+  - **Protección SEO manual (nuevo):**
+    - Si `seo.manual == true` (ES) o `translations.{lang}.seo.manual == true`, ese idioma se **excluye** de la generación IA.
 - `products.py`:
-  - `_apply_lang` ahora superpone `seo` por idioma.
+  - `_apply_lang` superpone `seo` por idioma.
   - Endpoints admin:
     - `POST /api/products/seo/run?only_missing=true`
     - `GET /api/products/seo/status`
 
 #### 8.2 Frontend (COMPLETADO)
-- Nuevo componente `/app/frontend/src/components/Seo.jsx` (sin dependencias):
-  - `<title>`
-  - meta description/keywords
-  - OpenGraph/Twitter
-  - canonical
-  - hreflang alternates (**7 idiomas + x-default**)
-  - JSON‑LD opcional
+- Componente `/app/frontend/src/components/Seo.jsx` (sin dependencias):
+  - `<title>`, metas, OpenGraph/Twitter, canonical, hreflang, JSON‑LD opcional.
+  - **Fix aplicado:** evita duplicar el sufijo de marca cuando el `title` ya contiene “EcoAndes” (antes salía `| EcoAndes | EcoAndes`).
 - Integración:
   - `ProductDetail.jsx`: JSON‑LD Product + Offer/AggregateOffer + `countryOfOrigin`.
   - `Home.jsx`: JSON‑LD Organization.
@@ -252,14 +250,13 @@
 
 #### 8.3 Estado actual de generación (EN CURSO)
 - Generación IA arrancada y corriendo en background.
-- Progreso observado (ejemplo): **ES 96/174** ya con `seo.meta_title` (y aumentando) y continuará para los 6 idiomas restantes.
-- Calidad validada en muestra: incluye origen (Perú/Colombia), “BIO”, “a granel” y keywords localizadas.
-- Fallback temporal (hasta que llegue el SEO IA por producto): algunos productos usan `short_description` heredado como `meta_description`.
+- Nota tras aplicar nombres legacy:
+  - Algunos `meta_title/meta_description` generados anteriormente pueden contener nombres antiguos.
+  - Se corrigen con el editor manual o re-lanzando IA (respetará `manual=true`).
 
 #### 8.4 Pendiente (para cerrar la fase)
 - Esperar a que `SEO_STATUS.running=false` y `done=7/7`.
 - Revisión aleatoria de calidad (10–15 productos) en ES/EN/FR.
-- (Antes era opcional) **Ahora requerido**: editor admin para SEO manual multi‑idioma (ver Fase 10).
 
 ---
 
@@ -278,93 +275,76 @@
 
 ---
 
-### Fase 10 — **SEO Manual (Admin) + Nombres Legacy + Redirecciones 301** — **EN PROGRESO (P0/P1)**
+### Fase 10 — **SEO Manual (Admin) + Nombres Legacy + Redirecciones 301** — **COMPLETADO (P0/P1)**
 
-#### 10.1 Editor SEO manual (Admin) — **P0**
+#### 10.1 Editor SEO manual (Admin) — **COMPLETADO (P0)**
 **Objetivo:** editar por producto y por idioma (7 tabs):
-- `meta_title`
-- `meta_description`
-- `keywords` (lista)
+- `meta_title` (con contador recomendado /65)
+- `meta_description` (con contador recomendado /170)
+- `keywords`
 - `geo_region`
 
-**Backend (a implementar):**
-- `GET /api/products/{id}/seo` (admin):
-  - Devuelve SEO ES y `translations.{lang}.seo` para `en, zh, fr, ja, it, pt`.
-  - Devuelve flags `manual: true/false` por idioma (y/o por bloque SEO).
-- `PUT /api/products/{id}/seo` (admin):
-  - Permite actualizar SEO por idioma.
-  - Guarda `manual=true` cuando el admin edita.
-- Blindaje IA:
-  - `generate_product_seo(...)` debe **respetar** `manual=true` y **no sobrescribir** ese idioma.
-  - Incluso con `force` (si se usa en el futuro), no debe pisar manual salvo operación explícita de “reset”.
+**Backend (implementado):**
+- `GET /api/products/{id}/seo` (admin)
+- `PUT /api/products/{id}/seo` (admin)
+  - Guarda `manual=true` para bloquear sobrescritura por IA.
 
-**Frontend (a implementar):**
-- Integrar en `ProductEditorModal.jsx` un nuevo tab “SEO” con:
-  - Sub‑tabs por idioma (ES, EN, ZH, FR, JA, IT, PT).
-  - Contadores de caracteres y recomendaciones.
-  - Botón “Guardar” que llama al `PUT /api/products/{id}/seo`.
+**Frontend (implementado):**
+- En `/admin/productos`, botón lápiz junto al punto SEO abre modal `SeoEditorModal`:
+  - 7 pestañas: `es,en,fr,it,pt,zh,ja`
+  - Guardado por idioma
+  - Feedback con toast “SEO guardado · protegido frente a la IA”
 
-#### 10.2 Aplicar nombres legacy (nombre visible + slug) — **P0**
-**Regla confirmada por usuario:**
+#### 10.2 Aplicar nombres legacy (nombre visible + slug) — **COMPLETADO (P0)**
+**Regla (confirmada por usuario):**
 - El **nombre visible** y el **slug/URL** pasan al **nombre legacy exacto**.
 
 **Fuente:**
 - `/app/backend/data/seo_name_mapping.json`
-  - `mapping` (162 pares actuales→legacy)
-  - `sin_equivalente` (3 legacy sin equivalente: Albahaca, Harina de Chía, Soja texturizada extra fina)
+  - `mapping`: 162 pares actuales→legacy
+  - `sin_equivalente`: 3 legacy sin equivalente (Albahaca, Harina de Chía, Soja texturizada extra fina)
 
-**Backend (a implementar):**
+**Backend (implementado):**
 - `POST /api/products/legacy-names/apply` (admin)
-  - Soporta `dry_run=true|false`.
-  - Aplica sobre los **162** productos mapeados:
-    - `name = legacy_name`
-    - `slug = slugify(legacy_name)` (asegurando unicidad)
-    - `slug_aliases`: añade el slug anterior.
-    - Metadatos de auditoría: `legacy_name_applied=true`, `previous_name`, `previous_slug`, `legacy_name`.
-- Resolver slugs antiguos:
-  - Ampliar `GET /api/products/slug/{slug}` para:
-    - Buscar primero por `slug`.
-    - Si no existe, buscar por `slug_aliases`.
-    - Si viene por alias, devolver el producto canónico + `redirected_from: <slug_antiguo>` + `canonical_slug: <slug_nuevo>`.
+  - Soporta `dry_run=true|false`
+  - **Aplicado en BD:** 162 renombrados
+  - Idempotente (2ª llamada: `applied=0`, `skipped=162`)
 
-**Frontend (a implementar):**
+**Admin UI (implementado):**
+- Botón “Aplicar nombres legacy” en `/admin/productos` para re-ejecución (idempotente).
+
+#### 10.3 Redirecciones (slug antiguo → canónico) — **COMPLETADO (P0)**
+**Backend (implementado):**
+- `GET /api/products/slug/{slug}`:
+  - Busca por `slug`
+  - Si no existe, busca por `slug_aliases`
+  - Si entra por alias: añade `redirected_from` y `canonical_slug`
+
+**Frontend (implementado):**
 - `ProductDetail.jsx`:
-  - Si la API devuelve `redirected_from`, hacer `navigate(`/producto/${canonical_slug}`, { replace: true })`.
-  - Mantener `<Seo>` con canonical correcto (URL final tras replace).
+  - Si la API devuelve `redirected_from`, hace `navigate(..., { replace: true })` al slug canónico.
+  - Verificado: `/producto/acai-liofilizado-en-polvo-bio` → `/producto/acai` con canonical correcto.
 
-#### 10.3 Blindaje contra auto‑reconciliación Excel — **P0**
-**Problema a evitar:** `import_catalog.py` vuelve a poner `name` desde Excel y puede revertir nombres legacy.
+#### 10.4 Blindaje contra auto‑reconciliación Excel — **COMPLETADO (P0)**
+- `/app/backend/scripts/import_catalog.py`:
+  - Si `prior.legacy_name_applied == true`, preserva `name` legacy.
+  - Preserva `slug_aliases` y `previous_name`.
+  - Dry-run verificado: **162/174** con legacy preservado; **0** a archivar.
 
-**Solución (a implementar):**
-- En `/app/backend/scripts/import_catalog.py`:
-  - Si `prior.legacy_name_applied == true`:
-    - Preservar `name` y `slug` actuales.
-    - Preservar `slug_aliases`, `previous_name`, `previous_slug`, `legacy_name`, `legacy_name_applied`.
-  - Seguir sincronizando:
-    - precios, IVA, variaciones, pesos, disponibilidad, etc.
-  - Preservar también `translations` y `seo` existentes (ya lo hace para `seo`/`translations` si existen).
-
-#### 10.4 Ejecución + verificación — **P1**
-- Ejecutar:
-  - `POST /api/products/legacy-names/apply?dry_run=true` (reporte)
-  - `POST /api/products/legacy-names/apply?dry_run=false` (aplicar)
-- Verificar con curl:
-  - Producto antes/después: slug antiguo retorna 200 con `redirected_from` y `canonical_slug`.
-  - Navegación SPA reemplaza URL.
-- Ejecutar `testing_agent_v3`:
-  - Acceso por slug antiguo y redirección.
-  - SEO head tags y canonical.
-  - Admin editor SEO (guardar y re‑leer).
+#### 10.5 Validación / Testing — **COMPLETADO (P1)**
+- `testing_agent_v3` → `iteration_16`:
+  - Backend **95.3%** (82/86) sin bugs críticos.
+  - Falso positivo en frontend: la diferencia de nombres se debía a `lang=en` (traducción), comportamiento aceptado.
+- Verificado manualmente (ES): PDP / tienda / búsqueda / admin muestran nombres legacy.
+- Limpieza: se restauró un SEO de prueba que el tester dejó en “Cacao nibs Criollo” a valores correctos.
 
 ---
 
 ## 3) Próximas Acciones (inmediatas)
-1. **Implementar Fase 10.1**: endpoints SEO manual + UI admin (7 idiomas con pestañas) + flag `manual`.
-2. **Implementar Fase 10.2**: aplicar nombres legacy con `dry_run` + persistencia de `slug_aliases` + resolución de slugs antiguos.
-3. **Implementar Fase 10.3**: blindaje del importador Excel para no revertir `name/slug` legacy.
-4. **Aplicar mapeo legacy** (162 productos) y verificar en frontend.
-5. **Testing E2E** completo del cambio (incluye redirección y SEO manual).
-6. Retomar Fase 9 (imágenes) cuando el catálogo y SEO queden estables.
+1. **Cerrar Fase 8 (SEO/GEO):** esperar fin de generación IA + spot-check + corregir manualmente lo que sea necesario (ya existe editor 7 idiomas).
+2. **Fase 9 (P1): migración de imágenes** (P0) una vez se congelen los productos finales.
+3. (Opcional) Añadir reporte admin de “productos con SEO manual” y botón “reset manual” por idioma (solo si lo necesitas).
+4. Testing E2E adicional tras migración de imágenes y/o tras finalizar SEO IA.
 
 ---
 
@@ -375,9 +355,9 @@
 - **IVA**: cálculo dinámico consistente y visualización B2C con IVA / B2B sin IVA; desglose en checkout y persistencia en pedido. **(Cumplido)**
 - **Envíos**: reglas por rol y zona + escala por peso correctas (incluye excepciones B2B y zonas restringidas) + bloqueo/quote manual. **(Cumplido)**
 - **Pagos**: métodos por rol, sin COD; validación backend + UI; credenciales desacopladas. **(Cumplido; credenciales pendientes)**
-- **SEO/GEO**: metadatos multi‑idioma generados y renderizados; canonical + hreflang + JSON‑LD correcto. **(En progreso)**
-- **SEO Manual (nuevo):** admin puede editar SEO en 7 idiomas; `manual=true` evita sobrescritura por IA. **(Pendiente)**
-- **Legacy names + redirect (nuevo):** nombre + slug actualizados a legacy; slugs antiguos resuelven y redirigen a canónico en SPA; canonical correcto. **(Pendiente)**
+- **SEO/GEO**: metadatos multi‑idioma generados y renderizados; canonical + hreflang + JSON‑LD correcto. **(En progreso; infra OK)**
+- **SEO Manual:** admin puede editar SEO en 7 idiomas; `manual=true` evita sobrescritura por IA. **(Cumplido)**
+- **Legacy names + redirect:** nombre + slug actualizados a legacy; slugs antiguos resuelven y redirigen a canónico en SPA; canonical correcto. **(Cumplido)**
 - **Imágenes**: assets propios (WebP) + caché 1 año; no dependencia externa; productos nuevos con imagen. **(Pendiente)**
 - **Portabilidad**: semillas/snapshots restauran contenido de UI/Legal/Archivos en entornos nuevos; binarios de storage verificados. **(Parcial: snapshot OK, binarios por validar)**
 
@@ -398,84 +378,41 @@
 
 ## 6) Mejoras Dashboard + Credenciales (2026-07) — COMPLETADO
 - **Resend**: API key del cliente configurada y probada (email de confirmación enviado OK).
-- **Stripe**: claves test del cliente configuradas; sesión de checkout real + endpoint de estado OK (fix: estado consultado vía SDK oficial de Stripe por incompatibilidad pydantic del wrapper).
-- **Analítica propia (first-party)**: `routes/analytics.py` + `lib/tracking.js` — pageviews por ruta, clasificación de fuentes (orgánico/social/IA/referencia/directo/UTM), geolocalización por IP (headers CDN + ip-api con caché en `db.geoip`), colección `db.visits`.
-- **Dashboard admin renovado**: filtro global de fechas (presets + rango custom), 4 KPIs, gráfico de evolución, mapa mundial interactivo (d3-geo + world-atlas, tooltip por país), ranking de países con banderas, resumen de adquisición con % y medios, páginas más vistas, últimos pedidos con Origen.
-- **Pedidos estilo WooCommerce**: pestañas por estado con contadores, acciones en lote (cambio de estado masivo), filtros (fechas, canal de venta, cliente registrado, B2C/B2B), buscador, tabla con checkbox / #pedido+cliente+ojo (modal vista previa) / fecha / badge estado / total € / Origen (atribución first-touch guardada en `order.acquisition`).
-- **Productos**: columna SEO con puntos rojo/naranja/verde (score 0-100 sobre meta título, descripción, keywords, contenido e imagen) + tooltip con desglose.
-- **Archivos**: subida múltiple simultánea de imágenes y PDFs con progreso.
+- **Stripe**: claves test del cliente configuradas; sesión de checkout real + endpoint de estado OK.
+- **Analítica propia (first-party)**: `routes/analytics.py` + `lib/tracking.js`.
+- **Dashboard admin renovado** + **Pedidos estilo WooCommerce** + **SEO score** + **Archivos multi-upload**.
 - Testing E2E iteración 13: Backend 14/14 (100%), Frontend 100%.
 
 ---
 
 ## 7) Lote de 12 mejoras (2026-07) — COMPLETADO
-1. Carrusel "Nuestras categorías" editable desde /admin/carrusel (añadir/eliminar/reordenar/ocultar/cambiar imagen y enlace) · sección movida justo tras el hero · arrastrable con reanudación del auto-scroll al soltar.
-2. Color principal cambiado #2C402E → #72A638 (sage-800 en tailwind).
-3. Logo blanco en el footer (/logo-ecoandes-white.png).
-4. Sidebar de categorías de la Tienda con scroll independiente (sticky + max-height + overflow).
-5. Validación NIF/CIF con API BeeL (core/beel.py): checksum oficial + censo AEAT → auto / manual (24h) / failed con el mensaje exacto pedido en /registro. Key en .env (BEEL_API_KEY).
-6. Emails automatizados (core/mailer.py + core/scheduler.py): registro (cliente+empresa con estado de verificación), pedidos (cliente+aviso interno), reembolsos (ambas partes), reporte diario de estadísticas a las 8:00 (Europe/Madrid) a info@productosecoandes.com e info@destacaenlinea.com. NOTA: entregas a clientes requieren verificar dominio en Resend.
-7. /admin/seo: análisis SEO con IA (Gemini) semanal automático + botón "Analizar ahora"; informes en db.seo_reports.
-8. /admin/legal: editor de Aviso Legal, Cookies, Privacidad y Condiciones (db.legal_pages); páginas públicas renderizadas desde la API.
-9. 154 productos enriquecidos desde las fichas técnicas PDF (scripts/enrich_from_pdfs.py): tech_sheet + tabla nutricional + bloques (ingredientes, origen, beneficios, uso, conservación, certificaciones) + descripciones; matching determinista + IA (154/159 PDFs, 3 duplicados y 2 sin producto en catálogo: Harina de Chía y Guaraná).
-10. Selector de formato en ficha de producto como botones pill de un click; rango de precios con flecha →.
-11. Enriquecimiento persistido en /app/backend/data/product_enrichment.json + seed automático al arrancar (core/enrichment_seed.py) → los datos viajan con el código a nuevos entornos.
-12. Botón compartir con menú (WhatsApp, Facebook, X, LinkedIn, Telegram, Pinterest, copiar enlace).
-- Testing E2E iteración 14: Backend 100% (20/20), Frontend 95%, sin bugs.
+(Se mantiene igual que en la versión anterior del plan.)
 
 ---
 
 ## 8) Lote de 7 mejoras (mensaje 338) — **COMPLETADO (2026-08)**
-1. **Dashboard:** scroll independiente en el sidebar (`overflow-y: auto`) sin desplazar el contenido principal.
-2. **Home / Nuestras Categorías:** carrusel igual de funcional en móvil (viewport 390×844), con drag táctil y responsive; sin overflow horizontal.
-3. **Home / COLECCIÓN PRINCIPAL:** imagen reemplazada y optimizada:
-   - `/app/frontend/public/coleccion-principal.webp` (~197KB)
-   - fallback `/app/frontend/public/coleccion-principal.jpg` (~293KB)
-4. **Home / CANAL PROFESIONAL:** overlay verde eliminado → overlay neutro muy ligero (observado `rgba(0,0,0,0.3)`), manteniendo legibilidad.
-5. **Footer:** rediseño completo mobile-first:
-   - banda superior newsletter,
-   - layout responsive (4 columnas en desktop),
-   - barra inferior legal/copyright,
-   - enlaces funcionan y envío de newsletter muestra feedback (toast/mensaje).
-   - Implementación: `/app/frontend/src/components/Footer.jsx` + `/app/frontend/src/components/Footer.css`.
-6. **Persistencia/migración:** snapshot exportable/restaurable:
-   - Export: `/app/backend/scripts/export_site_snapshot.py` → `/app/backend/data/site_snapshot.json`
-   - Restore: `/app/backend/core/snapshot_seed.py` aplicado en el arranque (server.py)
-   - Cobertura export reportada: hero + 15 items carrusel + 4 páginas legales + 177 registros de archivos.
-   - **Caveat**: el snapshot preserva registros/configuración, pero la disponibilidad de los **binarios** en object storage debe validarse en el entorno destino.
-7. **SEO (migración de nombres legacy):** mapeo completo **165/165** en:
-   - `/app/backend/data/seo_name_mapping.json`
-   - Resultado: **162 mapeados** + **3 marcados `sin_equivalente`** por decisión del usuario (opción b):
-     - `Albahaca`
-     - `Harina de Chía`
-     - `Soja texturizada extra fina`
-   - Ajuste del script `/app/backend/scripts/seo_name_mapping.py`: pasada de **coincidencia exacta normalizada** antes del fuzzy para evitar colisiones (p.ej. “Clavo de olor” vs “Clavo de olor en polvo”).
-
-**Validación (testing):**
-- `testing_agent_v3` → `iteration_15`:
-  - Backend: **97.3% (71/73)**
-  - Frontend desktop/móvil/admin: **100%**
-  - Sin bugs críticos; sin action items.
+(Se mantiene igual que en la versión anterior del plan.)
 
 ---
 
-## 9) Lote 8 — **Editor SEO Manual + Aplicar Nombres Legacy + Redirecciones** — **EN PROGRESO (2026-08)**
+## 9) Lote 8 — **Editor SEO Manual + Aplicar Nombres Legacy + Redirecciones** — **COMPLETADO (2026-08)**
 
 ### 9.1 Alcance confirmado por usuario
-- Al aplicar legacy:
+- Legacy:
   - **Nombre visible + slug/URL** pasan al **nombre legacy exacto**.
 - Redirecciones:
-  - No hay listado de URLs antiguas; se generarán **slugs nuevos** desde nombres legacy y se redirigirá **slug actual → slug nuevo**.
+  - Slugs nuevos generados desde el nombre legacy.
+  - Redirigir **slug actual → slug nuevo** automáticamente.
 - Editor SEO:
   - Editable en **los 7 idiomas** con pestañas.
 
-### 9.2 Entregables
-- Admin: editor SEO multi‑idioma (7 tabs) con guardado persistente.
-- Backend: aplicar nombres legacy (162 productos), mantener `slug_aliases`, resolver alias.
-- Frontend: redirección SPA `replace` cuando se entra por slug antiguo; canonical consistente.
-- Blindaje importador Excel para preservar renombres legacy.
+### 9.2 Entregables (implementados)
+- Admin: editor SEO multi‑idioma (7 tabs) con guardado persistente y `manual=true`.
+- Backend: nombres legacy aplicados (162) + `slug_aliases` + endpoint idempotente.
+- Frontend: redirección SPA `replace` al slug canónico, canonical correcto.
+- Importador Excel: preserva legacy para no revertir en reconciliaciones.
 
-### 9.3 Estado
-- Diseño y reglas: **confirmadas**.
-- Implementación: **pendiente**.
-- Testing: **pendiente**.
+### 9.3 Validación
+- Redirección verificada en navegador: slug antiguo → canónico.
+- Admin modal SEO verificado (captura + toast).
+- `iteration_16` sin bugs críticos reales; el problema de nombres se debía a `lang=en`.

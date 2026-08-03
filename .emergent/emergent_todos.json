@@ -1,34 +1,34 @@
 [
   {
     "content": "Explorar routes/products.py, AdminProducts.jsx, ProductDetail.jsx y estructura seo/translations",
-    "status": "in_progress"
+    "status": "completed"
   },
   {
     "content": "Backend: endpoint PUT para editar SEO por producto e idioma (7 idiomas)",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "Backend: script/endpoint aplicar nombres legacy (renombrar + slug nuevo + slug_aliases)",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "Backend: resolución de slugs antiguos (alias → producto) con canonical",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "Frontend: editor SEO en admin con pestañas de 7 idiomas",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "Frontend: redirección slug antiguo → nuevo en ProductDetail + canonical",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "Aplicar el mapeo legacy a los 162 productos y verificar",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "Testing agent del conjunto y correcciones",
-    "status": "pending"
+    "status": "completed"
   }
 ]
