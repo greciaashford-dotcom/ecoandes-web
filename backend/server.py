@@ -30,6 +30,7 @@ from routes.reviews import router as reviews_router  # noqa: E402
 from routes.whatsapp import router as whatsapp_router  # noqa: E402
 from routes.coupons import router as coupons_router, seed_default_coupon  # noqa: E402
 from routes.refunds import router as refunds_router, seed_refund_reasons  # noqa: E402
+from routes.carts import router as carts_router  # noqa: E402
 from core.wp_importer import parse_wordpress_xml  # noqa: E402
 
 logging.basicConfig(
@@ -63,6 +64,7 @@ app.include_router(community_router)
 app.include_router(whatsapp_router)
 app.include_router(coupons_router)
 app.include_router(refunds_router)
+app.include_router(carts_router)
 app.include_router(analytics_router)
 app.include_router(carousel_router)
 app.include_router(legal_router)

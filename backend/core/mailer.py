@@ -525,3 +525,55 @@ async def send_newsletter_welcome(email: str) -> Optional[str]:
     """
     return await _send(email, "🌿 Bienvenido/a a EcoAndes · Tu 5 € de regalo te espera",
                        _wrap("¡Bienvenido/a a EcoAndes!", body))
+
+
+async def send_abandoned_cart_email(cart: dict) -> Optional[str]:
+    """Recordatorio de carrito abandonado (con cupón ECOBONUS)."""
+    items = cart.get("items") or []
+    rows = "".join(
+        f"""
+        <tr>
+          <td style="padding:9px 0;border-bottom:1px solid #EDEBE4;color:#3A403B;font-size:13px;">
+            {i.get('name', '')}{(' · ' + i['variation_name']) if i.get('variation_name') else ''}
+            <span style="color:#9BA39D;">× {i.get('quantity', 1)}</span>
+          </td>
+          <td style="padding:9px 0;border-bottom:1px solid #EDEBE4;color:#3A403B;font-size:13px;text-align:right;white-space:nowrap;">
+            {(i.get('unit_price', 0) * i.get('quantity', 1)):.2f} €
+          </td>
+        </tr>"""
+        for i in items[:10]
+    )
+    more = f"<p style='color:#9BA39D;font-size:12px;'>… y {len(items) - 10} producto(s) más.</p>" if len(items) > 10 else ""
+    body = f"""
+      <p style="color:#606962;font-size:14px;line-height:1.7;">
+        Hemos guardado tu carrito en <strong>EcoAndes</strong> para que no pierdas tu
+        selección de productos ecológicos. ¡Sigue donde lo dejaste!
+      </p>
+      <table style="width:100%;border-collapse:collapse;margin:14px 0;">
+        {rows}
+        <tr>
+          <td style="padding:10px 0;color:#3A403B;font-size:13px;font-weight:700;">Total estimado</td>
+          <td style="padding:10px 0;color:#3A403B;font-size:14px;font-weight:700;text-align:right;">{cart.get('subtotal', 0):.2f} €</td>
+        </tr>
+      </table>
+      {more}
+      <div style="background:#F4F7F0;border:1px solid #DCE8D2;border-radius:8px;padding:14px 16px;margin:16px 0;">
+        <p style="color:#4A6B4D;font-size:13px;line-height:1.7;margin:0;">
+          🌱 ¿Es tu primer pedido? Usa el cupón <strong>ECOBONUS</strong> y consigue
+          <strong>5 € de descuento</strong> (compra mínima 60 €). Y recuerda: envío
+          <strong>gratis</strong> a partir de 50 €.
+        </p>
+      </div>
+      <div style="text-align:center;margin:24px 0 6px;">
+        <a href="https://productosecoandes.com/checkout"
+           style="background:#72A638;color:#FFFFFF;text-decoration:none;padding:12px 28px;border-radius:999px;font-size:13px;letter-spacing:0.14em;text-transform:uppercase;">
+          Recuperar mi carrito
+        </a>
+      </div>
+      <p style="color:#9BA39D;font-size:11px;line-height:1.6;margin-top:20px;">
+        Recibes este correo porque dejaste productos en tu carrito de EcoAndes. Si ya
+        completaste tu compra, puedes ignorar este mensaje.
+      </p>
+    """
+    return await _send(cart["email"], "🛒 Tu carrito EcoAndes te espera · 5 € de regalo con ECOBONUS",
+                       _wrap("¿Olvidaste algo en tu carrito?", body))

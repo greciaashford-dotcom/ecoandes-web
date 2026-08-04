@@ -7,7 +7,7 @@ import { getAcquisition } from "../lib/tracking";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import { STORE } from "../data/storeInfo";
-
+import { buildCartSnapshot, rememberGuestEmail } from "../components/CartTracker";
 // Logos de medios de pago (SVG inline, sin peticiones externas)
 const CardLogos = () => (
   <span className="inline-flex items-center gap-1.5 align-middle" data-testid="card-logos">
@@ -58,6 +58,18 @@ export default function Checkout() {
   const customerType = user?.role === "professional" ? "professional" : "retail";
   const isPickup = delivery === "pickup";
   const isPro = customerType === "professional";
+
+  // Recuperación de carritos: en cuanto un invitado escribe un email válido,
+  // se guarda y se envía un snapshot del carrito con ese email (debounce).
+  useEffect(() => {
+    const em = (form.email || "").trim();
+    if (!em || !/\S+@\S+\.\S+/.test(em) || items.length === 0) return undefined;
+    const t = setTimeout(() => {
+      rememberGuestEmail(em);
+      api.post("/cart/track", buildCartSnapshot(items, subtotal, em.toLowerCase())).catch(() => {});
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [form.email, items, subtotal]);
 
   useEffect(() => {
     if (items.length === 0) return undefined;

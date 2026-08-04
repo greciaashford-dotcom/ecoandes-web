@@ -1,38 +1,30 @@
 [
   {
-    "content": "1. Carrusel móvil: deslizar libre con el dedo + reanudar auto-scroll al soltar",
-    "status": "completed"
-  },
-  {
-    "content": "2. Ficha técnica responsive en móvil + estética",
-    "status": "completed"
-  },
-  {
-    "content": "3. Hover del botón ABRIR CUENTA B2B → #72a638",
-    "status": "completed"
-  },
-  {
-    "content": "4. Reducir espacios excesivos entre secciones de la home",
-    "status": "completed"
-  },
-  {
-    "content": "5. Email de bienvenida automático a nuevos suscriptores",
-    "status": "completed"
-  },
-  {
-    "content": "6. Eliminar usuarios: clientes, compradores CRM y leads WhatsApp (backend + UI)",
-    "status": "completed"
-  },
-  {
-    "content": "7. Registro: botones, orden campos B2B, aviso AEAT, checkbox privacidad",
-    "status": "completed"
-  },
-  {
-    "content": "8. Métodos de pago: 'Pago con Tarjeta' + logos, PayPal logo, 'Otro (Confirming...)'",
-    "status": "completed"
-  },
-  {
-    "content": "Testing agent del lote completo",
+    "content": "Explorar CartContext, scheduler, server.py, AdminLayout y Checkout",
     "status": "in_progress"
+  },
+  {
+    "content": "Backend: routes/carts.py (track + admin list/delete) y registro en server.py",
+    "status": "pending"
+  },
+  {
+    "content": "Backend: email send_abandoned_cart_email en mailer.py con cupón ECOBONUS",
+    "status": "pending"
+  },
+  {
+    "content": "Backend: tarea en scheduler (recordatorio a las 4h) + marcar convertidos en create_order",
+    "status": "pending"
+  },
+  {
+    "content": "Frontend: tracking de carrito (logueados + email de invitado en checkout)",
+    "status": "pending"
+  },
+  {
+    "content": "Frontend: página admin Carritos Abandonados + ruta + sidebar",
+    "status": "pending"
+  },
+  {
+    "content": "Probar flujo completo (track → recordatorio → conversión) y testing agent",
+    "status": "pending"
   }
 ]

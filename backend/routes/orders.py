@@ -1,4 +1,5 @@
 """Shipping calc + order creation + admin management."""
+import logging
 from datetime import datetime, timezone
 from typing import List, Optional
 
@@ -16,6 +17,8 @@ from core.models import (
 )
 from core.shipping import evaluate_shipping, get_shipping_config, CONFIG_ID
 from core.utils import calc_shipping
+
+logger = logging.getLogger("ecoandes.orders")
 
 router = APIRouter(prefix="/api/orders", tags=["orders"])
 
@@ -308,6 +311,13 @@ async def create_order(
     }
     await db.orders.insert_one(order_doc)
     order_doc.pop("_id", None)
+    # Recuperación de carritos: los carritos de este email quedan como convertidos
+    try:
+        from routes.carts import mark_carts_converted
+
+        await mark_carts_converted(order_doc["email"], order_number)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("mark_carts_converted failed: %s", e)
     # Register coupon redemption (usage counter for admin panel)
     if applied_coupon:
         from routes.coupons import register_coupon_use

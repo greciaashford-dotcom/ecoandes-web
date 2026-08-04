@@ -58,6 +58,13 @@ async def _maybe_weekly_seo() -> None:
     await _set_state({"last_seo_analysis": datetime.now(timezone.utc).isoformat()})
 
 
+async def _maybe_abandoned_carts() -> None:
+    """Recordatorios de carrito abandonado (4h de inactividad, idempotente)."""
+    from routes.carts import process_abandoned_carts
+
+    await process_abandoned_carts()
+
+
 async def scheduler_loop() -> None:
     await asyncio.sleep(30)  # let the app finish booting
     while True:
@@ -69,4 +76,8 @@ async def scheduler_loop() -> None:
             await _maybe_weekly_seo()
         except Exception as e:  # noqa: BLE001
             logger.error("Weekly SEO analysis failed: %s", e)
+        try:
+            await _maybe_abandoned_carts()
+        except Exception as e:  # noqa: BLE001
+            logger.error("Abandoned carts processing failed: %s", e)
         await asyncio.sleep(600)
