@@ -89,6 +89,24 @@ async def update_user(user_id: str, payload: UserUpdate):
     return user
 
 
+@router.delete("/users/{user_id}")
+async def delete_user(user_id: str, admin: dict = Depends(require_admin)):
+    """Elimina definitivamente un usuario (cliente). Protecciones: no permite
+    borrar la propia cuenta ni cuentas de administrador."""
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if user["id"] == admin.get("id"):
+        raise HTTPException(status_code=400, detail="No puedes eliminar tu propia cuenta")
+    if user.get("role") == "admin":
+        raise HTTPException(status_code=400, detail="No se puede eliminar una cuenta de administrador")
+    await db.users.delete_one({"id": user_id})
+    # Datos asociados personales (wishlist/comparador)
+    await db.wishlists.delete_many({"user_id": user_id})
+    await db.compares.delete_many({"user_id": user_id})
+    return {"ok": True, "deleted": user.get("email")}
+
+
 @router.patch("/users/{user_id}/approval", dependencies=[Depends(require_admin)])
 async def set_user_approval(user_id: str, payload: dict):
     """Approve or reject a (professional) account. Sends an automatic email to

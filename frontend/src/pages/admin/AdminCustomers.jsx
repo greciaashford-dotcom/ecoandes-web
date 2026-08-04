@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { toast } from "sonner";
+import { Trash2 } from "lucide-react";
 
 export default function AdminCustomers() {
   const [users, setUsers] = useState([]);
@@ -27,6 +28,15 @@ export default function AdminCustomers() {
       toast.success(!u.approved ? "Cuenta aprobada (email enviado)" : "Cuenta desactivada");
       load();
     } catch (e) { toast.error("Error", { description: e?.response?.data?.detail }); }
+  };
+
+  const deleteUser = async (u) => {
+    if (!window.confirm(`¿Eliminar definitivamente al cliente "${u.first_name} ${u.last_name}" (${u.email})?\n\nEsta acción no se puede deshacer.`)) return;
+    try {
+      await api.delete(`/admin/users/${u.id}`);
+      setUsers((prev) => prev.filter((x) => x.id !== u.id));
+      toast.success("Cliente eliminado", { description: u.email });
+    } catch (e) { toast.error("No se pudo eliminar", { description: e?.response?.data?.detail }); }
   };
 
   return (
@@ -70,9 +80,16 @@ export default function AdminCustomers() {
                 </td>
                 <td>{u.approved ? "Sí" : "No"}</td>
                 <td className="p-4">
-                  <button onClick={() => toggleApproved(u)} className="text-xs text-sage-700 hover:underline" data-testid={`user-toggle-${u.email}`}>
-                    {u.approved ? "Desactivar" : "Aprobar"}
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => toggleApproved(u)} className="text-xs text-sage-700 hover:underline" data-testid={`user-toggle-${u.email}`}>
+                      {u.approved ? "Desactivar" : "Aprobar"}
+                    </button>
+                    {u.role !== "admin" && (
+                      <button onClick={() => deleteUser(u)} aria-label={`Eliminar ${u.email}`} className="text-ink-muted hover:text-red-500 transition-colors p-1" data-testid={`user-delete-${u.email}`}>
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

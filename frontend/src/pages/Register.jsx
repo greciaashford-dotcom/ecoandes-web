@@ -31,6 +31,7 @@ export default function Register() {
     business_type: "",
     phone: "",
   });
+  const [acceptPrivacy, setAcceptPrivacy] = useState(false);
   const [loading, setLoading] = useState(false);
   const [proResult, setProResult] = useState(null); // "manual" | "failed"
 
@@ -140,18 +141,8 @@ export default function Register() {
       </div>
 
       <form onSubmit={submit} className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4" data-testid="register-form">
-        <input className="input-eco" placeholder={t("register.firstName")} required value={form.first_name} onChange={onChange("first_name")} data-testid="register-first-name" />
-        <input className="input-eco" placeholder={t("register.lastName")} required value={form.last_name} onChange={onChange("last_name")} data-testid="register-last-name" />
-        <input className="input-eco md:col-span-2" type="email" placeholder={t("register.email")} required value={form.email} onChange={onChange("email")} data-testid="register-email" />
-        <PasswordInput className="md:col-span-2" placeholder={t("register.password")} minLength={6} required value={form.password} onChange={onChange("password")} testid="register-password" />
-        <input className="input-eco" placeholder={t("register.phone")} value={form.phone} onChange={onChange("phone")} data-testid="register-phone" />
         {form.role === "professional" && (
           <>
-            <p className="md:col-span-2 text-xs text-ink-soft bg-sage-50 border border-sage-200 rounded-sm px-3 py-2" data-testid="register-pro-note">
-              Verificamos tu NIF/CIF automáticamente contra el censo de la AEAT. Si la verificación
-              es correcta, tu cuenta profesional se activa al instante; en caso contrario, quedará
-              en revisión manual (máx. 24 h) y te avisaremos por correo.
-            </p>
             <input className="input-eco" placeholder={t("register.company")} required value={form.company} onChange={onChange("company")} data-testid="register-company" />
             <input className="input-eco" placeholder={t("register.taxId")} required value={form.tax_id} onChange={onChange("tax_id")} data-testid="register-tax-id" />
             <select
@@ -166,9 +157,36 @@ export default function Register() {
                 <option key={b} value={b}>{b}</option>
               ))}
             </select>
+            <p className="md:col-span-2 text-xs text-ink-soft bg-sage-50 border border-sage-200 rounded-sm px-3 py-2" data-testid="register-pro-note">
+              Verificamos tu NIF/CIF automáticamente contra el censo de la AEAT. Si la verificación
+              es correcta, tu cuenta profesional se activa al instante; en caso contrario, quedará
+              en revisión manual (máx. 24 h) y te avisaremos por correo.
+            </p>
           </>
         )}
-        <button type="submit" disabled={loading} className="btn-primary md:col-span-2 w-full" data-testid="register-submit">
+        <input className="input-eco" placeholder={t("register.firstName")} required value={form.first_name} onChange={onChange("first_name")} data-testid="register-first-name" />
+        <input className="input-eco" placeholder={t("register.lastName")} required value={form.last_name} onChange={onChange("last_name")} data-testid="register-last-name" />
+        <input className="input-eco md:col-span-2" type="email" placeholder={t("register.email")} required value={form.email} onChange={onChange("email")} data-testid="register-email" />
+        <PasswordInput className="md:col-span-2" placeholder={t("register.password")} minLength={6} required value={form.password} onChange={onChange("password")} testid="register-password" />
+        <input className="input-eco" placeholder={t("register.phone")} value={form.phone} onChange={onChange("phone")} data-testid="register-phone" />
+        <label className="md:col-span-2 flex items-start gap-2.5 text-sm text-ink-soft cursor-pointer select-none" data-testid="register-privacy-label">
+          <input
+            type="checkbox"
+            required
+            checked={acceptPrivacy}
+            onChange={(e) => setAcceptPrivacy(e.target.checked)}
+            className="mt-0.5 accent-sage-500 w-4 h-4"
+            data-testid="register-privacy-checkbox"
+          />
+          <span>
+            {t("register.privacyAccept")}{" "}
+            <Link to="/legal/politica-privacidad" target="_blank" className="text-sage-600 hover:text-sage-700 underline" data-testid="register-privacy-link">
+              {t("register.privacyPolicy")}
+            </Link>{" "}
+            {t("register.privacyOf")}
+          </span>
+        </label>
+        <button type="submit" disabled={loading || !acceptPrivacy} className="btn-primary md:col-span-2 w-full disabled:opacity-50" data-testid="register-submit">
           {loading ? t("register.creating") : t("register.submit")}
         </button>
       </form>

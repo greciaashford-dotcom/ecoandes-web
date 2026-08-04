@@ -55,7 +55,7 @@ export default function Home() {
       <CategoryCarousel />
 
       {/* Values strip */}
-      <section className="max-w-7xl mx-auto px-6 lg:px-12 py-20 grid grid-cols-1 md:grid-cols-3 gap-10" data-testid="values-strip">
+      <section className="max-w-7xl mx-auto px-6 lg:px-12 py-10 md:py-12 grid grid-cols-1 md:grid-cols-3 gap-8" data-testid="values-strip">
         {[
           { icon: Leaf, title: t("home.value1Title"), desc: t("home.value1Desc") },
           { icon: Sprout, title: t("home.value2Title"), desc: t("home.value2Desc") },
@@ -90,7 +90,7 @@ export default function Home() {
       </section>
 
       {/* Collections / categories */}
-      <section className="max-w-7xl mx-auto px-6 lg:px-12 py-20" data-testid="collections-section">
+      <section className="max-w-7xl mx-auto px-6 lg:px-12 py-10 md:py-12" data-testid="collections-section">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-8">
           <Link
             to="/tienda"
@@ -124,11 +124,11 @@ export default function Home() {
 
       {/* B2B Banner */}
       {/* Reseñas de clientes: carrusel infinito */}
-      <div className="mt-20">
+      <div className="mt-6 md:mt-8">
         <ReviewsCarousel />
       </div>
 
-      <section className="relative mt-20" data-testid="b2b-banner">
+      <section className="relative mt-10 md:mt-12" data-testid="b2b-banner">
         <div className="absolute inset-0">
           <picture className="block w-full h-full">
             <source media="(orientation: portrait)" srcSet={B2B_IMG_PORTRAIT} />
@@ -143,7 +143,7 @@ export default function Home() {
             <p className="mt-5 text-sage-100/90 font-light leading-relaxed max-w-lg">
               {t("home.b2bDesc")}
             </p>
-            <Link to="/profesional" className="btn-primary bg-bone-100 text-sage-800 hover:bg-white mt-8 inline-block" data-testid="b2b-cta">
+            <Link to="/profesional" className="btn-primary bg-bone-100 text-sage-800 hover:bg-sage-800 hover:text-white mt-8 inline-block" data-testid="b2b-cta">
               {t("home.b2bCta")}
             </Link>
           </div>

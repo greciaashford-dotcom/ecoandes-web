@@ -492,3 +492,36 @@ async def send_daily_report() -> Optional[str]:
     from datetime import datetime as _dt
     return await _send_company(f"📊 Reporte diario EcoAndes · {_dt.now().strftime('%d/%m/%Y')}",
                                _wrap("Reporte diario de estadísticas", body))
+
+
+async def send_newsletter_welcome(email: str) -> Optional[str]:
+    """Bienvenida automática a los nuevos suscriptores de la newsletter."""
+    body = """
+      <p style="color:#606962;font-size:14px;line-height:1.7;">
+        ¡Gracias por unirte a la comunidad <strong>EcoAndes</strong>! A partir de ahora
+        recibirás en tu correo recetas saludables, novedades BIO y ofertas exclusivas
+        antes que nadie.
+      </p>
+      <div style="background:#F4F7F0;border:1px solid #DCE8D2;border-radius:8px;padding:16px 18px;margin:18px 0;">
+        <p style="color:#4A6B4D;font-size:13px;line-height:1.7;margin:0;">
+          🌱 <strong>Tu regalo de bienvenida:</strong> usa el cupón <strong>ECOBONUS</strong>
+          y consigue <strong>5 € de descuento</strong> en tu primer pedido (compra mínima 60 €).
+        </p>
+      </div>
+      <p style="color:#606962;font-size:14px;line-height:1.7;">
+        Descubre nuestros superalimentos, semillas, harinas y legumbres ecológicas a granel,
+        con certificación ecológica europea y directas de su país de origen.
+      </p>
+      <div style="text-align:center;margin:26px 0 6px;">
+        <a href="https://productosecoandes.com/tienda"
+           style="background:#72A638;color:#FFFFFF;text-decoration:none;padding:12px 28px;border-radius:999px;font-size:13px;letter-spacing:0.14em;text-transform:uppercase;">
+          Explorar la tienda
+        </a>
+      </div>
+      <p style="color:#9BA39D;font-size:11px;line-height:1.6;margin-top:22px;">
+        Recibes este correo porque te has suscrito a la newsletter de EcoAndes. Si no has sido
+        tú, puedes ignorar este mensaje o escribirnos para darte de baja.
+      </p>
+    """
+    return await _send(email, "🌿 Bienvenido/a a EcoAndes · Tu 5 € de regalo te espera",
+                       _wrap("¡Bienvenido/a a EcoAndes!", body))

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Users, Store, UserCheck, Briefcase, Search, Download } from "lucide-react";
+import { Users, Store, UserCheck, Briefcase, Search, Download, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { api, formatEUR } from "../../lib/api";
 
 const TYPE_LABEL = {
@@ -33,6 +34,21 @@ export default function AdminBuyers() {
   const rows = data.buyers.filter(
     (b) => !q || b.email.toLowerCase().includes(q.toLowerCase()) || (b.name || "").toLowerCase().includes(q.toLowerCase())
   );
+
+  const deleteBuyer = async (b) => {
+    if (!window.confirm(`¿Eliminar al comprador "${b.email}" del CRM?\n\nSus pedidos NO se borran; solo desaparece de esta lista.`)) return;
+    try {
+      await api.delete(`/orders/admin/buyers/${encodeURIComponent(b.email)}`);
+      setData((prev) => ({
+        ...prev,
+        buyers: prev.buyers.filter((x) => x.email !== b.email),
+        stats: { ...prev.stats, total: Math.max(0, prev.stats.total - 1), [b.type]: Math.max(0, (prev.stats[b.type] || 1) - 1) },
+      }));
+      toast.success("Comprador eliminado", { description: b.email });
+    } catch (e) {
+      toast.error("No se pudo eliminar", { description: e?.response?.data?.detail });
+    }
+  };
 
   const exportCsv = () => {
     const header = "email,nombre,tipo,pedidos,total_gastado,ultimo_pedido\n";
@@ -110,13 +126,14 @@ export default function AdminBuyers() {
                 <th className="px-5 py-3 font-medium text-center">Pedidos</th>
                 <th className="px-5 py-3 font-medium text-right">Total gastado</th>
                 <th className="px-5 py-3 font-medium">Último pedido</th>
+                <th className="px-5 py-3"></th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="px-5 py-10 text-center text-ink-soft">Cargando…</td></tr>
+                <tr><td colSpan={7} className="px-5 py-10 text-center text-ink-soft">Cargando…</td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={6} className="px-5 py-10 text-center text-ink-soft">Aún no hay compradores.</td></tr>
+                <tr><td colSpan={7} className="px-5 py-10 text-center text-ink-soft">Aún no hay compradores.</td></tr>
               ) : (
                 rows.map((b) => {
                   const tl = TYPE_LABEL[b.type] || TYPE_LABEL.guest;
@@ -132,6 +149,16 @@ export default function AdminBuyers() {
                       <td className="px-5 py-3 text-center">{b.orders_count || 0}</td>
                       <td className="px-5 py-3 text-right">{formatEUR(b.total_spent || 0)}</td>
                       <td className="px-5 py-3 text-ink-soft">{(b.last_order_at || "").slice(0, 10)}</td>
+                      <td className="px-5 py-3 text-right">
+                        <button
+                          onClick={() => deleteBuyer(b)}
+                          aria-label={`Eliminar ${b.email}`}
+                          data-testid={`buyer-delete-${b.email}`}
+                          className="text-ink-muted hover:text-red-500 transition-colors p-1"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </td>
                     </tr>
                   );
                 })

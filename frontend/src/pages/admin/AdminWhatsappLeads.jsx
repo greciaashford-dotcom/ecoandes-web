@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { MessageCircle, Search, Download, Trash2, Users, RefreshCcw } from "lucide-react";
+import { toast } from "sonner";
 import { api } from "../../lib/api";
 
 function fmtDate(iso) {
@@ -60,8 +61,9 @@ export default function AdminWhatsappLeads() {
     try {
       await api.delete(`/admin/whatsapp-leads/${id}`);
       setLeads((prev) => prev.filter((l) => l.id !== id));
-    } catch {
-      // silent
+      toast.success("Lead eliminado");
+    } catch (e) {
+      toast.error("No se pudo eliminar el lead", { description: e?.response?.data?.detail });
     }
   };
 

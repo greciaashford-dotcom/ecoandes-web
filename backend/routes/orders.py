@@ -142,10 +142,8 @@ def _allowed_payment_methods(delivery_method: str, is_pro: bool) -> list:
     """Payment methods allowed per delivery + role. No cash on delivery anywhere."""
     if delivery_method == "pickup":
         return ["stripe", "paypal"]  # pay now to collect
-    methods = ["stripe", "paypal", "transfer"]
-    if is_pro:
-        methods.append("other")  # domiciliación / confirming (B2B only)
-    return methods
+    # "other" = Confirming: disponible para clientes que llegan a un acuerdo con EcoAndes
+    return ["stripe", "paypal", "transfer", "other"]
 
 
 @router.post("")
@@ -468,6 +466,17 @@ async def admin_buyers(
         "professional": await db.buyers.count_documents({"type": "professional"}),
     }
     return {"buyers": buyers, "stats": stats}
+
+
+@router.delete("/admin/buyers/{email}", dependencies=[Depends(require_admin)])
+async def delete_buyer(email: str):
+    """Elimina un comprador del CRM (no borra sus pedidos, solo la ficha CRM)."""
+    res = await db.buyers.delete_one({"email": email.lower()})
+    if res.deleted_count == 0:
+        res = await db.buyers.delete_one({"email": email})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Comprador no encontrado")
+    return {"ok": True, "deleted": email}
 
 
 @router.get("/admin/{order_id}", dependencies=[Depends(require_admin)])

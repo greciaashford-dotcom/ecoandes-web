@@ -22,6 +22,10 @@ async def newsletter_subscribe(payload: NewsletterSubscribe):
     await db.newsletter_subscribers.insert_one(
         {"email": email, "created_at": datetime.now(timezone.utc).isoformat()}
     )
+    # Email de bienvenida automático (no bloquea la respuesta)
+    import asyncio
+    from core.mailer import send_newsletter_welcome
+    asyncio.create_task(send_newsletter_welcome(email))
     return {"ok": True, "already": False}
 
 

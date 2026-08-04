@@ -8,6 +8,31 @@ import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import { STORE } from "../data/storeInfo";
 
+// Logos de medios de pago (SVG inline, sin peticiones externas)
+const CardLogos = () => (
+  <span className="inline-flex items-center gap-1.5 align-middle" data-testid="card-logos">
+    <svg viewBox="0 0 38 24" className="h-5 w-8 rounded-[3px] border border-bone-200 bg-white" aria-label="Visa" role="img">
+      <text x="19" y="16" textAnchor="middle" fontSize="9" fontWeight="700" fontStyle="italic" fill="#1A1F71" fontFamily="Arial, sans-serif">VISA</text>
+    </svg>
+    <svg viewBox="0 0 38 24" className="h-5 w-8 rounded-[3px] border border-bone-200 bg-white" aria-label="MasterCard" role="img">
+      <circle cx="15.5" cy="12" r="7" fill="#EB001B" />
+      <circle cx="22.5" cy="12" r="7" fill="#F79E1B" fillOpacity="0.92" />
+    </svg>
+    <svg viewBox="0 0 38 24" className="h-5 w-8 rounded-[3px]" aria-label="American Express" role="img">
+      <rect width="38" height="24" rx="3" fill="#2E77BC" />
+      <text x="19" y="15.5" textAnchor="middle" fontSize="8" fontWeight="700" fill="#FFFFFF" fontFamily="Arial, sans-serif">AMEX</text>
+    </svg>
+  </span>
+);
+
+const PaypalLogo = () => (
+  <svg viewBox="0 0 44 24" className="h-5 w-9 rounded-[3px] border border-bone-200 bg-white align-middle" aria-label="PayPal" role="img" data-testid="paypal-logo">
+    <text x="22" y="16" textAnchor="middle" fontSize="9" fontWeight="700" fontStyle="italic" fontFamily="Arial, sans-serif">
+      <tspan fill="#003087">Pay</tspan><tspan fill="#009CDE">Pal</tspan>
+    </text>
+  </svg>
+);
+
 export default function Checkout() {
   const { items, subtotal, subtotalExVat, subtotalWithVat, vatAmount, totalWeightKg, hasBulk, clearCart } = useCart();
   const { user } = useAuth();
@@ -175,7 +200,7 @@ export default function Checkout() {
       // offline methods: transfer / domiciliación-confirming
       clearCart();
       const offlineMsg = method === "other"
-        ? "Nos pondremos en contacto para gestionar la domiciliación/confirming."
+        ? "Nos pondremos en contacto contigo para gestionar el pago acordado (confirming)."
         : "Te hemos enviado las instrucciones de transferencia por email.";
       toast.success("Pedido registrado", { description: offlineMsg });
       nav(`/pago/success?order_number=${order.order_number}&offline=1&method=${method}`);
@@ -276,10 +301,10 @@ export default function Checkout() {
             <h2 className="font-heading text-xl font-normal mb-5">Método de pago</h2>
             <div className="space-y-3" data-testid="payment-methods">
               {[
-                { v: "stripe", label: "Tarjeta (Stripe)", desc: "Pago seguro con tarjeta vía Stripe Checkout." },
-                { v: "paypal", label: "PayPal", desc: "Finaliza con tu cuenta PayPal." },
+                { v: "stripe", label: "Pago con Tarjeta", desc: "Pago seguro con tarjeta Visa, MasterCard o American Express.", logos: <CardLogos /> },
+                { v: "paypal", label: "PayPal", desc: "Finaliza con tu cuenta PayPal.", logos: <PaypalLogo /> },
                 !isPickup && { v: "transfer", label: "Transferencia bancaria", desc: "Recibirás nuestras instrucciones por email para realizar la transferencia." },
-                !isPickup && isPro && { v: "other", label: "Domiciliación / Confirming", desc: "Exclusivo para clientes profesionales. Nos pondremos en contacto para gestionarlo." },
+                !isPickup && { v: "other", label: "Otro (Confirming, solo para clientes que llegan a un acuerdo con EcoAndes)", desc: "Nos pondremos en contacto contigo para gestionar el pago acordado." },
               ].filter(Boolean).map((m) => (
                 <label
                   key={m.v}
@@ -290,7 +315,10 @@ export default function Checkout() {
                 >
                   <input type="radio" name="method" checked={method === m.v} onChange={() => setMethod(m.v)} className="mt-1 accent-sage-500" />
                   <div>
-                    <div className="text-sm text-ink font-medium">{m.label}</div>
+                    <div className="text-sm text-ink font-medium flex items-center gap-2 flex-wrap">
+                      {m.label}
+                      {m.logos}
+                    </div>
                     <div className="text-xs text-ink-soft mt-1">{m.desc}</div>
                   </div>
                 </label>

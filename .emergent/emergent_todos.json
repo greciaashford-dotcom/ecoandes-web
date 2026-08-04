@@ -1,34 +1,38 @@
 [
   {
-    "content": "Explorar routes/products.py, AdminProducts.jsx, ProductDetail.jsx y estructura seo/translations",
-    "status": "completed"
+    "content": "1. Carrusel móvil: deslizar libre con el dedo + reanudar auto-scroll al soltar",
+    "status": "pending"
   },
   {
-    "content": "Backend: endpoint PUT para editar SEO por producto e idioma (7 idiomas)",
-    "status": "completed"
+    "content": "2. Ficha técnica responsive en móvil (botón DESCARGAR PDF desbordado) + estética",
+    "status": "pending"
   },
   {
-    "content": "Backend: script/endpoint aplicar nombres legacy (renombrar + slug nuevo + slug_aliases)",
-    "status": "completed"
+    "content": "3. Hover del botón ABRIR CUENTA B2B → #72a638",
+    "status": "pending"
   },
   {
-    "content": "Backend: resolución de slugs antiguos (alias → producto) con canonical",
-    "status": "completed"
+    "content": "4. Reducir espacios excesivos entre secciones de la home",
+    "status": "pending"
   },
   {
-    "content": "Frontend: editor SEO en admin con pestañas de 7 idiomas",
-    "status": "completed"
+    "content": "5. Email de bienvenida automático a nuevos suscriptores",
+    "status": "pending"
   },
   {
-    "content": "Frontend: redirección slug antiguo → nuevo en ProductDetail + canonical",
-    "status": "completed"
+    "content": "6. Eliminar usuarios: clientes, compradores CRM y leads WhatsApp (backend + UI)",
+    "status": "pending"
   },
   {
-    "content": "Aplicar el mapeo legacy a los 162 productos y verificar",
-    "status": "completed"
+    "content": "7. Registro: botones SOY PARTICULAR / SOY PROFESIONAL B2B, orden campos B2B, aviso AEAT, checkbox privacidad",
+    "status": "pending"
   },
   {
-    "content": "Testing agent del conjunto y correcciones",
-    "status": "completed"
+    "content": "8. Métodos de pago: 'Pago con Tarjeta' + logos Visa/MC/Amex, logo PayPal, 'Otro (Confirming...)'",
+    "status": "pending"
+  },
+  {
+    "content": "Testing agent del lote completo",
+    "status": "pending"
   }
 ]

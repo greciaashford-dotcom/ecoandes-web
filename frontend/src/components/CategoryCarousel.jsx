@@ -40,6 +40,7 @@ export default function CategoryCarousel() {
   const [items, setItems] = useState([]);
 
   const trackRef = useRef(null);
+  const rowRef = useRef(null);
   const offsetRef = useRef(0);
   const halfRef = useRef(1);
   const draggingRef = useRef(false);
@@ -112,6 +113,7 @@ export default function CategoryCarousel() {
   }, [doubled.length]);
 
   const onPointerDown = (e) => {
+    if (e.pointerType === "touch") return; // el táctil se gestiona con listeners nativos
     draggingRef.current = true;
     movedRef.current = 0;
     dragStartX.current = e.clientX;
@@ -119,19 +121,74 @@ export default function CategoryCarousel() {
     try { e.currentTarget.setPointerCapture?.(e.pointerId); } catch { /* ignore */ }
   };
   const onPointerMove = (e) => {
+    if (e.pointerType === "touch") return;
     if (!draggingRef.current) return;
     const dx = e.clientX - dragStartX.current;
     movedRef.current = Math.max(movedRef.current, Math.abs(dx));
-    // en táctil, si el gesto es claramente horizontal, evitamos el scroll vertical
-    if (e.pointerType === "touch" && movedRef.current > 8 && e.cancelable) {
-      e.preventDefault();
-    }
     offsetRef.current = dragStartOffset.current + dx;
   };
   const endDrag = () => {
     // al soltar, el auto-scroll se reanuda solo (draggingRef vuelve a false)
     draggingRef.current = false;
   };
+
+  // Táctil (móvil): listeners nativos con passive:false para poder bloquear el
+  // scroll vertical cuando el gesto es horizontal. Deslizamiento libre en ambas
+  // direcciones y reanudación automática del movimiento al levantar el dedo.
+  useEffect(() => {
+    const el = rowRef.current;
+    if (!el) return undefined;
+    let startX = 0;
+    let startY = 0;
+    let startOffset = 0;
+    let active = false;
+    let horizontal = null; // null = sin decidir, true = arrastre del carrusel
+    const onTouchStart = (e) => {
+      const t = e.touches[0];
+      active = true;
+      horizontal = null;
+      startX = t.clientX;
+      startY = t.clientY;
+      startOffset = offsetRef.current;
+      movedRef.current = 0;
+      draggingRef.current = true; // pausa el auto-scroll mientras el dedo toca
+    };
+    const onTouchMove = (e) => {
+      if (!active) return;
+      const t = e.touches[0];
+      const dx = t.clientX - startX;
+      const dy = t.clientY - startY;
+      if (horizontal === null && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+        horizontal = Math.abs(dx) >= Math.abs(dy);
+        if (!horizontal) {
+          // gesto vertical: dejar que la página haga scroll y soltar el carrusel
+          active = false;
+          draggingRef.current = false;
+          return;
+        }
+      }
+      if (horizontal) {
+        if (e.cancelable) e.preventDefault(); // bloquea el scroll de la página
+        movedRef.current = Math.max(movedRef.current, Math.abs(dx));
+        offsetRef.current = startOffset + dx;
+      }
+    };
+    const onTouchEnd = () => {
+      active = false;
+      draggingRef.current = false; // el movimiento automático continúa solo
+    };
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    el.addEventListener("touchcancel", onTouchEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
+    };
+  }, []);
+
   const onClickCapture = (e) => {
     // si el usuario arrastró, no interpretar como click en la categoría
     if (movedRef.current > 6) {
@@ -143,12 +200,13 @@ export default function CategoryCarousel() {
   if (items.length === 0) return null;
 
   return (
-    <section className="py-16 overflow-hidden" data-testid="category-carousel">
-      <div className="max-w-7xl mx-auto px-6 lg:px-12 mb-8 sm:mb-10 text-center">
+    <section className="py-10 md:py-12 overflow-hidden" data-testid="category-carousel">
+      <div className="max-w-7xl mx-auto px-6 lg:px-12 mb-7 sm:mb-8 text-center">
         <div className="overline mb-3">{t("categoryCarousel.overline")}</div>
         <h2 className="font-heading text-2xl sm:text-3xl md:text-4xl font-light">{t("categoryCarousel.title")}</h2>
       </div>
       <div
+        ref={rowRef}
         className="marquee-row cursor-grab active:cursor-grabbing"
         style={{ touchAction: "pan-y" }}
         onPointerDown={onPointerDown}
