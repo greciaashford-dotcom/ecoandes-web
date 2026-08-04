@@ -1,30 +1,30 @@
 [
   {
     "content": "Explorar CartContext, scheduler, server.py, AdminLayout y Checkout",
-    "status": "in_progress"
+    "status": "completed"
   },
   {
     "content": "Backend: routes/carts.py (track + admin list/delete) y registro en server.py",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "Backend: email send_abandoned_cart_email en mailer.py con cupón ECOBONUS",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "Backend: tarea en scheduler (recordatorio a las 4h) + marcar convertidos en create_order",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "Frontend: tracking de carrito (logueados + email de invitado en checkout)",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "Frontend: página admin Carritos Abandonados + ruta + sidebar",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "Probar flujo completo (track → recordatorio → conversión) y testing agent",
-    "status": "pending"
+    "status": "completed"
   }
 ]
