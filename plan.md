@@ -1,4 +1,4 @@
-# EcoAndes BIO — Plan de Continuación (UI → Blogs → Testing → Catálogo/Precios/IVA → Envíos → Pagos → SEO/GEO → Imágenes → **SEO Manual + Nombres Legacy + Redirecciones**)
+# EcoAndes BIO — Plan de Continuación (UI → Blogs → Testing → Catálogo/Precios/IVA → Envíos → Pagos → SEO/GEO → Imágenes → **SEO Manual + Nombres Legacy + Redirecciones** → **UX/Operaciones (Lote 9)**)
 
 ## 1) Objetivos
 
@@ -19,7 +19,7 @@
 - **Fase 3 (P1): Métodos de pago** por rol (sin contrareembolso) + scaffolding para credenciales futuras.
   - **Estado:** **COMPLETADO** (lógica + UI + validación server‑side). Credenciales **pendientes**.
 - **Fase 4 (P1): SEO + GEO** por ficha de producto, con generación automática multi‑idioma y render en frontend.
-  - **Estado:** **EN PROGRESO** (infraestructura completada; generación IA en background; ahora con protección por `manual=true`).
+  - **Estado:** **EN PROGRESO** (infraestructura completada; generación IA en background; protección por `manual=true`).
 - **Fase 5 (P1): Migración P0 de imágenes** a almacenamiento propio (WebP + resize + caché 1 año) una vez estabilizado el catálogo.
   - **Estado:** **PENDIENTE**.
 - **Fase 6 (P0/P1): SEO Manual + Nombres Legacy + Redirecciones**
@@ -28,6 +28,9 @@
   - Redirecciones de slugs antiguos → slugs nuevos (alias + replace en SPA).
   - Blindaje para que la auto‑reconciliación Excel no revierta los cambios.
   - **Estado:** **COMPLETADO** (implementado + verificado).
+- **Fase 7 (P0/P1): UX + Operaciones (Lote 9)**
+  - Mejoras móviles (carrusel y ficha técnica), ajustes de spacing, checkout UI, registro UX/legal, automatización email newsletter, y borrado CRM.
+  - **Estado:** **COMPLETADO** + validado E2E (**iteration_17 100%**).
 
 ---
 
@@ -208,13 +211,20 @@
 #### 7.3 Frontend (implementado)
 - Checkout:
   - Transferencia disponible para **B2C y B2B** (solo envío a domicilio).
-  - Método **Other** visible solo para profesionales y solo con envío.
+  - Método **Other** (confirming) visible **solo con envío**.
   - Al seleccionar recogida se resetean `transfer/other` → `stripe`.
 - Flujo offline:
   - `transfer` y `other` redirigen a `/pago/success?offline=1&method={transfer|other}`.
   - `PaymentSuccess` muestra mensaje específico para `other`.
 
-#### 7.4 Pendiente de completar cuando el cliente entregue credenciales/datos
+#### 7.4 Ajuste aplicado en Lote 9 (UI/Operaciones)
+- Etiqueta del método 1: **"Pago con Tarjeta"** (antes “Tarjeta (Stripe)”).
+- Logos (sin peticiones externas): **Visa/MasterCard/Amex** inline SVG.
+- PayPal con logo inline SVG.
+- Nuevo método en UI: **"Otro (Confirming, solo para clientes que llegan a un acuerdo con EcoAndes)"** debajo de Transferencia.
+- Validación backend actualizada: `other` permitido en envío a domicilio (no pickup) para todos los roles.
+
+#### 7.5 Pendiente de completar cuando el cliente entregue credenciales/datos
 - Stripe: API keys (live/test según entorno).
 - PayPal: client id/secret.
 - Transferencia: IBAN, beneficiario, banco, concepto y plantilla de email.
@@ -231,7 +241,7 @@
   - Persistencia:
     - ES: `product.seo`
     - Idiomas: `translations.{lang}.seo`
-  - **Protección SEO manual (nuevo):**
+  - **Protección SEO manual:**
     - Si `seo.manual == true` (ES) o `translations.{lang}.seo.manual == true`, ese idioma se **excluye** de la generación IA.
 - `products.py`:
   - `_apply_lang` superpone `seo` por idioma.
@@ -242,7 +252,7 @@
 #### 8.2 Frontend (COMPLETADO)
 - Componente `/app/frontend/src/components/Seo.jsx` (sin dependencias):
   - `<title>`, metas, OpenGraph/Twitter, canonical, hreflang, JSON‑LD opcional.
-  - **Fix aplicado:** evita duplicar el sufijo de marca cuando el `title` ya contiene “EcoAndes” (antes salía `| EcoAndes | EcoAndes`).
+  - Fix: evita duplicar “EcoAndes” si el título ya lo contiene.
 - Integración:
   - `ProductDetail.jsx`: JSON‑LD Product + Offer/AggregateOffer + `countryOfOrigin`.
   - `Home.jsx`: JSON‑LD Organization.
@@ -323,7 +333,6 @@
 **Frontend (implementado):**
 - `ProductDetail.jsx`:
   - Si la API devuelve `redirected_from`, hace `navigate(..., { replace: true })` al slug canónico.
-  - Verificado: `/producto/acai-liofilizado-en-polvo-bio` → `/producto/acai` con canonical correcto.
 
 #### 10.4 Blindaje contra auto‑reconciliación Excel — **COMPLETADO (P0)**
 - `/app/backend/scripts/import_catalog.py`:
@@ -332,19 +341,74 @@
   - Dry-run verificado: **162/174** con legacy preservado; **0** a archivar.
 
 #### 10.5 Validación / Testing — **COMPLETADO (P1)**
-- `testing_agent_v3` → `iteration_16`:
-  - Backend **95.3%** (82/86) sin bugs críticos.
-  - Falso positivo en frontend: la diferencia de nombres se debía a `lang=en` (traducción), comportamiento aceptado.
+- `testing_agent_v3` → `iteration_16` sin bugs críticos reales.
 - Verificado manualmente (ES): PDP / tienda / búsqueda / admin muestran nombres legacy.
-- Limpieza: se restauró un SEO de prueba que el tester dejó en “Cacao nibs Criollo” a valores correctos.
+
+---
+
+### Fase 11 — **Lote 9: UX + Operaciones (8 mejoras)** — **COMPLETADO (2026-08)**
+
+#### 11.1 Alcance
+1) Carrusel móvil “Nuestras categorías”: swipe libre con el dedo + reanuda auto-scroll al soltar.
+2) Ficha técnica: responsive móvil (botón “DESCARGAR PDF” no se sale) + rediseño estético.
+3) Hover del CTA “ABRIR CUENTA B2B”: color hover = `#72a638`.
+4) Ajuste de espaciado entre secciones de la home.
+5) Email de bienvenida newsletter automático.
+6) Borrado desde CRM: clientes, compradores y leads WhatsApp.
+7) Registro: textos de botones, orden de campos B2B, aviso AEAT, checkbox privacidad.
+8) Checkout: labels y logos de métodos de pago + método “Otro (Confirming…)”.
+
+#### 11.2 Implementación (realizada)
+- **(1) Carrusel móvil (CategoryCarousel):**
+  - Touch listeners nativos (`touchstart/move/end`) con `passive:false` para bloquear scroll cuando el gesto es horizontal.
+  - Bloqueo direccional (si gesto vertical → no secuestra scroll de página).
+  - `draggingRef` pausa auto-scroll durante el toque y lo reanuda al soltar.
+  - Pointer events quedan para ratón (evita conflictos con touch).
+- **(2) Ficha técnica (ProductDetail):**
+  - Tarjeta `rounded-2xl` con icono.
+  - Botones apilados `flex-col` en móvil (`w-full`) y `flex-row` en desktop.
+  - Verificado dentro de 390px.
+- **(3) Hover CTA B2B (Home):**
+  - `hover:bg-sage-800 hover:text-white` (equivalente `#72a638`).
+- **(4) Spacing home (Home + CategoryCarousel):**
+  - Reducción de espacios grandes: `py-20 → py-10/12`, `mt-20 → mt-6/8`, etc.
+- **(5) Bienvenida newsletter (backend):**
+  - `send_newsletter_welcome` en `core/mailer.py`.
+  - Disparo async en `POST /api/newsletter/subscribe`.
+  - **Gate conocido:** Resend restringe envíos a emails “own address” hasta verificar dominio.
+- **(6) Borrados CRM:**
+  - `DELETE /api/admin/users/{user_id}` con protecciones (no self-delete, no admins).
+  - `DELETE /api/orders/admin/buyers/{email}` (solo ficha CRM; no borra pedidos).
+  - Leads WhatsApp: delete ya existía; se añadió feedback con toasts.
+  - UI: iconos papelera + confirm en `AdminCustomers` y `AdminBuyers`.
+- **(7) Registro (Register + i18n):**
+  - Botones: “SOY PARTICULAR” y “SOY PROFESIONAL B2B”.
+  - Profesional: empieza con “Nombre de la Empresa” + “CIF/NIF” al lado, luego “Tipo de Negocio”, luego aviso AEAT.
+  - Checkbox requerido “Acepto la Política de Privacidad de EcoAndes” (submit deshabilitado si no está marcado).
+  - Textos actualizados en 7 idiomas.
+- **(8) Checkout (Checkout + backend payments):**
+  - “Pago con Tarjeta” + logos Visa/MasterCard/Amex (SVG inline).
+  - PayPal con logo (SVG inline).
+  - Método “Otro (Confirming…)” añadido debajo de Transferencia.
+  - Backend: `_allowed_payment_methods` actualizado (other permitido en shipping; pickup sigue solo Stripe/PayPal).
+
+#### 11.3 Validación
+- `testing_agent_v3` → `iteration_17`:
+  - Backend **100% (12/12)**
+  - Frontend móvil **100% (8/8)**
+  - Frontend desktop **100% (11/11)**
+  - Cero bugs.
+- Limpieza post-testing:
+  - Eliminados: suscriptores test, pedido **ECO-4** de test, buyers de test.
 
 ---
 
 ## 3) Próximas Acciones (inmediatas)
 1. **Cerrar Fase 8 (SEO/GEO):** esperar fin de generación IA + spot-check + corregir manualmente lo que sea necesario (ya existe editor 7 idiomas).
 2. **Fase 9 (P1): migración de imágenes** (P0) una vez se congelen los productos finales.
-3. (Opcional) Añadir reporte admin de “productos con SEO manual” y botón “reset manual” por idioma (solo si lo necesitas).
-4. Testing E2E adicional tras migración de imágenes y/o tras finalizar SEO IA.
+3. **Operativa newsletter (Resend):** verificar dominio de envío para habilitar el email de bienvenida a cualquier destinatario.
+4. (Opcional) Reporte admin de “productos con SEO manual” + botón “reset manual” por idioma.
+5. Testing E2E adicional tras migración de imágenes y/o tras finalizar SEO IA.
 
 ---
 
@@ -354,10 +418,13 @@
 - **Catálogo**: BD coincide con Excel: **174 productos / 390 formatos**; archivado reversible de legacy; categorías y origen cargados; pesos por variación; stock operable. **(Cumplido)**
 - **IVA**: cálculo dinámico consistente y visualización B2C con IVA / B2B sin IVA; desglose en checkout y persistencia en pedido. **(Cumplido)**
 - **Envíos**: reglas por rol y zona + escala por peso correctas (incluye excepciones B2B y zonas restringidas) + bloqueo/quote manual. **(Cumplido)**
-- **Pagos**: métodos por rol, sin COD; validación backend + UI; credenciales desacopladas. **(Cumplido; credenciales pendientes)**
+- **Pagos**: métodos por rol, sin COD; validación backend + UI. **(Cumplido; credenciales pendientes)**
+- **Checkout UX**: labels claros y logos de métodos; método “Confirming” disponible según regla; pickup restringe métodos. **(Cumplido)**
 - **SEO/GEO**: metadatos multi‑idioma generados y renderizados; canonical + hreflang + JSON‑LD correcto. **(En progreso; infra OK)**
 - **SEO Manual:** admin puede editar SEO en 7 idiomas; `manual=true` evita sobrescritura por IA. **(Cumplido)**
 - **Legacy names + redirect:** nombre + slug actualizados a legacy; slugs antiguos resuelven y redirigen a canónico en SPA; canonical correcto. **(Cumplido)**
+- **Registro UX/legal:** roles claros, orden de campos profesional correcto, aviso AEAT presente, checkbox privacidad obligatorio. **(Cumplido)**
+- **Operaciones CRM:** borrado de clientes/compradores/leads disponible con protecciones y confirm. **(Cumplido)**
 - **Imágenes**: assets propios (WebP) + caché 1 año; no dependencia externa; productos nuevos con imagen. **(Pendiente)**
 - **Portabilidad**: semillas/snapshots restauran contenido de UI/Legal/Archivos en entornos nuevos; binarios de storage verificados. **(Parcial: snapshot OK, binarios por validar)**
 

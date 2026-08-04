@@ -1,38 +1,38 @@
 [
   {
     "content": "1. Carrusel móvil: deslizar libre con el dedo + reanudar auto-scroll al soltar",
-    "status": "pending"
+    "status": "completed"
   },
   {
-    "content": "2. Ficha técnica responsive en móvil (botón DESCARGAR PDF desbordado) + estética",
-    "status": "pending"
+    "content": "2. Ficha técnica responsive en móvil + estética",
+    "status": "completed"
   },
   {
     "content": "3. Hover del botón ABRIR CUENTA B2B → #72a638",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "4. Reducir espacios excesivos entre secciones de la home",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "5. Email de bienvenida automático a nuevos suscriptores",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "6. Eliminar usuarios: clientes, compradores CRM y leads WhatsApp (backend + UI)",
-    "status": "pending"
+    "status": "completed"
   },
   {
-    "content": "7. Registro: botones SOY PARTICULAR / SOY PROFESIONAL B2B, orden campos B2B, aviso AEAT, checkbox privacidad",
-    "status": "pending"
+    "content": "7. Registro: botones, orden campos B2B, aviso AEAT, checkbox privacidad",
+    "status": "completed"
   },
   {
-    "content": "8. Métodos de pago: 'Pago con Tarjeta' + logos Visa/MC/Amex, logo PayPal, 'Otro (Confirming...)'",
-    "status": "pending"
+    "content": "8. Métodos de pago: 'Pago con Tarjeta' + logos, PayPal logo, 'Otro (Confirming...)'",
+    "status": "completed"
   },
   {
     "content": "Testing agent del lote completo",
-    "status": "pending"
+    "status": "in_progress"
   }
 ]
