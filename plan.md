@@ -1,4 +1,4 @@
-# EcoAndes BIO — Plan de Continuación (UI → Blogs → Testing → Catálogo/Precios/IVA → Envíos → Pagos → SEO/GEO → Imágenes → **SEO Manual + Nombres Legacy + Redirecciones** → **UX/Operaciones (Lote 9)** → **Recuperación de Carritos (Lote 10)** → **Lote 11 (Splash + Recetas + Media links + Emails + Hero dots + 2º recordatorio)**)
+# EcoAndes BIO — Plan de Continuación (UI → Blogs → Testing → Catálogo/Precios/IVA → Envíos → Pagos → SEO/GEO → Imágenes → **SEO Manual + Nombres Legacy + Redirecciones** → **UX/Operaciones (Lote 9)** → **Recuperación de Carritos (Lote 10)** → **Lote 11 (Splash + Recetas + Media links + Emails + Hero dots + 2º recordatorio + Links universales)**)
 
 ## 1) Objetivos
 
@@ -29,14 +29,15 @@
   - Email con incentivo **ECOBONUS**.
   - Página admin “Carritos abandonados”.
   - **Estado:** **COMPLETADO** + validado E2E (**iteration_18**).
-- **Fase 13 (P0/P1): Lote 11 — Splash + Recetas + Media links + Emails + Hero dots + 2º recordatorio**
+- **Fase 13 (P0/P1): Lote 11 — Splash + Recetas + Media links + Emails + Hero dots + 2º recordatorio + Links universales**
   - 2º recordatorio de carrito **a las 24 h**.
   - Indicadores del Hero **verticales a la derecha** (desktop + móvil).
   - Splash screen con vídeo (mp4 + fallback webm) **una vez por sesión**.
   - Admin Archivos: **añadir por enlace** + filtro de vídeos + badges.
   - Sección Home “**Recetas con nuestros productos**” (3 vídeos verticales) + Admin.
   - Rediseño de emails automatizados con colores de marca.
-  - **Estado:** **COMPLETADO** + validado E2E (**iteration_19 100%**).
+  - **EXTENSIÓN:** opción **por enlace** universalizada en **todas** las ediciones de imágenes/PDF dentro del dashboard.
+  - **Estado:** **COMPLETADO** + validado E2E (**iteration_19 100%**) y verificación manual adicional.
 
 ---
 
@@ -214,7 +215,7 @@
 
 ---
 
-### Fase 13 — **Lote 11: Splash + Recetas + Media links + Emails + Hero dots + 2º recordatorio** — **COMPLETADO (2026-08)**
+### Fase 13 — **Lote 11: Splash + Recetas + Media links + Emails + Hero dots + 2º recordatorio + Links universales** — **COMPLETADO (2026-08)**
 
 #### 13.1 Objetivos del lote
 1) 2º recordatorio de carrito a las **24h**.
@@ -223,6 +224,7 @@
 4) Admin Archivos: opción subir archivo o pegar enlace (mejor performance).
 5) Sección Home “Recetas con nuestros productos” (3 vídeos verticales) + Admin para CRUD/orden/metadescripción.
 6) Emails automatizados: diseño más atractivo y con colores de marca.
+7) **Extensión solicitada por usuario:** opción **por enlace** disponible en **TODOS** los puntos del dashboard donde se editan imágenes (y PDFs) — no solo en “Archivos”.
 
 #### 13.2 Implementación (realizada)
 
@@ -242,14 +244,14 @@
 
 **(3) Splash screen con vídeo**
 - Assets:
-  - `/app/frontend/public/splash-bienvenida.mp4` (5.3MB) descargado del link del usuario.
-  - `/app/frontend/public/splash-bienvenida.webm` (VP9 720p ~1.1MB) generado para compatibilidad.
+  - `/app/frontend/public/splash-bienvenida.mp4` (≈5.3MB) descargado del link del usuario.
+  - `/app/frontend/public/splash-bienvenida.webm` (VP9 720p ≈1.1MB) generado para compatibilidad.
 - Frontend:
   - `/app/frontend/src/components/SplashScreen.jsx` (montado en `App.js`).
   - Aparece **una vez por sesión** (`sessionStorage eco_splash_seen`).
   - Botón **Saltar**.
   - Autocierre al terminar el vídeo (~8.2s) + failsafe a 11s.
-  - Fix importante: `onError` ya no está en `<video>` (cerraba el splash si fallaba el mp4 aunque el webm reprodujera); se deja solo en el último `<source>`.
+  - Fix importante: `onError` no está en `<video>` (evita cierre prematuro cuando falla un `<source>` pero hay otro reproducible); se usa en el último `<source>`.
 
 **(4) Archivos por enlace (CDN/nube del cliente)**
 - Backend: `/app/backend/routes/files.py`
@@ -282,14 +284,34 @@
   - `_wrap(...)` renovado:
     - Cabecera verde **#72A638**.
     - Banda de confianza (certificación/envío/pago seguro).
-    - Footer oscuro con dirección real (Mercado Barceló, C. de Barceló 6, Local 204, 28004 Madrid).
+    - Footer oscuro con dirección real.
   - Impacto: afecta a **todos** los correos automáticos (bienvenida newsletter, carritos, pedidos, etc.).
+
+**(7) Links universales en TODOS los editores de imágenes/PDF (EXTENSIÓN)**
+- **Objetivo:** que el usuario pueda editar/establecer imágenes desde el dashboard **por enlace** en **cada lugar** donde se edita una imagen o PDF.
+- **Solución técnica:** rework de `/app/frontend/src/pages/admin/UploadButton.jsx` para incluir un control dividido:
+  - **Subir** (archivo desde dispositivo)
+  - **🔗 Enlace** (diálogo para pegar URL)
+- **Comportamiento del diálogo:**
+  - Valida URL http/https.
+  - Llama a `POST /api/admin/files/external` (registra en biblioteca).
+  - Ejecuta el mismo callback `onUploaded({url, filename, ...})` usado por el resto del dashboard, por lo que **no requiere cambios** en cada pantalla.
+- **Cobertura efectiva (heredado automáticamente por todos los usos existentes):**
+  - Editor de producto: imagen principal, galería, imágenes por formato, ficha técnica (PDF).
+  - Portada/Hero: imagen web + móvil de cada slide.
+  - Carrusel categorías: imagen por item.
+  - Archivos (además del botón “Añadir por enlace”).
+- **Verificación:**
+  - Compilación: `esbuild` OK.
+  - E2E manual con capturas: flujo completo en editor de producto (diálogo → registro externo → preview actualizado + toast “Enlace aplicado”), presencia confirmada en Portada/Carrusel/Ficha técnica/Variaciones.
+  - Endpoint `files/external` ya validado en `iteration_19`.
 
 #### 13.3 Validación / Testing
 - `testing_agent_v3` → `iteration_19`:
   - Backend: **100% (9/9)**
   - Frontend: **100%**
   - Única nota: fallos de envío a `example.com` (Resend) **esperados**; la lógica de recordatorio y marcado funciona.
+- Extensión links universales: verificación manual adicional (capturas + no se guardó ningún producto real).
 
 #### 13.4 Caveats conocidos
 - **Resend**: entrega real a destinatarios arbitrarios requiere dominio verificado.
@@ -327,7 +349,8 @@
 - **Carritos abandonados:** tracking server-side (logueados + invitados con email), **1º recordatorio 4h + 2º 24h**, conversión marcada por email al crear pedido, CRM admin con stats y borrado. **(Cumplido)**
 - **Splash screen:** se muestra 1 vez por sesión, reproduce vídeo, botón saltar, autocierre y fallback webm. **(Cumplido)**
 - **Recetas:** sección home visible solo si hay vídeos activos, hasta 3, admin CRUD + metadescripción. **(Cumplido)**
-- **Archivos por enlace:** admin permite subir o pegar enlace, con filtros y preview; `resolveAsset` soporta URLs externas. **(Cumplido)**
+- **Archivos por enlace:** admin permite subir o pegar enlace, con filtros y preview. **(Cumplido)**
+- **Links universales en dashboard:** cada punto de edición de imágenes/PDF ofrece opción por enlace con el mismo flujo. **(Cumplido)**
 - **Emails:** plantilla coherente y atractiva con colores de marca. **(Cumplido; entrega real sujeta a dominio Resend)**
 - **Imágenes**: assets propios (WebP) + caché 1 año; productos sin foto resueltos. **(Pendiente)**
 - **Portabilidad**: snapshot/seed restauran contenido; binarios de storage por validar. **(Parcial)**
