@@ -24,7 +24,8 @@ logger = logging.getLogger("ecoandes.carts")
 
 router = APIRouter(prefix="/api/cart", tags=["cart"])
 
-ABANDON_HOURS = 4  # horas de inactividad antes del recordatorio (elección del usuario)
+ABANDON_HOURS = 4        # horas de inactividad antes del 1er recordatorio
+ABANDON_HOURS_2ND = 24   # horas de inactividad antes del 2º (y último) recordatorio
 
 
 class CartItemIn(BaseModel):
@@ -61,8 +62,9 @@ async def track_cart(payload: CartTrackIn):
             "subtotal": round(payload.subtotal, 2),
             "status": "active",
             "updated_at": now,
-            # actividad nueva -> el recordatorio vuelve a estar disponible
+            # actividad nueva -> los recordatorios vuelven a estar disponibles
             "reminder_sent_at": None,
+            "reminder2_sent_at": None,
         },
         "$setOnInsert": {"created_at": now},
     }
@@ -105,37 +107,65 @@ async def mark_carts_converted(email: str, order_number: str) -> None:
 
 
 async def process_abandoned_carts() -> int:
-    """Envía el recordatorio a carritos con email inactivos > ABANDON_HOURS.
+    """Envía recordatorios a carritos con email inactivos.
 
-    Devuelve el nº de recordatorios enviados. Idempotente: usa reminder_sent_at.
+    - 1er recordatorio: tras ABANDON_HOURS (4 h) -> status 'reminded'.
+    - 2º y último: tras ABANDON_HOURS_2ND (24 h) desde la última actividad.
+    Devuelve el nº de recordatorios enviados. Idempotente por reminder_sent_at / reminder2_sent_at.
     """
     from core.mailer import send_abandoned_cart_email
 
-    cutoff = (datetime.now(timezone.utc) - timedelta(hours=ABANDON_HOURS)).isoformat()
+    now_dt = datetime.now(timezone.utc)
+    now = now_dt.isoformat()
+    sent = 0
+
+    # ---- 1er recordatorio (4 h) ----
+    cutoff1 = (now_dt - timedelta(hours=ABANDON_HOURS)).isoformat()
     cursor = db.abandoned_carts.find(
         {
             "status": "active",
             "email": {"$nin": [None, ""]},
             "items.0": {"$exists": True},
-            "updated_at": {"$lt": cutoff},
+            "updated_at": {"$lt": cutoff1},
             "reminder_sent_at": None,
         },
         {"_id": 0},
     ).limit(50)
-    sent = 0
-    now = datetime.now(timezone.utc).isoformat()
     async for cart in cursor:
         try:
             await send_abandoned_cart_email(cart)
         except Exception as e:  # noqa: BLE001
-            # el envío puede fallar (p.ej. dominio Resend sin verificar): se marca
-            # igualmente para no reintentar en bucle cada 10 minutos
             logger.warning("Abandoned-cart email failed for %s: %s", cart.get("email"), e)
         await db.abandoned_carts.update_one(
             {"cart_id": cart["cart_id"]},
-            {"$set": {"status": "reminded", "reminder_sent_at": now}},
+            {"$set": {"status": "reminded", "reminder_sent_at": now, "reminder_count": 1}},
         )
         sent += 1
+
+    # ---- 2º recordatorio (24 h, último) ----
+    cutoff2 = (now_dt - timedelta(hours=ABANDON_HOURS_2ND)).isoformat()
+    cursor2 = db.abandoned_carts.find(
+        {
+            "status": "reminded",
+            "email": {"$nin": [None, ""]},
+            "items.0": {"$exists": True},
+            "updated_at": {"$lt": cutoff2},
+            "reminder_sent_at": {"$ne": None},
+            "reminder2_sent_at": None,
+        },
+        {"_id": 0},
+    ).limit(50)
+    async for cart in cursor2:
+        try:
+            await send_abandoned_cart_email(cart, second=True)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Abandoned-cart 2nd email failed for %s: %s", cart.get("email"), e)
+        await db.abandoned_carts.update_one(
+            {"cart_id": cart["cart_id"]},
+            {"$set": {"reminder2_sent_at": now, "reminder_count": 2}},
+        )
+        sent += 1
+
     if sent:
         logger.info("Abandoned-cart reminders processed: %s", sent)
     return sent

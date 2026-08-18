@@ -1,4 +1,4 @@
-# EcoAndes BIO — Plan de Continuación (UI → Blogs → Testing → Catálogo/Precios/IVA → Envíos → Pagos → SEO/GEO → Imágenes → **SEO Manual + Nombres Legacy + Redirecciones** → **UX/Operaciones (Lote 9)** → **Recuperación de Carritos (Lote 10)**)
+# EcoAndes BIO — Plan de Continuación (UI → Blogs → Testing → Catálogo/Precios/IVA → Envíos → Pagos → SEO/GEO → Imágenes → **SEO Manual + Nombres Legacy + Redirecciones** → **UX/Operaciones (Lote 9)** → **Recuperación de Carritos (Lote 10)** → **Lote 11 (Splash + Recetas + Media links + Emails + Hero dots + 2º recordatorio)**)
 
 ## 1) Objetivos
 
@@ -25,10 +25,18 @@
 - **Fase 7 (P0/P1): UX + Operaciones (Lote 9)**
   - **Estado:** **COMPLETADO** + validado E2E (**iteration_17 100%**).
 - **Fase 12 (P0/P1): Recuperación de Carritos Abandonados (Lote 10)**
-  - Recordatorio único tras **4 h** de inactividad.
+  - Recordatorio tras **4 h** de inactividad.
   - Email con incentivo **ECOBONUS**.
   - Página admin “Carritos abandonados”.
   - **Estado:** **COMPLETADO** + validado E2E (**iteration_18**).
+- **Fase 13 (P0/P1): Lote 11 — Splash + Recetas + Media links + Emails + Hero dots + 2º recordatorio**
+  - 2º recordatorio de carrito **a las 24 h**.
+  - Indicadores del Hero **verticales a la derecha** (desktop + móvil).
+  - Splash screen con vídeo (mp4 + fallback webm) **una vez por sesión**.
+  - Admin Archivos: **añadir por enlace** + filtro de vídeos + badges.
+  - Sección Home “**Recetas con nuestros productos**” (3 vídeos verticales) + Admin.
+  - Rediseño de emails automatizados con colores de marca.
+  - **Estado:** **COMPLETADO** + validado E2E (**iteration_19 100%**).
 
 ---
 
@@ -189,41 +197,118 @@
   - CTA “Recuperar mi carrito” → `https://productosecoandes.com/checkout`.
 
 **Frontend**
-- Nuevo componente global: `/app/frontend/src/components/CartTracker.jsx`
-  - Genera `cart_id` persistente (`eco_cart_tracker_id`).
-  - Envía snapshots con debounce 1.8 s.
-  - Usuarios logueados: usa `user.email`.
-  - Invitados: email se guarda como `eco_guest_email` cuando se escribe en checkout.
-- Checkout: al escribir email válido, guarda `eco_guest_email` y dispara `POST /api/cart/track` con debounce 1.2 s.
+- Componente global: `/app/frontend/src/components/CartTracker.jsx`.
+- Checkout: al escribir email válido, guarda `eco_guest_email` y dispara `POST /api/cart/track`.
 - Admin UI:
-  - Nueva página: `/app/frontend/src/pages/admin/AdminAbandonedCarts.jsx`.
-  - Nueva ruta: `/admin/carritos`.
-  - Link en sidebar: `admin-nav-carts`.
+  - `/app/frontend/src/pages/admin/AdminAbandonedCarts.jsx`.
+  - Ruta: `/admin/carritos` + link `admin-nav-carts`.
 
 #### 12.3 Validación / Testing
 - `testing_agent_v3` → `iteration_18`:
   - Backend: **100% (9/9)**
   - Frontend: **95% (17/18)**
-  - Único fallo reportado: carga de /tienda “Loading…” con `ERR_ABORTED` (transitorio del entorno del tester).
-  - Re-verificación posterior: **/tienda muestra 174 productos** y `GET /api/products` responde **200 en ~0.18s**.
-- Limpieza: datos de prueba (carritos/pedidos/buyers de test) eliminados.
+  - Único fallo reportado: carga /tienda “Loading…” con `ERR_ABORTED` (transitorio del entorno del tester). Re-verificado OK.
 
 #### 12.4 Caveats conocidos
 - **Resend**: hasta verificar dominio, Resend bloquea envíos a destinatarios arbitrarios.
-  - El sistema marca el carrito como `reminded` igualmente (idempotencia), pero la entrega real depende de la verificación.
+
+---
+
+### Fase 13 — **Lote 11: Splash + Recetas + Media links + Emails + Hero dots + 2º recordatorio** — **COMPLETADO (2026-08)**
+
+#### 13.1 Objetivos del lote
+1) 2º recordatorio de carrito a las **24h**.
+2) Indicadores del Hero en vertical a la derecha (web + móvil).
+3) Splash screen con vídeo de bienvenida.
+4) Admin Archivos: opción subir archivo o pegar enlace (mejor performance).
+5) Sección Home “Recetas con nuestros productos” (3 vídeos verticales) + Admin para CRUD/orden/metadescripción.
+6) Emails automatizados: diseño más atractivo y con colores de marca.
+
+#### 13.2 Implementación (realizada)
+
+**(1) 2º recordatorio carrito (24h)**
+- `/app/backend/routes/carts.py`
+  - `ABANDON_HOURS=4` (1º) + `ABANDON_HOURS_2ND=24` (2º).
+  - Nuevos campos: `reminder2_sent_at`, `reminder_count`.
+  - Si hay nueva actividad (`/cart/track`) se resetean `reminder_sent_at` y `reminder2_sent_at`.
+  - Idempotencia garantizada: no reenvía si `reminder2_sent_at` ya existe.
+- `/app/frontend/src/pages/admin/AdminAbandonedCarts.jsx`
+  - Columna “Recordatorio”: muestra **1º** y **2º** con fecha.
+
+**(2) Indicadores del Hero verticales derecha**
+- `/app/frontend/src/components/HeroCarousel.jsx`
+  - Dots movidos a `right-*` y dispuestos en columna.
+  - Verificado por testing: desktop ~98.2% del ancho, móvil ~96.2%.
+
+**(3) Splash screen con vídeo**
+- Assets:
+  - `/app/frontend/public/splash-bienvenida.mp4` (5.3MB) descargado del link del usuario.
+  - `/app/frontend/public/splash-bienvenida.webm` (VP9 720p ~1.1MB) generado para compatibilidad.
+- Frontend:
+  - `/app/frontend/src/components/SplashScreen.jsx` (montado en `App.js`).
+  - Aparece **una vez por sesión** (`sessionStorage eco_splash_seen`).
+  - Botón **Saltar**.
+  - Autocierre al terminar el vídeo (~8.2s) + failsafe a 11s.
+  - Fix importante: `onError` ya no está en `<video>` (cerraba el splash si fallaba el mp4 aunque el webm reprodujera); se deja solo en el último `<source>`.
+
+**(4) Archivos por enlace (CDN/nube del cliente)**
+- Backend: `/app/backend/routes/files.py`
+  - `POST /api/admin/files/external` (admin): registra `external:true`, hace `HEAD` para `content-type/size` si es posible.
+  - `GET /api/admin/files?kind=video` añadido.
+  - `list_files` retorna `url` externo si `external:true`.
+- Frontend: `/app/frontend/src/pages/admin/AdminFiles.jsx`
+  - Botón **Añadir por enlace** + diálogo.
+  - Pestaña **Vídeos**.
+  - Badges: **Vídeo** / **Enlace**.
+  - Preview de vídeo en tarjeta.
+
+**(5) Sección Recetas + Admin**
+- Backend: `/app/backend/routes/recipes.py`
+  - Config en `site_config` con `_id=recipe_videos`.
+  - `GET /api/recipes` público + `GET/PUT /api/recipes/admin` (admin).
+- Frontend:
+  - `Home.jsx` inserta `<RecipesSection />` **después de** productos destacados.
+  - `/app/frontend/src/components/RecipesSection.jsx`:
+    - Hasta 3 vídeos verticales (aspect 9:16) + metadescripción.
+    - Layout centrado (flex) para 1–3 vídeos.
+    - JSON‑LD `VideoObject`.
+  - Admin:
+    - `/app/frontend/src/pages/admin/AdminRecipes.jsx` (CRUD/orden/activo/metadescripción máx 300).
+    - Ruta `/admin/recetas` + link sidebar `admin-nav-recipes`.
+  - Nota: queda 1 item **DEMO** (“Receta demo” con `/splash-bienvenida.mp4`) para que el usuario lo sustituya por sus 3 vídeos reales.
+
+**(6) Emails automatizados rediseñados**
+- `/app/backend/core/mailer.py`
+  - `_wrap(...)` renovado:
+    - Cabecera verde **#72A638**.
+    - Banda de confianza (certificación/envío/pago seguro).
+    - Footer oscuro con dirección real (Mercado Barceló, C. de Barceló 6, Local 204, 28004 Madrid).
+  - Impacto: afecta a **todos** los correos automáticos (bienvenida newsletter, carritos, pedidos, etc.).
+
+#### 13.3 Validación / Testing
+- `testing_agent_v3` → `iteration_19`:
+  - Backend: **100% (9/9)**
+  - Frontend: **100%**
+  - Única nota: fallos de envío a `example.com` (Resend) **esperados**; la lógica de recordatorio y marcado funciona.
+
+#### 13.4 Caveats conocidos
+- **Resend**: entrega real a destinatarios arbitrarios requiere dominio verificado.
+- `ffmpeg` se utilizó para generar el `.webm`; el asset ya queda persistente en `public/`.
 
 ---
 
 ## 3) Próximas Acciones (inmediatas)
-1. **Cerrar Fase 8 (SEO/GEO):** esperar fin de generación IA + spot-check + corregir manualmente lo que sea necesario (editor 7 idiomas ya existe).
-2. **Fase 9 (P1): migración de imágenes** (WebP + caché 1 año) una vez se congelen los productos finales.
-3. **Operativa emails (Resend):** verificar dominio de envío para habilitar:
+1. **Cerrar Fase 8 (SEO/GEO):** spot-check 10–15 productos (ES/EN/FR) y correcciones manuales.
+2. **Fase 9 (P1): migración de imágenes** (WebP + caché 1 año) + completar productos sin foto.
+3. **Operativa emails (Resend):** verificar dominio de envío para habilitar entrega real:
    - bienvenida newsletter
-   - recordatorios de carrito abandonado
-4. (Opcional) Añadir en Admin Carritos:
+   - carritos abandonados (1º + 2º)
+   - emails de pedidos / devoluciones
+4. Recetas:
+   - Reemplazar el vídeo demo por los 3 vídeos reales (URLs cloud/CDN) y ajustar títulos/descripciones.
+5. (Opcional) Admin Carritos:
    - filtro por estado + búsqueda por email
-   - botón “marcar como ignorado” (para no contar en KPIs)
-5. Testing E2E adicional tras migración de imágenes y/o tras finalizar SEO IA.
+   - botón “marcar como ignorado”
 
 ---
 
@@ -239,12 +324,11 @@
 - **Legacy names + redirect:** aplicado + alias + canonical. **(Cumplido)**
 - **Registro UX/legal:** roles claros, campos pro ordenados, aviso AEAT, checkbox privacidad. **(Cumplido)**
 - **Operaciones CRM:** borrado clientes/compradores/leads. **(Cumplido)**
-- **Carritos abandonados:**
-  - tracking server-side (logueados + invitados con email),
-  - recordatorio a 4h,
-  - conversión marcada por email al crear pedido,
-  - CRM admin con stats y borrado.
-  - **(Cumplido)**
+- **Carritos abandonados:** tracking server-side (logueados + invitados con email), **1º recordatorio 4h + 2º 24h**, conversión marcada por email al crear pedido, CRM admin con stats y borrado. **(Cumplido)**
+- **Splash screen:** se muestra 1 vez por sesión, reproduce vídeo, botón saltar, autocierre y fallback webm. **(Cumplido)**
+- **Recetas:** sección home visible solo si hay vídeos activos, hasta 3, admin CRUD + metadescripción. **(Cumplido)**
+- **Archivos por enlace:** admin permite subir o pegar enlace, con filtros y preview; `resolveAsset` soporta URLs externas. **(Cumplido)**
+- **Emails:** plantilla coherente y atractiva con colores de marca. **(Cumplido; entrega real sujeta a dominio Resend)**
 - **Imágenes**: assets propios (WebP) + caché 1 año; productos sin foto resueltos. **(Pendiente)**
 - **Portabilidad**: snapshot/seed restauran contenido; binarios de storage por validar. **(Parcial)**
 

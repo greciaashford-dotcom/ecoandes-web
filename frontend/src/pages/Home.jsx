@@ -6,6 +6,7 @@ import ProductCard from "../components/ProductCard";
 import HeroCarousel from "../components/HeroCarousel";
 import ReviewsCarousel from "../components/ReviewsCarousel";
 import CategoryCarousel from "../components/CategoryCarousel";
+import RecipesSection from "../components/RecipesSection";
 import Seo from "../components/Seo";
 import { Leaf, Sprout, ShieldCheck } from "lucide-react";
 
@@ -72,8 +73,8 @@ export default function Home() {
       </section>
 
       {/* Featured products */}
-      <section className="max-w-7xl mx-auto px-6 lg:px-12 py-20" data-testid="featured-section">
-        <div className="flex items-end justify-between mb-12">
+      <section className="max-w-7xl mx-auto px-6 lg:px-12 py-10 md:py-12" data-testid="featured-section">
+        <div className="flex items-end justify-between mb-8">
           <div>
             <div className="overline mb-3">{t("home.featuredOverline")}</div>
             <h2 className="font-heading text-3xl md:text-4xl font-light text-ink">{t("home.featuredTitle")}</h2>
@@ -88,6 +89,9 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      {/* Recetas con nuestros productos (vídeos verticales, editable desde admin) */}
+      <RecipesSection />
 
       {/* Collections / categories */}
       <section className="max-w-7xl mx-auto px-6 lg:px-12 py-10 md:py-12" data-testid="collections-section">

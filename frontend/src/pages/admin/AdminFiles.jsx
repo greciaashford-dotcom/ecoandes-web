@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { FolderOpen, FileText, ImageIcon, Copy, Trash2, RefreshCcw, Check, Eye } from "lucide-react";
+import { FolderOpen, FileText, ImageIcon, Copy, Trash2, RefreshCcw, Check, Eye, Link2, Film, X } from "lucide-react";
 import { api, resolveAsset } from "../../lib/api";
 import { toast } from "sonner";
 import UploadButton from "./UploadButton";
@@ -25,6 +25,9 @@ export default function AdminFiles() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
   const [copiedId, setCopiedId] = useState(null);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkBusy, setLinkBusy] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -58,10 +61,32 @@ export default function AdminFiles() {
   };
 
   const isImage = (f) => (f.content_type || "").startsWith("image/");
+  const isVideo = (f) => (f.content_type || "").startsWith("video/");
+
+  const addByLink = async () => {
+    const url = linkUrl.trim();
+    if (!/^https?:\/\/\S+/.test(url)) {
+      toast.error("URL no válida", { description: "Debe empezar por http:// o https://" });
+      return;
+    }
+    setLinkBusy(true);
+    try {
+      const { data } = await api.post("/admin/files/external", { url });
+      toast.success("Enlace añadido a la biblioteca", { description: data.filename });
+      setLinkOpen(false);
+      setLinkUrl("");
+      load();
+    } catch (e) {
+      toast.error("Error al añadir el enlace", { description: e?.response?.data?.detail });
+    } finally {
+      setLinkBusy(false);
+    }
+  };
 
   const tabs = [
     { key: "", label: "Todos" },
     { key: "image", label: "Imágenes" },
+    { key: "video", label: "Vídeos" },
     { key: "pdf", label: "PDFs" },
   ];
 
@@ -76,12 +101,21 @@ export default function AdminFiles() {
             Puedes seleccionar y subir varios archivos a la vez; copia su URL para usarla donde la necesites.
           </p>
         </div>
-        <div className="flex gap-3 items-center">
+        <div className="flex gap-3 items-center flex-wrap">
           <button onClick={load} className="btn-outline inline-flex items-center gap-2" data-testid="files-refresh">
             <RefreshCcw size={15} /> Actualizar
           </button>
           <UploadButton kind="image" label="Subir imágenes" multiple testid="files-upload-image" onUploaded={() => load()} />
           <UploadButton kind="pdf" label="Subir PDFs" multiple testid="files-upload-pdf" onUploaded={() => load()} />
+          <button
+            type="button"
+            onClick={() => setLinkOpen(true)}
+            data-testid="files-add-link"
+            className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.16em] px-3 py-2 rounded-sm border border-sage-500 bg-sage-50 text-sage-700 hover:bg-sage-100 transition-colors"
+            title="Añade una imagen o vídeo alojado en tu nube/CDN pegando su enlace directo (carga más rápida)"
+          >
+            <Link2 size={14} /> Añadir por enlace
+          </button>
         </div>
       </div>
 
@@ -128,14 +162,21 @@ export default function AdminFiles() {
                     loading="lazy"
                     className="w-full h-full object-contain p-2"
                   />
+                ) : isVideo(f) ? (
+                  <video src={resolveAsset(f.url)} muted playsInline preload="metadata" className="w-full h-full object-cover" />
                 ) : (
                   <FileText size={40} className="text-terracotta" />
                 )}
-                <div className="absolute top-2 left-2">
+                <div className="absolute top-2 left-2 flex gap-1">
                   <span className="inline-flex items-center gap-1 bg-white/90 backdrop-blur text-[10px] uppercase tracking-wide text-ink-soft px-2 py-0.5 rounded-full border border-bone-200">
-                    {isImage(f) ? <ImageIcon size={10} /> : <FileText size={10} />}
-                    {isImage(f) ? "Imagen" : "PDF"}
+                    {isImage(f) ? <ImageIcon size={10} /> : isVideo(f) ? <Film size={10} /> : <FileText size={10} />}
+                    {isImage(f) ? "Imagen" : isVideo(f) ? "Vídeo" : "PDF"}
                   </span>
+                  {f.external && (
+                    <span className="inline-flex items-center gap-1 bg-sage-50/95 backdrop-blur text-[10px] uppercase tracking-wide text-sage-700 px-2 py-0.5 rounded-full border border-sage-200">
+                      <Link2 size={10} /> Enlace
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="p-3">
@@ -171,6 +212,49 @@ export default function AdminFiles() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Diálogo: añadir imagen/vídeo por enlace externo */}
+      {linkOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-ink/40 flex items-center justify-center p-4"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setLinkOpen(false); }}
+          data-testid="add-link-dialog"
+        >
+          <div className="bg-white border border-bone-200 rounded-md max-w-lg w-full p-6">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-heading text-xl font-light">Añadir por enlace</h2>
+              <button onClick={() => setLinkOpen(false)} aria-label="Cerrar" className="text-ink-muted hover:text-ink" data-testid="add-link-close"><X size={18} /></button>
+            </div>
+            <p className="text-xs text-ink-soft leading-relaxed mb-4">
+              Pega el enlace directo de la imagen, vídeo o PDF alojado en tu nube/CDN
+              (Cloudinary, Zyro, S3…). Se añadirá a la biblioteca sin descargarlo, así la
+              web lo sirve directamente desde tu nube para máxima velocidad de carga.
+              También puedes seguir subiendo archivos desde tu dispositivo con los botones
+              “Subir imágenes / Subir PDFs”.
+            </p>
+            <input
+              className="input-eco w-full"
+              placeholder="https://res.cloudinary.com/…/imagen.webp"
+              value={linkUrl}
+              onChange={(e) => setLinkUrl(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") addByLink(); }}
+              autoFocus
+              data-testid="add-link-input"
+            />
+            <div className="flex justify-end gap-3 mt-5">
+              <button onClick={() => setLinkOpen(false)} className="btn-outline" data-testid="add-link-cancel">Cancelar</button>
+              <button
+                onClick={addByLink}
+                disabled={linkBusy}
+                className="btn-primary inline-flex items-center gap-2 disabled:opacity-60"
+                data-testid="add-link-submit"
+              >
+                <Link2 size={14} /> {linkBusy ? "Añadiendo…" : "Añadir enlace"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

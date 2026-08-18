@@ -114,11 +114,7 @@ export default function HeroCarousel({ interval = 5000 }) {
   const dots = (variant = "land") =>
     slides.length > 1 ? (
       <div
-        className={`absolute bottom-4 sm:bottom-6 flex gap-2 z-10 ${
-          variant === "land"
-            ? "left-1/2 -translate-x-1/2 sm:left-6 sm:translate-x-0 lg:left-12"
-            : "left-1/2 -translate-x-1/2"
-        }`}
+        className="absolute right-3 sm:right-5 lg:right-8 top-1/2 -translate-y-1/2 flex flex-col items-center gap-2 z-10"
         data-testid={variant === "land" ? "hero-dots" : "hero-dots-portrait"}
       >
         {slides.map((s, i) => (
@@ -127,8 +123,8 @@ export default function HeroCarousel({ interval = 5000 }) {
             onClick={() => setIndex(i)}
             data-testid={variant === "land" ? `hero-dot-${i}` : `hero-pdot-${i}`}
             aria-label={`Slide ${i + 1}`}
-            className={`h-[3px] rounded-full transition-all duration-500 ${
-              i === activeIndex ? "w-10 bg-[#3a2a18]" : "w-5 bg-[#3a2a18]/30 hover:bg-[#3a2a18]/60"
+            className={`w-[3px] rounded-full transition-all duration-500 ${
+              i === activeIndex ? "h-10 bg-[#3a2a18]" : "h-5 bg-[#3a2a18]/30 hover:bg-[#3a2a18]/60"
             }`}
           />
         ))}

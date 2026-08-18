@@ -150,19 +150,50 @@ async def send_pickup_notification(order: dict) -> Optional[str]:
 
 
 # ---------- Generic branded wrapper ----------
-def _wrap(title: str, body_html: str, accent: str = "#6B826E") -> str:
+def _wrap(title: str, body_html: str, accent: str = "#72A638") -> str:
+    """Plantilla base de todos los correos, con la identidad de marca EcoAndes
+    (verde #72A638, tonos bone/sage, botones pill y footer completo)."""
     return f"""
-    <div style="font-family:Manrope,Arial,sans-serif;background:#F9F8F6;padding:40px 20px;color:#2D332F;">
-      <div style="max-width:560px;margin:0 auto;background:#FFFFFF;padding:40px;border-top:4px solid {accent};">
-        <div style="text-align:center;margin-bottom:16px;">
-          <div style="font-family:Outfit,Arial,sans-serif;font-size:26px;letter-spacing:0.12em;color:#2D332F;font-weight:300;">ECOANDES</div>
-          <div style="color:#6B826E;font-size:11px;letter-spacing:0.3em;text-transform:uppercase;margin-top:4px;">Natural · BIO</div>
+    <div style="font-family:Manrope,'Segoe UI',Arial,sans-serif;background:#F4F2EC;padding:32px 16px;color:#2D332F;">
+      <div style="max-width:600px;margin:0 auto;">
+
+        <!-- Cabecera de marca -->
+        <div style="background:{accent};border-radius:14px 14px 0 0;padding:26px 32px;text-align:center;">
+          <div style="font-family:Outfit,Arial,sans-serif;font-size:27px;letter-spacing:0.16em;color:#FFFFFF;font-weight:600;">
+            ECO<span style="font-weight:300;">ANDES</span>
+          </div>
+          <div style="color:#EAF3DD;font-size:10px;letter-spacing:0.34em;text-transform:uppercase;margin-top:5px;">
+            Organic Ingredients · BIO
+          </div>
         </div>
-        <h2 style="font-family:Outfit,Arial,sans-serif;font-weight:400;color:#2D332F;margin:20px 0 10px;">{title}</h2>
-        {body_html}
-        <p style="color:#9BA39D;font-size:11px;text-align:center;margin-top:36px;letter-spacing:0.1em;">
-          Ecoandes · Productos ecológicos de los Andes
-        </p>
+
+        <!-- Cuerpo -->
+        <div style="background:#FFFFFF;padding:34px 32px 30px;border:1px solid #E7E3D8;border-top:none;">
+          <h2 style="font-family:Outfit,Arial,sans-serif;font-weight:500;color:#2D332F;font-size:21px;margin:0 0 14px;line-height:1.35;">
+            {title}
+          </h2>
+          {body_html}
+        </div>
+
+        <!-- Banda de confianza -->
+        <div style="background:#F7FAF2;border:1px solid #E1EAD3;border-top:none;padding:14px 32px;text-align:center;">
+          <span style="color:#4A6B4D;font-size:11px;letter-spacing:0.06em;">
+            🌱 Certificación ecológica europea &nbsp;·&nbsp; 🚚 Envío gratis desde 50 € &nbsp;·&nbsp; 🔒 Pago 100% seguro
+          </span>
+        </div>
+
+        <!-- Footer -->
+        <div style="background:#2D332F;border-radius:0 0 14px 14px;padding:22px 32px;text-align:center;">
+          <div style="color:#C9D3C5;font-size:12px;line-height:1.8;">
+            <strong style="color:#FFFFFF;">EcoAndes · Productos ecológicos de los Andes</strong><br/>
+            Mercado Barceló · C. de Barceló, 6 · Local 204 · 28004 Madrid<br/>
+            <a href="https://productosecoandes.com" style="color:#A9CB7E;text-decoration:none;">productosecoandes.com</a>
+          </div>
+          <div style="color:#6E766F;font-size:10px;margin-top:12px;letter-spacing:0.08em;">
+            © EcoAndes · Compra salud, compra BIO
+          </div>
+        </div>
+
       </div>
     </div>
     """
@@ -527,8 +558,11 @@ async def send_newsletter_welcome(email: str) -> Optional[str]:
                        _wrap("¡Bienvenido/a a EcoAndes!", body))
 
 
-async def send_abandoned_cart_email(cart: dict) -> Optional[str]:
-    """Recordatorio de carrito abandonado (con cupón ECOBONUS)."""
+async def send_abandoned_cart_email(cart: dict, second: bool = False) -> Optional[str]:
+    """Recordatorio de carrito abandonado (con cupón ECOBONUS).
+
+    second=True -> 2º y último aviso (24 h), con tono de última oportunidad.
+    """
     items = cart.get("items") or []
     rows = "".join(
         f"""
@@ -544,10 +578,17 @@ async def send_abandoned_cart_email(cart: dict) -> Optional[str]:
         for i in items[:10]
     )
     more = f"<p style='color:#9BA39D;font-size:12px;'>… y {len(items) - 10} producto(s) más.</p>" if len(items) > 10 else ""
+    intro = (
+        """Es el último aviso que te enviamos: tu carrito en <strong>EcoAndes</strong> sigue
+        guardado, pero no podemos reservarte el stock para siempre. Completa tu pedido
+        hoy y no te quedes sin tus productos ecológicos favoritos."""
+        if second
+        else """Hemos guardado tu carrito en <strong>EcoAndes</strong> para que no pierdas tu
+        selección de productos ecológicos. ¡Sigue donde lo dejaste!"""
+    )
     body = f"""
       <p style="color:#606962;font-size:14px;line-height:1.7;">
-        Hemos guardado tu carrito en <strong>EcoAndes</strong> para que no pierdas tu
-        selección de productos ecológicos. ¡Sigue donde lo dejaste!
+        {intro}
       </p>
       <table style="width:100%;border-collapse:collapse;margin:14px 0;">
         {rows}
@@ -575,5 +616,10 @@ async def send_abandoned_cart_email(cart: dict) -> Optional[str]:
         completaste tu compra, puedes ignorar este mensaje.
       </p>
     """
-    return await _send(cart["email"], "🛒 Tu carrito EcoAndes te espera · 5 € de regalo con ECOBONUS",
-                       _wrap("¿Olvidaste algo en tu carrito?", body))
+    subject = (
+        "⏳ Último aviso: tu carrito EcoAndes está a punto de vaciarse"
+        if second
+        else "🛒 Tu carrito EcoAndes te espera · 5 € de regalo con ECOBONUS"
+    )
+    heading = "Última oportunidad para recuperar tu carrito" if second else "¿Olvidaste algo en tu carrito?"
+    return await _send(cart["email"], subject, _wrap(heading, body))

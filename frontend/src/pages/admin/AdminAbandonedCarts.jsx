@@ -53,8 +53,9 @@ export default function AdminAbandonedCarts() {
         <div>
           <h1 className="font-heading text-2xl font-light">Carritos abandonados</h1>
           <p className="text-xs text-ink-muted mt-1">
-            Recordatorio automático por email tras 4 h de inactividad (incluye cupón ECOBONUS).
-            Se rastrean usuarios logueados y también invitados en cuanto escriben su email en el checkout.
+            Recordatorios automáticos por email: 1º a las 4 h y 2º (último) a las 24 h de inactividad,
+            con cupón ECOBONUS. Se rastrean usuarios logueados y también invitados en cuanto escriben
+            su email en el checkout.
           </p>
         </div>
         <button onClick={load} className="btn-outline inline-flex items-center gap-2" data-testid="carts-reload">
@@ -114,7 +115,10 @@ export default function AdminAbandonedCarts() {
                         {c.status === "converted" && c.converted_order ? ` · ${c.converted_order}` : ""}
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-ink-soft whitespace-nowrap">{fmtDate(c.reminder_sent_at)}</td>
+                    <td className="px-5 py-3 text-ink-soft whitespace-nowrap text-xs">
+                      {c.reminder_sent_at ? `1º ${fmtDate(c.reminder_sent_at)}` : "—"}
+                      {c.reminder2_sent_at ? <><br />2º {fmtDate(c.reminder2_sent_at)}</> : null}
+                    </td>
                     <td className="px-5 py-3 text-right">
                       <button
                         onClick={() => remove(c)}

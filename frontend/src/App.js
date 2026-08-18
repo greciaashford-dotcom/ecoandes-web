@@ -53,7 +53,9 @@ import AdminLegal from "./pages/admin/AdminLegal";
 import AdminBuyers from "./pages/admin/AdminBuyers";
 import AdminWhatsappLeads from "./pages/admin/AdminWhatsappLeads";
 import AdminAbandonedCarts from "./pages/admin/AdminAbandonedCarts";
+import AdminRecipes from "./pages/admin/AdminRecipes";
 import CartTracker from "./components/CartTracker";
+import SplashScreen from "./components/SplashScreen";
 import AdminFiles from "./pages/admin/AdminFiles";
 import AdminCoupons from "./pages/admin/AdminCoupons";
 import AdminRefunds from "./pages/admin/AdminRefunds";
@@ -91,6 +93,7 @@ export default function App() {
       <CartProvider>
         <WishlistProvider>
         <BrowserRouter>
+          <SplashScreen />
           <ScrollToTop />
           <TrackPageviews />
           <CartTracker />
@@ -130,6 +133,7 @@ export default function App() {
                 <Route path="compradores" element={<AdminBuyers />} />
                 <Route path="whatsapp" element={<AdminWhatsappLeads />} />
                 <Route path="carritos" element={<AdminAbandonedCarts />} />
+                <Route path="recetas" element={<AdminRecipes />} />
                 <Route path="productos" element={<AdminProducts />} />
                 <Route path="portada" element={<AdminHero />} />
                 <Route path="carrusel" element={<AdminCarousel />} />
