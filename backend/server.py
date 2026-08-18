@@ -32,6 +32,8 @@ from routes.coupons import router as coupons_router, seed_default_coupon  # noqa
 from routes.refunds import router as refunds_router, seed_refund_reasons  # noqa: E402
 from routes.carts import router as carts_router  # noqa: E402
 from routes.recipes import router as recipes_router  # noqa: E402
+from routes.blog import router as blog_router, seed_blog_posts  # noqa: E402
+from routes.site_images import router as site_images_router  # noqa: E402
 from core.wp_importer import parse_wordpress_xml  # noqa: E402
 
 logging.basicConfig(
@@ -67,6 +69,8 @@ app.include_router(coupons_router)
 app.include_router(refunds_router)
 app.include_router(carts_router)
 app.include_router(recipes_router)
+app.include_router(blog_router)
+app.include_router(site_images_router)
 app.include_router(analytics_router)
 app.include_router(carousel_router)
 app.include_router(legal_router)
@@ -213,6 +217,7 @@ async def _seed_and_translate():
         logger.error("Coupon seed failed: %s", e)
     try:
         await seed_refund_reasons()
+        await seed_blog_posts()
     except Exception as e:  # noqa: BLE001
         logger.error("Refund reasons seed failed: %s", e)
     # Translations + SEO live in Mongo and involve LLM calls. They run in a

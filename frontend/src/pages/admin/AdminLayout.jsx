@@ -1,6 +1,6 @@
 import React from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Package, Users, ShoppingCart, ShoppingBasket, FileSpreadsheet, LogOut, Leaf, ImageIcon, Mail, MessageCircle, FolderOpen, TicketPercent, RotateCcw, GalleryHorizontal, Sparkles, ScrollText, Clapperboard } from "lucide-react";
+import { LayoutDashboard, Package, Users, ShoppingCart, ShoppingBasket, FileSpreadsheet, LogOut, Leaf, ImageIcon, Mail, MessageCircle, FolderOpen, TicketPercent, RotateCcw, GalleryHorizontal, Sparkles, ScrollText, Clapperboard, Newspaper } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
 export default function AdminLayout() {
@@ -47,6 +47,8 @@ export default function AdminLayout() {
             <NavLink to="/admin/portada" className={linkCls} data-testid="admin-nav-hero"><ImageIcon size={16} /> Portada</NavLink>
             <NavLink to="/admin/carrusel" className={linkCls} data-testid="admin-nav-carousel"><GalleryHorizontal size={16} /> Carrusel categorías</NavLink>
             <NavLink to="/admin/recetas" className={linkCls} data-testid="admin-nav-recipes"><Clapperboard size={16} /> Recetas (vídeos)</NavLink>
+            <NavLink to="/admin/blog" className={linkCls} data-testid="admin-nav-blog"><Newspaper size={16} /> Blog</NavLink>
+            <NavLink to="/admin/imagenes" className={linkCls} data-testid="admin-nav-site-images"><ImageIcon size={16} /> Imágenes del sitio</NavLink>
             <NavLink to="/admin/seo" className={linkCls} data-testid="admin-nav-seo"><Sparkles size={16} /> SEO (IA)</NavLink>
             <NavLink to="/admin/legal" className={linkCls} data-testid="admin-nav-legal"><ScrollText size={16} /> Páginas legales</NavLink>
             <NavLink to="/admin/archivos" className={linkCls} data-testid="admin-nav-files"><FolderOpen size={16} /> Archivos</NavLink>

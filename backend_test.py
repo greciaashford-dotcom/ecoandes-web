@@ -1,6 +1,6 @@
 """
-EcoAndes Backend Testing - Batch 6 Features
-Tests: Recipes API, External Files API, Abandoned Carts 2nd Reminder
+EcoAndes Backend Testing - Batch 7 Features
+Tests: Blog API (public + admin CRUD), Site Images API (public + admin)
 """
 import sys
 import requests
@@ -85,212 +85,240 @@ def main():
         print(f"❌ CRITICAL: Admin login failed: {e}")
         return 1
 
-    # ========== RECIPES API TESTS ==========
-    def test_recipes_public():
-        """Test GET /api/recipes (public endpoint)"""
-        resp = requests.get(f"{BASE_URL}/api/recipes")
+    # ========== BLOG API TESTS ==========
+    def test_blog_public_list():
+        """Test GET /api/blog returns published posts"""
+        resp = requests.get(f"{BASE_URL}/api/blog")
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
-        data = resp.json()
-        assert "items" in data, "No 'items' in response"
-        print(f"   Found {len(data['items'])} active recipe(s)")
-        for item in data['items']:
-            assert "video_url" in item, "Missing video_url"
-            assert item.get("active") is not False, "Inactive item in public response"
-            print(f"   - {item.get('title', 'Untitled')}: {item['video_url'][:50]}...")
+        posts = resp.json()
+        assert isinstance(posts, list), "Response should be a list"
+        print(f"   Found {len(posts)} published post(s)")
+        
+        # Verify we have the expected 12 posts
+        assert len(posts) == 12, f"Expected 12 posts, got {len(posts)}"
+        
+        # Check structure of first post
+        if posts:
+            p = posts[0]
+            assert "slug" in p, "Missing slug"
+            assert "title" in p, "Missing title"
+            assert "excerpt" in p, "Missing excerpt"
+            assert "cover" in p, "Missing cover"
+            assert "category" in p, "Missing category"
+            assert "seo" in p, "Missing seo"
+            print(f"   First post: {p['title'][:50]}")
+            print(f"   SEO meta_title: {p['seo'].get('meta_title', 'N/A')[:50]}")
 
-    def test_recipes_admin_requires_auth():
-        """Test GET /api/recipes/admin requires authentication"""
-        resp = requests.get(f"{BASE_URL}/api/recipes/admin")
+    def test_blog_public_get_by_slug():
+        """Test GET /api/blog/{slug} returns full post"""
+        slug = "quinoa-real-ecologica-superalimento"
+        resp = requests.get(f"{BASE_URL}/api/blog/{slug}")
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
+        post = resp.json()
+        
+        assert post["slug"] == slug, f"Wrong slug: {post['slug']}"
+        assert "body" in post, "Missing body"
+        assert "sources" in post, "Missing sources"
+        assert isinstance(post["body"], list), "body should be a list"
+        assert isinstance(post["sources"], list), "sources should be a list"
+        print(f"   Post: {post['title']}")
+        print(f"   Body sections: {len(post['body'])}")
+        print(f"   Sources: {len(post['sources'])}")
+
+    def test_blog_public_404():
+        """Test GET /api/blog/{slug} returns 404 for invalid slug"""
+        resp = requests.get(f"{BASE_URL}/api/blog/nonexistent-slug-12345")
+        assert resp.status_code == 404, f"Expected 404, got {resp.status_code}"
+        print(f"   Correctly returns 404 for invalid slug")
+
+    def test_blog_admin_requires_auth():
+        """Test GET /api/blog/admin/list requires authentication"""
+        resp = requests.get(f"{BASE_URL}/api/blog/admin/list")
         assert resp.status_code == 401, f"Expected 401 without token, got {resp.status_code}"
         print(f"   Correctly returns 401 without token")
 
-    def test_recipes_admin_get():
-        """Test GET /api/recipes/admin with auth"""
-        resp = requests.get(f"{BASE_URL}/api/recipes/admin", headers=runner.headers())
+    def test_blog_admin_list():
+        """Test GET /api/blog/admin/list with auth"""
+        resp = requests.get(f"{BASE_URL}/api/blog/admin/list", headers=runner.headers())
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
+        posts = resp.json()
+        assert isinstance(posts, list), "Response should be a list"
+        print(f"   Found {len(posts)} post(s) in admin view")
+        assert len(posts) == 12, f"Expected 12 posts, got {len(posts)}"
+        return posts
+
+    def test_blog_admin_crud():
+        """Test CREATE, UPDATE, DELETE blog post"""
+        # CREATE
+        new_post = {
+            "title": "TEST Post - Automated Testing",
+            "slug": "test-post-automated",
+            "excerpt": "This is a test post created by automated testing",
+            "cover": "/blog/test.webp",
+            "category": "TEST",
+            "read_time": "1 min",
+            "date": "2026-03-15",
+            "author": "Test Bot",
+            "related_query": "test",
+            "body": [
+                {"h": "Test Section", "p": "Test content for automated testing"}
+            ],
+            "sources": [
+                {"label": "Test Source", "url": "https://example.com/test"}
+            ],
+            "seo": {
+                "meta_title": "Test Post SEO Title",
+                "meta_description": "Test post meta description",
+                "keywords": ["test", "automated"]
+            },
+            "published": True
+        }
+        
+        resp = requests.post(
+            f"{BASE_URL}/api/blog/admin",
+            headers=runner.headers(),
+            json=new_post
+        )
+        assert resp.status_code == 200, f"Failed to create post: {resp.status_code} {resp.text}"
+        created = resp.json()
+        assert "id" in created, "No id in created post"
+        post_id = created["id"]
+        print(f"   ✅ Created post: {post_id}")
+        
+        # Verify it appears in public list
+        resp = requests.get(f"{BASE_URL}/api/blog")
+        posts = resp.json()
+        assert len(posts) == 13, f"Expected 13 posts after creation, got {len(posts)}"
+        print(f"   ✅ Post appears in public list (13 posts)")
+        
+        # UPDATE
+        updated_post = new_post.copy()
+        updated_post["title"] = "TEST Post - UPDATED"
+        updated_post["published"] = False
+        
+        resp = requests.put(
+            f"{BASE_URL}/api/blog/admin/{post_id}",
+            headers=runner.headers(),
+            json=updated_post
+        )
+        assert resp.status_code == 200, f"Failed to update post: {resp.status_code} {resp.text}"
+        updated = resp.json()
+        assert updated["title"] == "TEST Post - UPDATED", "Title not updated"
+        assert updated["published"] is False, "Published flag not updated"
+        print(f"   ✅ Updated post: title changed, published=false")
+        
+        # Verify it's hidden from public list
+        resp = requests.get(f"{BASE_URL}/api/blog")
+        posts = resp.json()
+        assert len(posts) == 12, f"Expected 12 posts after unpublish, got {len(posts)}"
+        print(f"   ✅ Unpublished post hidden from public (12 posts)")
+        
+        # DELETE
+        resp = requests.delete(
+            f"{BASE_URL}/api/blog/admin/{post_id}",
+            headers=runner.headers()
+        )
+        assert resp.status_code == 200, f"Failed to delete post: {resp.status_code}"
+        print(f"   ✅ Deleted post: {post_id}")
+        
+        # Verify it's gone
+        resp = requests.get(f"{BASE_URL}/api/blog/admin/list", headers=runner.headers())
+        posts = resp.json()
+        assert len(posts) == 12, f"Expected 12 posts after deletion, got {len(posts)}"
+        print(f"   ✅ Post removed from admin list (12 posts)")
+
+    # ========== SITE IMAGES API TESTS ==========
+    def test_site_images_public():
+        """Test GET /api/site-images returns all image keys"""
+        resp = requests.get(f"{BASE_URL}/api/site-images")
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
         data = resp.json()
-        assert "items" in data, "No 'items' in response"
-        print(f"   Found {len(data['items'])} recipe(s) in admin view")
-        return data['items']
-
-    def test_recipes_admin_put():
-        """Test PUT /api/recipes/admin - save and restore"""
-        # Get current list
-        resp = requests.get(f"{BASE_URL}/api/recipes/admin", headers=runner.headers())
-        assert resp.status_code == 200, f"Failed to get current recipes"
-        original_items = resp.json()['items']
-        print(f"   Original list has {len(original_items)} items")
-
-        # Add a test item
-        test_item = {
-            "id": None,
-            "order": len(original_items),
-            "active": True,
-            "video_url": "https://test.example.com/test-recipe.mp4",
-            "title": "TEST Recipe (to be deleted)",
-            "description": "Test recipe for automated testing"
-        }
-        test_list = original_items + [test_item]
+        assert "images" in data, "No 'images' in response"
+        images = data["images"]
         
-        # Save with test item
-        resp = requests.put(
-            f"{BASE_URL}/api/recipes/admin",
-            headers=runner.headers(),
-            json={"items": test_list}
-        )
-        assert resp.status_code == 200, f"Failed to save: {resp.status_code} {resp.text}"
-        data = resp.json()
-        assert len(data['items']) == len(test_list), "Item count mismatch after save"
-        print(f"   ✅ Saved list with test item ({len(data['items'])} items)")
+        # Check all 4 keys exist
+        required_keys = ["collection_main", "b2b_landscape", "b2b_portrait", "philosophy"]
+        for key in required_keys:
+            assert key in images, f"Missing key: {key}"
+            assert images[key], f"Empty value for key: {key}"
+            print(f"   {key}: {images[key][:60]}...")
 
-        # Restore original list (cleanup)
+    def test_site_images_admin_requires_auth():
+        """Test GET /api/site-images/admin requires authentication"""
+        resp = requests.get(f"{BASE_URL}/api/site-images/admin")
+        assert resp.status_code == 401, f"Expected 401 without token, got {resp.status_code}"
+        print(f"   Correctly returns 401 without token")
+
+    def test_site_images_admin_get():
+        """Test GET /api/site-images/admin with auth"""
+        resp = requests.get(f"{BASE_URL}/api/site-images/admin", headers=runner.headers())
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
+        data = resp.json()
+        assert "images" in data, "No 'images' in response"
+        assert "defaults" in data, "No 'defaults' in response"
+        assert "spots" in data, "No 'spots' in response"
+        print(f"   Found {len(data['spots'])} image spot(s)")
+        for spot in data['spots']:
+            print(f"   - {spot['label']}: {spot['where']}")
+
+    def test_site_images_admin_update_and_restore():
+        """Test PUT /api/site-images/admin - update and restore"""
+        # Get current images
+        resp = requests.get(f"{BASE_URL}/api/site-images/admin", headers=runner.headers())
+        assert resp.status_code == 200, "Failed to get current images"
+        original = resp.json()
+        original_images = original["images"]
+        defaults = original["defaults"]
+        print(f"   Original collection_main: {original_images['collection_main'][:60]}...")
+        
+        # Update collection_main to test URL
+        test_url = "https://picsum.photos/seed/eco-col/800/600.jpg"
+        updated_images = original_images.copy()
+        updated_images["collection_main"] = test_url
+        
         resp = requests.put(
-            f"{BASE_URL}/api/recipes/admin",
+            f"{BASE_URL}/api/site-images/admin",
             headers=runner.headers(),
-            json={"items": original_items}
+            json={"images": updated_images}
+        )
+        assert resp.status_code == 200, f"Failed to update: {resp.status_code} {resp.text}"
+        data = resp.json()
+        assert data["images"]["collection_main"] == test_url, "URL not updated"
+        print(f"   ✅ Updated collection_main to: {test_url}")
+        
+        # Verify public endpoint returns new URL
+        resp = requests.get(f"{BASE_URL}/api/site-images")
+        assert resp.status_code == 200, "Failed to get public images"
+        public_images = resp.json()["images"]
+        assert public_images["collection_main"] == test_url, "Public endpoint not updated"
+        print(f"   ✅ Public endpoint reflects new URL")
+        
+        # Restore to default
+        restored_images = original_images.copy()
+        restored_images["collection_main"] = defaults["collection_main"]
+        
+        resp = requests.put(
+            f"{BASE_URL}/api/site-images/admin",
+            headers=runner.headers(),
+            json={"images": restored_images}
         )
         assert resp.status_code == 200, f"Failed to restore: {resp.status_code}"
-        print(f"   ✅ Restored original list ({len(original_items)} items)")
-
-    # ========== EXTERNAL FILES API TESTS ==========
-    def test_external_files_requires_auth():
-        """Test POST /api/admin/files/external requires auth"""
-        resp = requests.post(
-            f"{BASE_URL}/api/admin/files/external",
-            json={"url": "https://example.com/test.jpg"}
-        )
-        assert resp.status_code in [401, 403], f"Expected 401/403 without token, got {resp.status_code}"
-        print(f"   Correctly returns {resp.status_code} without token")
-
-    def test_external_files_invalid_url():
-        """Test POST /api/admin/files/external with invalid URL"""
-        resp = requests.post(
-            f"{BASE_URL}/api/admin/files/external",
-            headers=runner.headers(),
-            json={"url": "not-a-valid-url"}
-        )
-        assert resp.status_code == 400, f"Expected 400 for invalid URL, got {resp.status_code}"
-        print(f"   Correctly rejects invalid URL with 400")
-
-    def test_external_files_add_and_delete():
-        """Test POST /api/admin/files/external and DELETE"""
-        # Add external file
-        test_url = "https://picsum.photos/seed/ecotest/400/300.jpg"
-        resp = requests.post(
-            f"{BASE_URL}/api/admin/files/external",
-            headers=runner.headers(),
-            json={"url": test_url}
-        )
-        assert resp.status_code == 200, f"Failed to add external file: {resp.status_code} {resp.text}"
         data = resp.json()
-        assert "id" in data, "No 'id' in response"
-        assert data.get("external") is True, "external flag not set"
-        file_id = data["id"]
-        print(f"   ✅ Added external file: {file_id}")
-
-        # Verify it appears in list
-        resp = requests.get(f"{BASE_URL}/api/admin/files?kind=image", headers=runner.headers())
-        assert resp.status_code == 200, "Failed to list files"
-        files = resp.json()['files']
-        found = any(f['id'] == file_id for f in files)
-        assert found, f"External file {file_id} not found in list"
-        print(f"   ✅ External file appears in image list")
-
-        # Delete the test file (cleanup)
-        resp = requests.delete(f"{BASE_URL}/api/admin/files/{file_id}", headers=runner.headers())
-        assert resp.status_code == 200, f"Failed to delete: {resp.status_code}"
-        print(f"   ✅ Deleted test file {file_id}")
-
-    def test_files_filter_video():
-        """Test GET /api/admin/files?kind=video"""
-        resp = requests.get(f"{BASE_URL}/api/admin/files?kind=video", headers=runner.headers())
-        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
-        data = resp.json()
-        assert "files" in data, "No 'files' in response"
-        print(f"   Found {len(data['files'])} video file(s)")
-        for f in data['files']:
-            ct = f.get('content_type', '')
-            assert ct.startswith('video/'), f"Non-video file in video filter: {ct}"
-
-    # ========== ABANDONED CARTS 2ND REMINDER TEST ==========
-    def test_abandoned_carts_2nd_reminder():
-        """Test 2nd reminder logic (24h) via direct DB manipulation"""
-        print("   Testing 2nd reminder logic via Python...")
-        
-        # Import MongoDB client
-        from pymongo import MongoClient
-        from datetime import datetime, timedelta, timezone
-        import uuid
-        
-        client = MongoClient("mongodb://localhost:27017")
-        db = client["test_database"]
-        
-        # Create test cart with status 'reminded', updated 25h ago, reminder_sent 21h ago
-        now = datetime.now(timezone.utc)
-        test_cart_id = f"test_cart_{uuid.uuid4().hex[:8]}"
-        test_cart = {
-            "cart_id": test_cart_id,
-            "email": "test_2nd_reminder@example.com",
-            "items": [
-                {
-                    "product_id": "test-prod",
-                    "name": "Test Product",
-                    "quantity": 1,
-                    "unit_price": 10.0
-                }
-            ],
-            "subtotal": 10.0,
-            "status": "reminded",
-            "created_at": (now - timedelta(hours=26)).isoformat(),
-            "updated_at": (now - timedelta(hours=25)).isoformat(),
-            "reminder_sent_at": (now - timedelta(hours=21)).isoformat(),
-            "reminder2_sent_at": None,
-            "reminder_count": 1
-        }
-        
-        db.abandoned_carts.insert_one(test_cart)
-        print(f"   ✅ Created test cart: {test_cart_id}")
-        
-        # Import and run process_abandoned_carts
-        sys.path.insert(0, '/app/backend')
-        from routes.carts import process_abandoned_carts
-        import asyncio
-        
-        sent_count = asyncio.run(process_abandoned_carts())
-        print(f"   📧 process_abandoned_carts() sent {sent_count} reminder(s)")
-        
-        # Verify the cart was updated
-        updated_cart = db.abandoned_carts.find_one({"cart_id": test_cart_id})
-        assert updated_cart is not None, "Test cart not found after processing"
-        assert updated_cart.get("reminder2_sent_at") is not None, "reminder2_sent_at not set"
-        assert updated_cart.get("reminder_count") == 2, f"reminder_count should be 2, got {updated_cart.get('reminder_count')}"
-        print(f"   ✅ Cart updated: reminder2_sent_at={updated_cart['reminder2_sent_at'][:19]}, reminder_count=2")
-        
-        # Run again - should NOT send again (idempotent)
-        sent_count_2 = asyncio.run(process_abandoned_carts())
-        print(f"   📧 Second run sent {sent_count_2} reminder(s) (should be 0)")
-        assert sent_count_2 == 0, f"Expected 0 reminders on second run, got {sent_count_2}"
-        print(f"   ✅ Idempotent: no duplicate reminders sent")
-        
-        # Cleanup
-        db.abandoned_carts.delete_one({"cart_id": test_cart_id})
-        print(f"   🧹 Cleaned up test cart")
-        
-        # Note about email failures
-        print(f"   ℹ️  Email send failures are EXPECTED (Resend domain not verified)")
+        assert data["images"]["collection_main"] == defaults["collection_main"], "Not restored to default"
+        print(f"   ✅ Restored collection_main to default: {defaults['collection_main'][:60]}...")
 
     # ========== RUN ALL TESTS ==========
-    runner.test("Recipes: GET /api/recipes (public)", test_recipes_public)
-    runner.test("Recipes: GET /api/recipes/admin requires auth", test_recipes_admin_requires_auth)
-    runner.test("Recipes: GET /api/recipes/admin with auth", test_recipes_admin_get)
-    runner.test("Recipes: PUT /api/recipes/admin (save & restore)", test_recipes_admin_put)
+    runner.test("Blog: GET /api/blog (public list)", test_blog_public_list)
+    runner.test("Blog: GET /api/blog/{slug} (public detail)", test_blog_public_get_by_slug)
+    runner.test("Blog: GET /api/blog/{slug} returns 404", test_blog_public_404)
+    runner.test("Blog: GET /api/blog/admin/list requires auth", test_blog_admin_requires_auth)
+    runner.test("Blog: GET /api/blog/admin/list with auth", test_blog_admin_list)
+    runner.test("Blog: CREATE, UPDATE, DELETE post", test_blog_admin_crud)
     
-    runner.test("External Files: POST requires auth", test_external_files_requires_auth)
-    runner.test("External Files: Invalid URL returns 400", test_external_files_invalid_url)
-    runner.test("External Files: Add and delete", test_external_files_add_and_delete)
-    runner.test("Files: Filter by kind=video", test_files_filter_video)
-    
-    runner.test("Abandoned Carts: 2nd reminder logic", test_abandoned_carts_2nd_reminder)
+    runner.test("Site Images: GET /api/site-images (public)", test_site_images_public)
+    runner.test("Site Images: GET /api/site-images/admin requires auth", test_site_images_admin_requires_auth)
+    runner.test("Site Images: GET /api/site-images/admin with auth", test_site_images_admin_get)
+    runner.test("Site Images: UPDATE and RESTORE", test_site_images_admin_update_and_restore)
 
     return runner.summary()
 

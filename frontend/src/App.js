@@ -54,6 +54,8 @@ import AdminBuyers from "./pages/admin/AdminBuyers";
 import AdminWhatsappLeads from "./pages/admin/AdminWhatsappLeads";
 import AdminAbandonedCarts from "./pages/admin/AdminAbandonedCarts";
 import AdminRecipes from "./pages/admin/AdminRecipes";
+import AdminBlog from "./pages/admin/AdminBlog";
+import AdminSiteImages from "./pages/admin/AdminSiteImages";
 import CartTracker from "./components/CartTracker";
 import SplashScreen from "./components/SplashScreen";
 import AdminFiles from "./pages/admin/AdminFiles";
@@ -134,6 +136,8 @@ export default function App() {
                 <Route path="whatsapp" element={<AdminWhatsappLeads />} />
                 <Route path="carritos" element={<AdminAbandonedCarts />} />
                 <Route path="recetas" element={<AdminRecipes />} />
+                <Route path="blog" element={<AdminBlog />} />
+                <Route path="imagenes" element={<AdminSiteImages />} />
                 <Route path="productos" element={<AdminProducts />} />
                 <Route path="portada" element={<AdminHero />} />
                 <Route path="carrusel" element={<AdminCarousel />} />

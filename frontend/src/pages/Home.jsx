@@ -9,12 +9,11 @@ import CategoryCarousel from "../components/CategoryCarousel";
 import RecipesSection from "../components/RecipesSection";
 import Seo from "../components/Seo";
 import { Leaf, Sprout, ShieldCheck } from "lucide-react";
+import { resolveAsset } from "../lib/api";
 
-// COLECCIÓN PRINCIPAL: imagen local optimizada (WebP con fallback JPG)
+// Imágenes por defecto (editables desde /admin/imagenes vía /api/site-images)
 const COLLECTION_IMG = "/coleccion-principal.webp";
 const COLLECTION_IMG_FALLBACK = "/coleccion-principal.jpg";
-// Fondos del banner B2B: imagen 1 para dispositivos verticales (portrait),
-// imagen 2 para dispositivos horizontales (landscape)
 const B2B_IMG_PORTRAIT = "https://assets.zyrosite.com/w7wEiJrqV2hbSrVN/90f2dc95-18ff-4a32-9b26-49c52abf3b38-ixZJMjIJezMiDrOG.png";
 const B2B_IMG_LANDSCAPE = "https://assets.zyrosite.com/w7wEiJrqV2hbSrVN/ab2cb895-a966-4f2e-8f75-353d990d0b2a-lKg4iIrIJ2eGA0DY.png";
 
@@ -22,6 +21,15 @@ export default function Home() {
   const { t, i18n } = useTranslation();
   const [featured, setFeatured] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [siteImgs, setSiteImgs] = useState({});
+
+  useEffect(() => {
+    api.get("/site-images").then(({ data }) => setSiteImgs(data.images || {})).catch(() => {});
+  }, []);
+
+  const collectionImg = siteImgs.collection_main || COLLECTION_IMG;
+  const b2bPortrait = siteImgs.b2b_portrait || B2B_IMG_PORTRAIT;
+  const b2bLandscape = siteImgs.b2b_landscape || B2B_IMG_LANDSCAPE;
 
   useEffect(() => {
     (async () => {
@@ -102,8 +110,8 @@ export default function Home() {
             data-testid="collection-main"
           >
             <picture className="absolute inset-0 block w-full h-full">
-              <source type="image/webp" srcSet={COLLECTION_IMG} />
-              <img src={COLLECTION_IMG_FALLBACK} alt={t("home.collectionImgAlt")} loading="lazy" decoding="async" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]" />
+              {collectionImg === COLLECTION_IMG && <source type="image/webp" srcSet={COLLECTION_IMG} />}
+              <img src={collectionImg === COLLECTION_IMG ? COLLECTION_IMG_FALLBACK : resolveAsset(collectionImg)} alt={t("home.collectionImgAlt")} loading="lazy" decoding="async" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]" />
             </picture>
             <div className="relative h-full flex flex-col justify-start p-8 md:p-10">
               <div className="overline mb-2">{t("home.collectionMainOverline")}</div>
@@ -135,8 +143,8 @@ export default function Home() {
       <section className="relative mt-10 md:mt-12" data-testid="b2b-banner">
         <div className="absolute inset-0">
           <picture className="block w-full h-full">
-            <source media="(orientation: portrait)" srcSet={B2B_IMG_PORTRAIT} />
-            <img src={B2B_IMG_LANDSCAPE} alt="Profesional" className="w-full h-full object-cover" />
+            <source media="(orientation: portrait)" srcSet={resolveAsset(b2bPortrait)} />
+            <img src={resolveAsset(b2bLandscape)} alt="Profesional" className="w-full h-full object-cover" />
           </picture>
           <div className="absolute inset-0 bg-black/30" />
         </div>

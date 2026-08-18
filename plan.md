@@ -1,4 +1,4 @@
-# EcoAndes BIO — Plan de Continuación (UI → Blogs → Testing → Catálogo/Precios/IVA → Envíos → Pagos → SEO/GEO → Imágenes → **SEO Manual + Nombres Legacy + Redirecciones** → **UX/Operaciones (Lote 9)** → **Recuperación de Carritos (Lote 10)** → **Lote 11 (Splash + Recetas + Media links + Emails + Hero dots + 2º recordatorio + Links universales)**)
+# EcoAndes BIO — Plan de Continuación (UI → Blogs → Testing → Catálogo/Precios/IVA → Envíos → Pagos → SEO/GEO → Imágenes → **SEO Manual + Nombres Legacy + Redirecciones** → **UX/Operaciones (Lote 9)** → **Recuperación de Carritos (Lote 10)** → **Lote 11 (Splash + Recetas + Media links + Emails + Hero dots + 2º recordatorio + Links universales)** → **Fase 14 / Lote 12 (Blog Admin + Site Images Admin + Bug carrusel categorías)**)
 
 ## 1) Objetivos
 
@@ -38,6 +38,11 @@
   - Rediseño de emails automatizados con colores de marca.
   - **EXTENSIÓN:** opción **por enlace** universalizada en **todas** las ediciones de imágenes/PDF dentro del dashboard.
   - **Estado:** **COMPLETADO** + validado E2E (**iteration_19 100%**) y verificación manual adicional.
+- **Fase 14 (P0/P1): Lote 12 — Blog Admin + Site Images Admin + Bug carrusel categorías**
+  - **BUG**: click en imágenes/tarjetas del carrusel de categorías no navegaba.
+  - Blog: migrar los 12 artículos existentes a BD + administración completa desde dashboard con SEO.
+  - Imágenes del sitio: administración centralizada de imágenes fijas (Colección principal, B2B, Filosofía).
+  - **Estado:** **COMPLETADO** + validado E2E (**iteration_20 100%**).
 
 ---
 
@@ -178,40 +183,29 @@
 #### 12.2 Implementación (realizada)
 **Backend**
 - Nuevo módulo: `/app/backend/routes/carts.py`
-  - `POST /api/cart/track` (público): snapshot de carrito por `cart_id` (uuid por dispositivo). Si `items=[]` marca `emptied`.
+  - `POST /api/cart/track` (público): snapshot de carrito por `cart_id`.
   - `GET /api/cart/admin/list` (admin): lista + stats (`active`, `reminded`, `converted`).
   - `DELETE /api/cart/admin/{cart_id}` (admin).
-  - `process_abandoned_carts()`:
-    - Idempotente por `reminder_sent_at`.
-    - Selecciona carritos `active` con email y `updated_at` > 4h.
-    - Envía email (si falla por Resend, se marca igual para evitar reintentos en bucle).
-  - `mark_carts_converted(email, order_number)`:
-    - Se llama al crear un pedido para marcar carritos del email como `converted`.
-- Integración en pedidos: `routes/orders.py` llama a `mark_carts_converted` tras insertar el pedido.
+  - `process_abandoned_carts()` idempotente.
+  - `mark_carts_converted(email, order_number)` al crear pedido.
 - Scheduler: `/app/backend/core/scheduler.py` ejecuta `_maybe_abandoned_carts()` cada ~10 min.
-- Router registrado en `backend/server.py`: `app.include_router(carts_router)`.
+- Router registrado en `backend/server.py`.
 
 **Mailer (Resend)**
-- `send_abandoned_cart_email(cart)` en `/app/backend/core/mailer.py`:
-  - Tabla con productos y total.
-  - Bloque con cupón ECOBONUS.
-  - CTA “Recuperar mi carrito” → `https://productosecoandes.com/checkout`.
+- `send_abandoned_cart_email(cart)` con tabla + total + ECOBONUS + CTA.
 
 **Frontend**
 - Componente global: `/app/frontend/src/components/CartTracker.jsx`.
-- Checkout: al escribir email válido, guarda `eco_guest_email` y dispara `POST /api/cart/track`.
-- Admin UI:
-  - `/app/frontend/src/pages/admin/AdminAbandonedCarts.jsx`.
-  - Ruta: `/admin/carritos` + link `admin-nav-carts`.
+- Checkout: guarda email invitado y trackea.
+- Admin UI: `/app/frontend/src/pages/admin/AdminAbandonedCarts.jsx`.
 
 #### 12.3 Validación / Testing
 - `testing_agent_v3` → `iteration_18`:
   - Backend: **100% (9/9)**
-  - Frontend: **95% (17/18)**
-  - Único fallo reportado: carga /tienda “Loading…” con `ERR_ABORTED` (transitorio del entorno del tester). Re-verificado OK.
+  - Frontend: **95% (17/18)** (flaky transitorio del entorno).
 
 #### 12.4 Caveats conocidos
-- **Resend**: hasta verificar dominio, Resend bloquea envíos a destinatarios arbitrarios.
+- **Resend**: hasta verificar dominio, envíos a destinatarios arbitrarios pueden fallar.
 
 ---
 
@@ -221,122 +215,91 @@
 1) 2º recordatorio de carrito a las **24h**.
 2) Indicadores del Hero en vertical a la derecha (web + móvil).
 3) Splash screen con vídeo de bienvenida.
-4) Admin Archivos: opción subir archivo o pegar enlace (mejor performance).
-5) Sección Home “Recetas con nuestros productos” (3 vídeos verticales) + Admin para CRUD/orden/metadescripción.
-6) Emails automatizados: diseño más atractivo y con colores de marca.
-7) **Extensión solicitada por usuario:** opción **por enlace** disponible en **TODOS** los puntos del dashboard donde se editan imágenes (y PDFs) — no solo en “Archivos”.
+4) Admin Archivos: opción subir archivo o pegar enlace.
+5) Sección Home “Recetas con nuestros productos” + Admin.
+6) Emails automatizados rediseñados con colores de marca.
+7) Extensión: links por enlace en todos los editores del dashboard.
 
 #### 13.2 Implementación (realizada)
-
-**(1) 2º recordatorio carrito (24h)**
-- `/app/backend/routes/carts.py`
-  - `ABANDON_HOURS=4` (1º) + `ABANDON_HOURS_2ND=24` (2º).
-  - Nuevos campos: `reminder2_sent_at`, `reminder_count`.
-  - Si hay nueva actividad (`/cart/track`) se resetean `reminder_sent_at` y `reminder2_sent_at`.
-  - Idempotencia garantizada: no reenvía si `reminder2_sent_at` ya existe.
-- `/app/frontend/src/pages/admin/AdminAbandonedCarts.jsx`
-  - Columna “Recordatorio”: muestra **1º** y **2º** con fecha.
-
-**(2) Indicadores del Hero verticales derecha**
-- `/app/frontend/src/components/HeroCarousel.jsx`
-  - Dots movidos a `right-*` y dispuestos en columna.
-  - Verificado por testing: desktop ~98.2% del ancho, móvil ~96.2%.
-
-**(3) Splash screen con vídeo**
-- Assets:
-  - `/app/frontend/public/splash-bienvenida.mp4` (≈5.3MB) descargado del link del usuario.
-  - `/app/frontend/public/splash-bienvenida.webm` (VP9 720p ≈1.1MB) generado para compatibilidad.
-- Frontend:
-  - `/app/frontend/src/components/SplashScreen.jsx` (montado en `App.js`).
-  - Aparece **una vez por sesión** (`sessionStorage eco_splash_seen`).
-  - Botón **Saltar**.
-  - Autocierre al terminar el vídeo (~8.2s) + failsafe a 11s.
-  - Fix importante: `onError` no está en `<video>` (evita cierre prematuro cuando falla un `<source>` pero hay otro reproducible); se usa en el último `<source>`.
-
-**(4) Archivos por enlace (CDN/nube del cliente)**
-- Backend: `/app/backend/routes/files.py`
-  - `POST /api/admin/files/external` (admin): registra `external:true`, hace `HEAD` para `content-type/size` si es posible.
-  - `GET /api/admin/files?kind=video` añadido.
-  - `list_files` retorna `url` externo si `external:true`.
-- Frontend: `/app/frontend/src/pages/admin/AdminFiles.jsx`
-  - Botón **Añadir por enlace** + diálogo.
-  - Pestaña **Vídeos**.
-  - Badges: **Vídeo** / **Enlace**.
-  - Preview de vídeo en tarjeta.
-
-**(5) Sección Recetas + Admin**
-- Backend: `/app/backend/routes/recipes.py`
-  - Config en `site_config` con `_id=recipe_videos`.
-  - `GET /api/recipes` público + `GET/PUT /api/recipes/admin` (admin).
-- Frontend:
-  - `Home.jsx` inserta `<RecipesSection />` **después de** productos destacados.
-  - `/app/frontend/src/components/RecipesSection.jsx`:
-    - Hasta 3 vídeos verticales (aspect 9:16) + metadescripción.
-    - Layout centrado (flex) para 1–3 vídeos.
-    - JSON‑LD `VideoObject`.
-  - Admin:
-    - `/app/frontend/src/pages/admin/AdminRecipes.jsx` (CRUD/orden/activo/metadescripción máx 300).
-    - Ruta `/admin/recetas` + link sidebar `admin-nav-recipes`.
-  - Nota: queda 1 item **DEMO** (“Receta demo” con `/splash-bienvenida.mp4`) para que el usuario lo sustituya por sus 3 vídeos reales.
-
-**(6) Emails automatizados rediseñados**
-- `/app/backend/core/mailer.py`
-  - `_wrap(...)` renovado:
-    - Cabecera verde **#72A638**.
-    - Banda de confianza (certificación/envío/pago seguro).
-    - Footer oscuro con dirección real.
-  - Impacto: afecta a **todos** los correos automáticos (bienvenida newsletter, carritos, pedidos, etc.).
-
-**(7) Links universales en TODOS los editores de imágenes/PDF (EXTENSIÓN)**
-- **Objetivo:** que el usuario pueda editar/establecer imágenes desde el dashboard **por enlace** en **cada lugar** donde se edita una imagen o PDF.
-- **Solución técnica:** rework de `/app/frontend/src/pages/admin/UploadButton.jsx` para incluir un control dividido:
-  - **Subir** (archivo desde dispositivo)
-  - **🔗 Enlace** (diálogo para pegar URL)
-- **Comportamiento del diálogo:**
-  - Valida URL http/https.
-  - Llama a `POST /api/admin/files/external` (registra en biblioteca).
-  - Ejecuta el mismo callback `onUploaded({url, filename, ...})` usado por el resto del dashboard, por lo que **no requiere cambios** en cada pantalla.
-- **Cobertura efectiva (heredado automáticamente por todos los usos existentes):**
-  - Editor de producto: imagen principal, galería, imágenes por formato, ficha técnica (PDF).
-  - Portada/Hero: imagen web + móvil de cada slide.
-  - Carrusel categorías: imagen por item.
-  - Archivos (además del botón “Añadir por enlace”).
-- **Verificación:**
-  - Compilación: `esbuild` OK.
-  - E2E manual con capturas: flujo completo en editor de producto (diálogo → registro externo → preview actualizado + toast “Enlace aplicado”), presencia confirmada en Portada/Carrusel/Ficha técnica/Variaciones.
-  - Endpoint `files/external` ya validado en `iteration_19`.
+- Ver detalle completo en el plan previo.
 
 #### 13.3 Validación / Testing
-- `testing_agent_v3` → `iteration_19`:
-  - Backend: **100% (9/9)**
-  - Frontend: **100%**
-  - Única nota: fallos de envío a `example.com` (Resend) **esperados**; la lógica de recordatorio y marcado funciona.
-- Extensión links universales: verificación manual adicional (capturas + no se guardó ningún producto real).
+- `testing_agent_v3` → **iteration_19: 100%**.
 
-#### 13.4 Caveats conocidos
-- **Resend**: entrega real a destinatarios arbitrarios requiere dominio verificado.
-- `ffmpeg` se utilizó para generar el `.webm`; el asset ya queda persistente en `public/`.
+---
+
+### Fase 14 — **Lote 12: Blog Admin + Site Images Admin + Bug carrusel categorías** — **COMPLETADO (2026-08)**
+
+#### 14.1 Bug: click en carrusel de categorías no navegaba
+- **Problema:** `setPointerCapture` en `pointerdown` retargeteaba el click al contenedor y el `<Link>` no navegaba.
+- **Fix:** capturar puntero **solo** cuando hay arrastre real (`moved > 6px`).
+- **Archivo:** `/app/frontend/src/components/CategoryCarousel.jsx`.
+- **Validación:** `testing_agent_v3` → `iteration_20`:
+  - Desktop: click navega a `/tienda?cat=...`
+  - Desktop: drag no navega
+  - Móvil: tap navega
+
+#### 14.2 Blog gestionable desde el dashboard (manteniendo los 12 existentes)
+**Backend**
+- `/app/backend/routes/blog.py`
+  - Seed único desde `/app/backend/data/blog_seed.json` si `blog_posts` está vacía.
+  - Público: `GET /api/blog` + `GET /api/blog/{slug}`.
+  - Admin: `GET /api/blog/admin/list` + `POST/PUT/DELETE /api/blog/admin/...`.
+  - `published` para ocultar sin borrar.
+  - SEO por artículo: `meta_title/meta_description/keywords` con defaults inteligentes (sin truncado feo).
+
+**Frontend**
+- `/app/frontend/src/pages/Blog.jsx` y `/app/frontend/src/pages/BlogPost.jsx` reescritos para consumir API.
+  - Skeletons de carga.
+  - SEO con `Seo` + JSON‑LD `Article`.
+  - Fuentes + productos relacionados.
+- Admin:
+  - `/app/frontend/src/pages/admin/AdminBlog.jsx`
+  - Tabla + editor modal completo (portada con `UploadButton` + URL, secciones reordenables, fuentes, panel SEO con contadores, publicado/borrador).
+  - Ruta `/admin/blog` + link sidebar `admin-nav-blog`.
+
+**Nota:** `frontend/src/data/blogPosts.js` queda como fuente histórica/semilla, pero ya no es usado por las páginas públicas.
+
+#### 14.3 Gestor de imágenes globales del sitio
+**Backend**
+- `/app/backend/routes/site_images.py`
+  - `site_config` `_id=site_images`.
+  - Defaults: `collection_main`, `b2b_landscape`, `b2b_portrait`, `philosophy`.
+  - Público: `GET /api/site-images`.
+  - Admin: `GET/PUT /api/site-images/admin`.
+
+**Frontend**
+- Admin:
+  - `/app/frontend/src/pages/admin/AdminSiteImages.jsx` en `/admin/imagenes`.
+  - 4 tarjetas con preview, **Subir/🔗 enlace** (UploadButton) + campo URL + Restaurar por imagen.
+- Consumo en web:
+  - `Home.jsx`: usa `collection_main` y B2B (web/móvil) desde `/api/site-images` con fallback.
+  - `About.jsx`: usa `philosophy` desde `/api/site-images` con fallback y `data-testid=about-philosophy-img`.
+
+#### 14.4 Testing
+- `testing_agent_v3` → **iteration_20**:
+  - Backend: **100% (10/10)**
+  - Frontend: **100%**
+  - BD limpia tras tests: 12 posts exactos y `site_images` en defaults.
 
 ---
 
 ## 3) Próximas Acciones (inmediatas)
 1. **Cerrar Fase 8 (SEO/GEO):** spot-check 10–15 productos (ES/EN/FR) y correcciones manuales.
 2. **Fase 9 (P1): migración de imágenes** (WebP + caché 1 año) + completar productos sin foto.
-3. **Operativa emails (Resend):** verificar dominio de envío para habilitar entrega real:
-   - bienvenida newsletter
-   - carritos abandonados (1º + 2º)
-   - emails de pedidos / devoluciones
+3. **Operativa emails (Resend):** verificar dominio de envío para habilitar entrega real.
 4. Recetas:
    - Reemplazar el vídeo demo por los 3 vídeos reales (URLs cloud/CDN) y ajustar títulos/descripciones.
-5. (Opcional) Admin Carritos:
-   - filtro por estado + búsqueda por email
-   - botón “marcar como ignorado”
+5. Blog:
+   - Añadir etiquetas/autoría más granular si se desea (opcional).
 
 ---
 
 ## 4) Criterios de Éxito
 - **UI**: radios redondeados coherentes, hover/focus modernos, animaciones sutiles. **(Cumplido)**
-- **Blog**: 12 posts completos con WebP locales + fuentes. **(Cumplido)**
+- **Blog (público + admin)**: 12 posts existentes preservados, CRUD en dashboard, SEO por post y JSON‑LD Article. **(Cumplido; iteration_20)**
+- **Carrusel categorías**: click navega; drag no navega; móvil tap navega. **(Cumplido; iteration_20)**
+- **Imágenes del sitio**: editable desde dashboard por link/archivo con restore y consumo en Home/Nosotros. **(Cumplido; iteration_20)**
 - **Catálogo**: BD coincide con Excel (174/390). **(Cumplido)**
 - **IVA**: cálculo dinámico consistente B2C/B2B. **(Cumplido)**
 - **Envíos**: reglas correctas y validadas. **(Cumplido)**
@@ -346,11 +309,11 @@
 - **Legacy names + redirect:** aplicado + alias + canonical. **(Cumplido)**
 - **Registro UX/legal:** roles claros, campos pro ordenados, aviso AEAT, checkbox privacidad. **(Cumplido)**
 - **Operaciones CRM:** borrado clientes/compradores/leads. **(Cumplido)**
-- **Carritos abandonados:** tracking server-side (logueados + invitados con email), **1º recordatorio 4h + 2º 24h**, conversión marcada por email al crear pedido, CRM admin con stats y borrado. **(Cumplido)**
+- **Carritos abandonados:** tracking server-side (logueados + invitados con email), **1º 4h + 2º 24h**, conversión marcada, CRM admin con stats y borrado. **(Cumplido)**
 - **Splash screen:** se muestra 1 vez por sesión, reproduce vídeo, botón saltar, autocierre y fallback webm. **(Cumplido)**
 - **Recetas:** sección home visible solo si hay vídeos activos, hasta 3, admin CRUD + metadescripción. **(Cumplido)**
 - **Archivos por enlace:** admin permite subir o pegar enlace, con filtros y preview. **(Cumplido)**
-- **Links universales en dashboard:** cada punto de edición de imágenes/PDF ofrece opción por enlace con el mismo flujo. **(Cumplido)**
+- **Links universales en dashboard:** cada punto de edición de imágenes/PDF ofrece opción por enlace. **(Cumplido)**
 - **Emails:** plantilla coherente y atractiva con colores de marca. **(Cumplido; entrega real sujeta a dominio Resend)**
 - **Imágenes**: assets propios (WebP) + caché 1 año; productos sin foto resueltos. **(Pendiente)**
 - **Portabilidad**: snapshot/seed restauran contenido; binarios de storage por validar. **(Parcial)**

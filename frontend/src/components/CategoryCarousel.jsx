@@ -112,19 +112,27 @@ export default function CategoryCarousel() {
     return () => cancelAnimationFrame(raf);
   }, [doubled.length]);
 
+  const capturedRef = useRef(false);
+
   const onPointerDown = (e) => {
     if (e.pointerType === "touch") return; // el táctil se gestiona con listeners nativos
     draggingRef.current = true;
+    capturedRef.current = false;
     movedRef.current = 0;
     dragStartX.current = e.clientX;
     dragStartOffset.current = offsetRef.current;
-    try { e.currentTarget.setPointerCapture?.(e.pointerId); } catch { /* ignore */ }
+    // IMPORTANTE: no capturar el puntero aquí. Con setPointerCapture en pointerdown,
+    // el click posterior se dispara en el contenedor y NO en el <Link> de la
+    // categoría, rompiendo la navegación. Solo se captura cuando hay arrastre real.
   };
   const onPointerMove = (e) => {
     if (e.pointerType === "touch") return;
     if (!draggingRef.current) return;
     const dx = e.clientX - dragStartX.current;
     movedRef.current = Math.max(movedRef.current, Math.abs(dx));
+    if (movedRef.current > 6 && !capturedRef.current) {
+      try { e.currentTarget.setPointerCapture?.(e.pointerId); capturedRef.current = true; } catch { /* ignore */ }
+    }
     offsetRef.current = dragStartOffset.current + dx;
   };
   const endDrag = () => {

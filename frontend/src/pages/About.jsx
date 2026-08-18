@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Leaf, BadgeCheck, Sprout, Package, FileDown, PlayCircle } from "lucide-react";
+import { api, resolveAsset } from "../lib/api";
 
 const IMG1 = "/tienda-ecoandes-barcelo.jpg";
 
@@ -22,6 +23,13 @@ const DOCS = [
 
 export default function About() {
   const { t } = useTranslation();
+  const [philosophyImg, setPhilosophyImg] = useState(IMG1);
+
+  useEffect(() => {
+    api.get("/site-images").then(({ data }) => {
+      if (data.images?.philosophy) setPhilosophyImg(data.images.philosophy);
+    }).catch(() => {});
+  }, []);
 
   const values = [
     { icon: Leaf, text: t("about.value1") },
@@ -38,7 +46,7 @@ export default function About() {
         {t("about.title")}
       </h1>
       <div className="mt-14 grid grid-cols-1 md:grid-cols-2 gap-10 items-start">
-        <img src={IMG1} alt="Tienda EcoAndes en el Mercado Barceló" className="w-full aspect-[4/5] object-cover rounded-xl" />
+        <img src={resolveAsset(philosophyImg)} alt="Tienda EcoAndes en el Mercado Barceló" className="w-full aspect-[4/5] object-cover rounded-xl" data-testid="about-philosophy-img" />
         <div className="space-y-6 text-ink-soft font-light leading-relaxed text-base">
           <p className="text-xl text-ink leading-relaxed" data-testid="about-intro">{t("about.intro")}</p>
           <p>{t("about.p2")}</p>
