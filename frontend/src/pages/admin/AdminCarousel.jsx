@@ -44,7 +44,7 @@ export default function AdminCarousel() {
   const add = () => {
     setItems((arr) => [
       ...arr,
-      { id: null, order: arr.length, active: true, title: "", cat: "", img: "" },
+      { id: null, order: arr.length, active: true, title: "", cat: "", img: "", description: "" },
     ]);
   };
 
@@ -127,6 +127,18 @@ export default function AdminCarousel() {
                     <option key={c.value} value={c.value}>{c.label}</option>
                   ))}
                 </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="text-[11px] uppercase tracking-wide text-ink-muted block mb-1">
+                  Descripción <span className="normal-case tracking-normal">(vacía = automática con los productos de la categoría)</span>
+                </label>
+                <textarea
+                  className="input-eco !py-2 text-sm w-full min-h-[48px]"
+                  value={it.description || ""}
+                  onChange={(e) => update(idx, { description: e.target.value })}
+                  placeholder="Ej. Quinoa Real, Amaranto, Mijo, Trigo Sarraceno y muchos más."
+                  data-testid={`carousel-description-${idx}`}
+                />
               </div>
             </div>
 

@@ -57,6 +57,32 @@ async def seed_carousel_if_empty() -> None:
     logger.info("Category carousel seeded with %d items", len(items))
 
 
+def _build_auto_description(names: list, total: int) -> str:
+    """Descripción automática: los productos que contiene la categoría en la tienda."""
+    if not names:
+        return ""
+    shown = names[:5]
+    rest = total - len(shown)
+    if rest > 0:
+        base = ", ".join(shown)
+        return f"{base} y {rest} producto{'s' if rest != 1 else ''} más."
+    base = ", ".join(shown[:-1]) + (" y " + shown[-1] if len(shown) > 1 else shown[0])
+    return f"{base}."
+
+
+async def _category_products_map() -> dict:
+    """{categoría: {names, count}} de productos activos (una sola agregación)."""
+    pipeline = [
+        {"$match": {"active": True}},
+        {"$sort": {"name": 1}},
+        {"$group": {"_id": "$category", "names": {"$push": "$name"}, "count": {"$sum": 1}}},
+    ]
+    out = {}
+    async for row in db.products.aggregate(pipeline):
+        out[row["_id"]] = {"names": row["names"], "count": row["count"]}
+    return out
+
+
 @router.get("/carousel-categories")
 async def get_carousel_categories():
     doc = await db.site_config.find_one({"_id": DOC_ID})
@@ -65,6 +91,13 @@ async def get_carousel_categories():
         doc = await db.site_config.find_one({"_id": DOC_ID}) or {}
     items = [i for i in (doc.get("items") or []) if i.get("active", True)]
     items.sort(key=lambda i: i.get("order", 0))
+    # Descripción por tarjeta: manual (admin) o automática con los productos de la categoría
+    cat_map = await _category_products_map()
+    for it in items:
+        info = cat_map.get(it.get("cat") or "", {"names": [], "count": 0})
+        it["product_count"] = info["count"]
+        if not (it.get("description") or "").strip():
+            it["description"] = _build_auto_description(info["names"], info["count"])
     return {"items": items}
 
 
@@ -86,6 +119,7 @@ class CarouselItemIn(BaseModel):
     title: str
     cat: str = ""
     img: str = ""
+    description: str = ""  # vacía = descripción automática con los productos de la categoría
 
 
 class CarouselIn(BaseModel):
@@ -103,6 +137,7 @@ async def admin_save_carousel(payload: CarouselIn):
             "title": it.title.strip(),
             "cat": it.cat.strip(),
             "img": it.img.strip(),
+            "description": it.description.strip()[:220],
         })
     await db.site_config.update_one(
         {"_id": DOC_ID},

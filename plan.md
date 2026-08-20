@@ -1,13 +1,13 @@
-# EcoAndes BIO — Plan de Continuación (UI → Blogs → Testing → Catálogo/Precios/IVA → Envíos → Pagos → SEO/GEO → Imágenes → **SEO Manual + Nombres Legacy + Redirecciones** → **UX/Operaciones (Lote 9)** → **Recuperación de Carritos (Lote 10)** → **Lote 11 (Splash + Recetas + Media links + Emails + Hero dots + 2º recordatorio + Links universales)** → **Fase 14 / Lote 12 (Blog Admin + Site Images Admin + Bug carrusel categorías)**)
+# EcoAndes BIO — Plan de Continuación (UI → Blogs → Testing → Catálogo/Precios/IVA → Envíos → Pagos → SEO/GEO → Imágenes → **SEO Manual + Nombres Legacy + Redirecciones** → **UX/Operaciones (Lote 9)** → **Recuperación de Carritos (Lote 10)** → **Lote 11 (Splash + Recetas + Media links + Emails + Hero dots + 2º recordatorio + Links universales)** → **Fase 14 / Lote 12 (Blog Admin + Site Images Admin + Bug carrusel categorías)** → **Fase 15 / Lote 13 (Carrusel Coverflow 3D de categorías)**)
 
 ## 1) Objetivos
 
 ### Objetivos ya completados (iteración anterior)
 - Modernizar la UI manteniendo identidad de marca (sage/terracotta/bone) con **bordes redondeados** y **micro‑animaciones** sin romper flujos. **(COMPLETADO)**
-- Actualizar el **Blog**: mejorar 6 posts existentes y crear 6 nuevos (12 total) con imágenes WebP locales y fuentes citadas. **(COMPLETADO)**
+- Actualizar el **Blog**: 12 posts mantenidos, ahora gestionables desde dashboard con SEO y JSON‑LD Article. **(COMPLETADO)**
 - Ejecutar **testing end‑to‑end** para asegurar estabilidad (checkout/cupón/búsqueda/registro/blogs/UI). **(COMPLETADO)**
 
-**Estado (sobre lo anterior):** UI + Blog listos.
+**Estado (sobre lo anterior):** UI + Blog + Operaciones listos.
 
 ### Objetivos del scope mayor (estado actual)
 - **Fase 1 (P0): Catálogo + Precios + IVA (Excel‑driven)**
@@ -43,6 +43,12 @@
   - Blog: migrar los 12 artículos existentes a BD + administración completa desde dashboard con SEO.
   - Imágenes del sitio: administración centralizada de imágenes fijas (Colección principal, B2B, Filosofía).
   - **Estado:** **COMPLETADO** + validado E2E (**iteration_20 100%**).
+- **Fase 15 (P0/P1): Lote 13 — Carrusel Coverflow 3D de categorías**
+  - Sustituir el carrusel “Nuestras Categorías” por un coverflow 3D moderno basado en el código del usuario.
+  - Click en tarjeta → navegar a productos de la categoría.
+  - Caption: nombre de la categoría + descripción = productos de esa categoría (auto).
+  - Gestión desde dashboard (incl. descripción manual opcional).
+  - **Estado:** **COMPLETADO** + validado E2E (**iteration_21 100%**).
 
 ---
 
@@ -74,7 +80,7 @@
 ---
 
 ### Fase 3 — Blogs (12 posts en `blogPosts.js`) — **COMPLETADO**
-- 12 entradas completas con `cover: "/blog/*.webp"`, `sources` (FAO/EFSA/USDA/NIH/Harvard/BEDCA), disclaimer y `related_query` exacto.
+- 12 entradas completas con `cover: "/blog/*.webp"`, `sources` (FAO/EFSA/USDA/NIH/Harvard/BEDCA), disclaimer y `related_query`.
 - `BlogPost.jsx` renderiza bloque “Fuentes” y productos relacionados.
 
 ---
@@ -233,54 +239,67 @@
 #### 14.1 Bug: click en carrusel de categorías no navegaba
 - **Problema:** `setPointerCapture` en `pointerdown` retargeteaba el click al contenedor y el `<Link>` no navegaba.
 - **Fix:** capturar puntero **solo** cuando hay arrastre real (`moved > 6px`).
-- **Archivo:** `/app/frontend/src/components/CategoryCarousel.jsx`.
-- **Validación:** `testing_agent_v3` → `iteration_20`:
-  - Desktop: click navega a `/tienda?cat=...`
-  - Desktop: drag no navega
-  - Móvil: tap navega
+- **Archivo:** `/app/frontend/src/components/CategoryCarousel.jsx` (versión anterior al coverflow).
+- **Validación:** `testing_agent_v3` → `iteration_20` (100%).
 
 #### 14.2 Blog gestionable desde el dashboard (manteniendo los 12 existentes)
-**Backend**
-- `/app/backend/routes/blog.py`
-  - Seed único desde `/app/backend/data/blog_seed.json` si `blog_posts` está vacía.
-  - Público: `GET /api/blog` + `GET /api/blog/{slug}`.
-  - Admin: `GET /api/blog/admin/list` + `POST/PUT/DELETE /api/blog/admin/...`.
-  - `published` para ocultar sin borrar.
-  - SEO por artículo: `meta_title/meta_description/keywords` con defaults inteligentes (sin truncado feo).
-
-**Frontend**
-- `/app/frontend/src/pages/Blog.jsx` y `/app/frontend/src/pages/BlogPost.jsx` reescritos para consumir API.
-  - Skeletons de carga.
-  - SEO con `Seo` + JSON‑LD `Article`.
-  - Fuentes + productos relacionados.
-- Admin:
-  - `/app/frontend/src/pages/admin/AdminBlog.jsx`
-  - Tabla + editor modal completo (portada con `UploadButton` + URL, secciones reordenables, fuentes, panel SEO con contadores, publicado/borrador).
-  - Ruta `/admin/blog` + link sidebar `admin-nav-blog`.
-
-**Nota:** `frontend/src/data/blogPosts.js` queda como fuente histórica/semilla, pero ya no es usado por las páginas públicas.
+- Backend: `/app/backend/routes/blog.py` (seed desde `/app/backend/data/blog_seed.json`).
+- Frontend: `/app/frontend/src/pages/Blog.jsx` y `/app/frontend/src/pages/BlogPost.jsx` por API.
+- Admin: `/app/frontend/src/pages/admin/AdminBlog.jsx`.
 
 #### 14.3 Gestor de imágenes globales del sitio
-**Backend**
-- `/app/backend/routes/site_images.py`
-  - `site_config` `_id=site_images`.
-  - Defaults: `collection_main`, `b2b_landscape`, `b2b_portrait`, `philosophy`.
-  - Público: `GET /api/site-images`.
-  - Admin: `GET/PUT /api/site-images/admin`.
-
-**Frontend**
-- Admin:
-  - `/app/frontend/src/pages/admin/AdminSiteImages.jsx` en `/admin/imagenes`.
-  - 4 tarjetas con preview, **Subir/🔗 enlace** (UploadButton) + campo URL + Restaurar por imagen.
-- Consumo en web:
-  - `Home.jsx`: usa `collection_main` y B2B (web/móvil) desde `/api/site-images` con fallback.
-  - `About.jsx`: usa `philosophy` desde `/api/site-images` con fallback y `data-testid=about-philosophy-img`.
+- Backend: `/app/backend/routes/site_images.py` (defaults + GET público + GET/PUT admin).
+- Admin: `/app/frontend/src/pages/admin/AdminSiteImages.jsx`.
+- Consumo: `Home.jsx` y `About.jsx` por `/api/site-images`.
 
 #### 14.4 Testing
-- `testing_agent_v3` → **iteration_20**:
-  - Backend: **100% (10/10)**
-  - Frontend: **100%**
-  - BD limpia tras tests: 12 posts exactos y `site_images` en defaults.
+- `testing_agent_v3` → **iteration_20: 100%**.
+
+---
+
+### Fase 15 — **Lote 13: Carrusel Coverflow 3D de Categorías** — **COMPLETADO (2026-08)**
+
+#### 15.1 Objetivo
+Modernizar la sección “Nuestras Categorías” con un coverflow 3D (código proporcionado por el usuario) manteniendo:
+- Click en imagen → navegar a productos filtrados por categoría.
+- Diseño coherente EcoAndes (bordes redondeados, sombras suaves, acento #72A638).
+- Gestión completa desde dashboard.
+- Descripción basada en productos reales de la categoría.
+
+#### 15.2 Implementación (realizada)
+**Frontend**
+- Nuevo componente:
+  - `/app/frontend/src/components/CoverflowCarousel.jsx`
+  - `/app/frontend/src/components/CoverflowCarousel.css`
+- Adaptaciones EcoAndes:
+  - Tarjetas con `border-radius: 1.25rem` (móvil 1rem) y sombra suave `rgba(45,51,47,0.22)`.
+  - Etiqueta de categoría sobre imagen con gradiente.
+  - Flechas redondas (pill) con hover en verde `#72A638`.
+  - Focus rings accesibles y `prefers-reduced-motion`.
+  - Auto-move cada 2s con pausa en hover/drag.
+  - Arrastre con supresión de click si hay movimiento > 6px y captura de puntero diferida (lección del bug anterior).
+- Sección Home reescrita:
+  - `/app/frontend/src/components/CategoryCarousel.jsx` ahora renderiza el coverflow.
+
+**Backend**
+- `/app/backend/routes/carousel.py`
+  - Se añadió `description` a cada item (máx. 220 chars).
+  - `GET /api/carousel-categories` enriquece items con:
+    - `product_count`
+    - `description` autogenerada (si el admin no define una): lista de hasta 5 productos + “y N productos más”
+    - cálculo en una única agregación por categoría.
+
+**Admin**
+- `/app/frontend/src/pages/admin/AdminCarousel.jsx`
+  - Textarea de descripción por item (“vacía = automática con los productos de la categoría”).
+
+#### 15.3 Validación / Testing
+- `testing_agent_v3` → **iteration_21: 100%**:
+  - Backend: endpoint devuelve 15 items con `product_count` y descripción auto.
+  - Desktop: coverflow 3D, hover pausa, auto-move, click tarjeta central navega a `/tienda?cat=...`, drag no navega.
+  - Móvil: cards 210px, swipe funciona, tap navega.
+  - Admin: guardar descripción manual y restaurar auto (vaciar) funciona.
+  - Regresión: home (hero/destacados/recetas/colección/B2B/footer) intactas.
 
 ---
 
@@ -298,7 +317,7 @@
 ## 4) Criterios de Éxito
 - **UI**: radios redondeados coherentes, hover/focus modernos, animaciones sutiles. **(Cumplido)**
 - **Blog (público + admin)**: 12 posts existentes preservados, CRUD en dashboard, SEO por post y JSON‑LD Article. **(Cumplido; iteration_20)**
-- **Carrusel categorías**: click navega; drag no navega; móvil tap navega. **(Cumplido; iteration_20)**
+- **Carrusel categorías (coverflow 3D)**: click navega; drag no navega; móvil tap navega; descripción por productos o manual. **(Cumplido; iteration_21)**
 - **Imágenes del sitio**: editable desde dashboard por link/archivo con restore y consumo en Home/Nosotros. **(Cumplido; iteration_20)**
 - **Catálogo**: BD coincide con Excel (174/390). **(Cumplido)**
 - **IVA**: cálculo dinámico consistente B2C/B2B. **(Cumplido)**

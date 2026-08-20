@@ -1,6 +1,6 @@
 """
-EcoAndes Backend Testing - Batch 7 Features
-Tests: Blog API (public + admin CRUD), Site Images API (public + admin)
+EcoAndes Backend Testing - Carousel Categories Feature
+Tests: Carousel API (public + admin CRUD with auto-generated descriptions)
 """
 import sys
 import requests
@@ -307,18 +307,121 @@ def main():
         assert data["images"]["collection_main"] == defaults["collection_main"], "Not restored to default"
         print(f"   ✅ Restored collection_main to default: {defaults['collection_main'][:60]}...")
 
+    # ========== CAROUSEL CATEGORIES API TESTS ==========
+    def test_carousel_public_get():
+        """Test GET /api/carousel-categories returns 15 items with auto-descriptions"""
+        resp = requests.get(f"{BASE_URL}/api/carousel-categories")
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
+        data = resp.json()
+        assert "items" in data, "No 'items' in response"
+        items = data["items"]
+        
+        # Should have 15 items (default seed)
+        assert len(items) == 15, f"Expected 15 items, got {len(items)}"
+        print(f"   Found {len(items)} carousel items")
+        
+        # Check structure of first item
+        first = items[0]
+        assert "id" in first, "Missing id"
+        assert "title" in first, "Missing title"
+        assert "cat" in first, "Missing cat"
+        assert "img" in first, "Missing img"
+        assert "description" in first, "Missing description"
+        assert "product_count" in first, "Missing product_count"
+        
+        print(f"   First item: {first['title']}")
+        print(f"   Category: {first['cat']}")
+        print(f"   Product count: {first['product_count']}")
+        print(f"   Description: {first['description'][:80]}...")
+        
+        # Verify all items have descriptions (auto-generated or manual)
+        for idx, item in enumerate(items):
+            assert "description" in item, f"Item {idx} missing description"
+            assert "product_count" in item, f"Item {idx} missing product_count"
+            if item.get("cat"):
+                # Items with categories should have product info
+                print(f"   Item {idx+1}: {item['title']} - {item['product_count']} productos")
+        
+        return items
+
+    def test_carousel_admin_requires_auth():
+        """Test GET /api/admin/carousel-categories requires authentication"""
+        resp = requests.get(f"{BASE_URL}/api/admin/carousel-categories")
+        assert resp.status_code == 401, f"Expected 401 without token, got {resp.status_code}"
+        print(f"   Correctly returns 401 without token")
+
+    def test_carousel_admin_get():
+        """Test GET /api/admin/carousel-categories with auth"""
+        resp = requests.get(f"{BASE_URL}/api/admin/carousel-categories", headers=runner.headers())
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
+        data = resp.json()
+        assert "items" in data, "No 'items' in response"
+        items = data["items"]
+        print(f"   Found {len(items)} items in admin view")
+        return items
+
+    def test_carousel_admin_manual_description():
+        """Test manual description save and auto-generation restore"""
+        # Get current items
+        resp = requests.get(f"{BASE_URL}/api/admin/carousel-categories", headers=runner.headers())
+        assert resp.status_code == 200, "Failed to get carousel items"
+        data = resp.json()
+        items = data["items"]
+        assert len(items) > 0, "No items to test"
+        
+        # Save original first item
+        original_first = items[0].copy()
+        print(f"   Original first item: {original_first['title']}")
+        print(f"   Original description: {original_first.get('description', '')[:80]}...")
+        
+        # Set manual description on first item
+        manual_desc = "Esta es una descripción manual de prueba para testing automatizado."
+        items[0]["description"] = manual_desc
+        
+        resp = requests.put(
+            f"{BASE_URL}/api/admin/carousel-categories",
+            headers=runner.headers(),
+            json={"items": items}
+        )
+        assert resp.status_code == 200, f"Failed to save: {resp.status_code} {resp.text}"
+        print(f"   ✅ Saved manual description")
+        
+        # Verify manual description appears in public endpoint
+        resp = requests.get(f"{BASE_URL}/api/carousel-categories")
+        assert resp.status_code == 200, "Failed to get public carousel"
+        public_items = resp.json()["items"]
+        first_public = public_items[0]
+        assert first_public["description"] == manual_desc, "Manual description not used"
+        print(f"   ✅ Manual description appears in public endpoint")
+        
+        # Clear description (empty string) to restore auto-generation
+        resp = requests.get(f"{BASE_URL}/api/admin/carousel-categories", headers=runner.headers())
+        items = resp.json()["items"]
+        items[0]["description"] = ""
+        
+        resp = requests.put(
+            f"{BASE_URL}/api/admin/carousel-categories",
+            headers=runner.headers(),
+            json={"items": items}
+        )
+        assert resp.status_code == 200, f"Failed to clear description: {resp.status_code}"
+        print(f"   ✅ Cleared description")
+        
+        # Verify auto-generated description is restored
+        resp = requests.get(f"{BASE_URL}/api/carousel-categories")
+        public_items = resp.json()["items"]
+        first_public = public_items[0]
+        assert first_public["description"] != manual_desc, "Manual description still present"
+        assert first_public["description"] != "", "Description should be auto-generated"
+        # Auto-generated should contain product names
+        assert len(first_public["description"]) > 0, "Auto-generated description is empty"
+        print(f"   ✅ Auto-generated description restored: {first_public['description'][:80]}...")
+
     # ========== RUN ALL TESTS ==========
-    runner.test("Blog: GET /api/blog (public list)", test_blog_public_list)
-    runner.test("Blog: GET /api/blog/{slug} (public detail)", test_blog_public_get_by_slug)
-    runner.test("Blog: GET /api/blog/{slug} returns 404", test_blog_public_404)
-    runner.test("Blog: GET /api/blog/admin/list requires auth", test_blog_admin_requires_auth)
-    runner.test("Blog: GET /api/blog/admin/list with auth", test_blog_admin_list)
-    runner.test("Blog: CREATE, UPDATE, DELETE post", test_blog_admin_crud)
-    
-    runner.test("Site Images: GET /api/site-images (public)", test_site_images_public)
-    runner.test("Site Images: GET /api/site-images/admin requires auth", test_site_images_admin_requires_auth)
-    runner.test("Site Images: GET /api/site-images/admin with auth", test_site_images_admin_get)
-    runner.test("Site Images: UPDATE and RESTORE", test_site_images_admin_update_and_restore)
+    runner.test("Carousel: GET /api/carousel-categories (public)", test_carousel_public_get)
+    runner.test("Carousel: GET /api/admin/carousel-categories requires auth", test_carousel_admin_requires_auth)
+    runner.test("Carousel: GET /api/admin/carousel-categories with auth", test_carousel_admin_get)
+    runner.test("Carousel: Manual description save and auto-restore", test_carousel_admin_manual_description)
 
     return runner.summary()
 

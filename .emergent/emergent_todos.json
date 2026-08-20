@@ -1,26 +1,22 @@
 [
   {
-    "content": "Explorar blogPosts.js, Blog.jsx, BlogPost.jsx, CategoryCarousel y Home (imágenes)",
+    "content": "Backend: campo description + autogeneración desde productos por categoría",
     "status": "completed"
   },
   {
-    "content": "BUG: clicks en imágenes del carrusel de categorías no navegan — diagnosticar y arreglar",
+    "content": "Componente CoverflowCarousel 3D adaptado a la marca (bordes redondeados, sage)",
     "status": "completed"
   },
   {
-    "content": "Backend blog: rutas públicas + CRUD admin + seed de los 12 posts existentes",
+    "content": "CategoryCarousel → coverflow con caption (número, nombre, descripción, CTA)",
     "status": "completed"
   },
   {
-    "content": "Frontend blog: Blog/BlogPost desde API + admin AdminBlog con editor y SEO",
+    "content": "Admin: campo descripción por tarjeta en /admin/carrusel",
     "status": "completed"
   },
   {
-    "content": "Backend/admin imágenes del sitio (colección, canal profesional, filosofía) + Home desde API",
-    "status": "completed"
-  },
-  {
-    "content": "Testing agent obligatorio del lote (incluido el bug)",
+    "content": "Testing agent del nuevo carrusel",
     "status": "completed"
   }
 ]
