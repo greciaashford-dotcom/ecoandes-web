@@ -1,22 +1,30 @@
 [
   {
-    "content": "Backend: campo description + autogeneración desde productos por categoría",
+    "content": "Backend: shipping config v2 (escala Excel, IVA 21% envío, zonas manual_quote, migración)",
     "status": "completed"
   },
   {
-    "content": "Componente CoverflowCarousel 3D adaptado a la marca (bordes redondeados, sage)",
+    "content": "Backend: models, orders, payments, auth, mailer, refunds (desglose)",
     "status": "completed"
   },
   {
-    "content": "CategoryCarousel → coverflow con caption (número, nombre, descripción, CTA)",
+    "content": "Backend: parser de peso desde formato (34 variaciones sin peso)",
     "status": "completed"
   },
   {
-    "content": "Admin: campo descripción por tarjeta en /admin/carrusel",
+    "content": "Frontend: Checkout, CartDrawer, Register, PaymentSuccess, CustomerService",
     "status": "completed"
   },
   {
-    "content": "Testing agent del nuevo carrusel",
+    "content": "Frontend: AdminOrderDetail (desglose + portes pendientes + fix ruta refund), AdminOrders/StatusPill",
+    "status": "completed"
+  },
+  {
+    "content": "Revisar estado test Stripe/Resend/Verifactu",
+    "status": "completed"
+  },
+  {
+    "content": "Testing agent E2E + corregir bugs",
     "status": "completed"
   }
 ]

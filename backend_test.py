@@ -1,430 +1,680 @@
 """
-EcoAndes Backend Testing - Carousel Categories Feature
-Tests: Carousel API (public + admin CRUD with auto-generated descriptions)
+EcoAndes Backend Test Suite - Shipping/Payments/Refunds/Registration Batch
+Tests all confirmed business rules for retail/professional shipping, payment methods,
+manual quote zones, admin shipping quote panel, professional registration message, and refund breakdown.
 """
-import sys
 import requests
-from datetime import datetime, timedelta, timezone
+import sys
+import json
+from datetime import datetime
 
-BASE_URL = "https://eco-andes-test.preview.emergentagent.com"
-ADMIN_EMAIL = "admin@ecoandes.com"
-ADMIN_PASSWORD = "Admin123!"
+BASE_URL = "https://eco-andes-test.preview.emergentagent.com/api"
 
 class TestRunner:
     def __init__(self):
-        self.token = None
         self.tests_run = 0
         self.tests_passed = 0
         self.tests_failed = 0
-        self.failures = []
-
-    def test(self, name, fn):
-        """Run a single test"""
+        self.admin_token = None
+        self.test_order_ids = []
+        self.test_user_emails = []
+        
+    def log(self, msg, level="INFO"):
+        print(f"[{level}] {msg}")
+    
+    def test(self, name, condition, details=""):
+        """Run a test assertion"""
         self.tests_run += 1
-        print(f"\n{'='*60}")
-        print(f"TEST {self.tests_run}: {name}")
-        print('='*60)
-        try:
-            fn()
+        if condition:
             self.tests_passed += 1
-            print(f"✅ PASSED: {name}")
-            return True
-        except AssertionError as e:
+            self.log(f"✅ PASS: {name}", "PASS")
+            if details:
+                self.log(f"   {details}", "INFO")
+        else:
             self.tests_failed += 1
-            self.failures.append(f"{name}: {e}")
-            print(f"❌ FAILED: {name}")
-            print(f"   Error: {e}")
-            return False
-        except Exception as e:
-            self.tests_failed += 1
-            self.failures.append(f"{name}: Unexpected error: {e}")
-            print(f"❌ FAILED: {name}")
-            print(f"   Unexpected error: {e}")
-            return False
-
-    def login_admin(self):
+            self.log(f"❌ FAIL: {name}", "FAIL")
+            if details:
+                self.log(f"   {details}", "ERROR")
+        return condition
+    
+    def admin_login(self):
         """Login as admin and get token"""
-        print(f"\n🔐 Logging in as admin: {ADMIN_EMAIL}")
-        resp = requests.post(
-            f"{BASE_URL}/api/auth/login",
-            json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD}
-        )
-        assert resp.status_code == 200, f"Login failed: {resp.status_code} {resp.text}"
-        data = resp.json()
-        assert "access_token" in data, "No access_token in response"
-        self.token = data["access_token"]
-        print(f"✅ Admin login successful")
-
-    def headers(self):
-        """Get headers with auth token"""
-        return {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
-
-    def summary(self):
-        """Print test summary"""
-        print(f"\n{'='*60}")
-        print("TEST SUMMARY")
-        print('='*60)
-        print(f"Total tests: {self.tests_run}")
-        print(f"Passed: {self.tests_passed} ✅")
-        print(f"Failed: {self.tests_failed} ❌")
-        if self.failures:
-            print("\nFailed tests:")
-            for f in self.failures:
-                print(f"  - {f}")
-        print('='*60)
-        return 0 if self.tests_failed == 0 else 1
-
-
-def main():
-    runner = TestRunner()
-
-    # Login first
-    try:
-        runner.login_admin()
-    except Exception as e:
-        print(f"❌ CRITICAL: Admin login failed: {e}")
-        return 1
-
-    # ========== BLOG API TESTS ==========
-    def test_blog_public_list():
-        """Test GET /api/blog returns published posts"""
-        resp = requests.get(f"{BASE_URL}/api/blog")
-        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
-        posts = resp.json()
-        assert isinstance(posts, list), "Response should be a list"
-        print(f"   Found {len(posts)} published post(s)")
-        
-        # Verify we have the expected 12 posts
-        assert len(posts) == 12, f"Expected 12 posts, got {len(posts)}"
-        
-        # Check structure of first post
-        if posts:
-            p = posts[0]
-            assert "slug" in p, "Missing slug"
-            assert "title" in p, "Missing title"
-            assert "excerpt" in p, "Missing excerpt"
-            assert "cover" in p, "Missing cover"
-            assert "category" in p, "Missing category"
-            assert "seo" in p, "Missing seo"
-            print(f"   First post: {p['title'][:50]}")
-            print(f"   SEO meta_title: {p['seo'].get('meta_title', 'N/A')[:50]}")
-
-    def test_blog_public_get_by_slug():
-        """Test GET /api/blog/{slug} returns full post"""
-        slug = "quinoa-real-ecologica-superalimento"
-        resp = requests.get(f"{BASE_URL}/api/blog/{slug}")
-        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
-        post = resp.json()
-        
-        assert post["slug"] == slug, f"Wrong slug: {post['slug']}"
-        assert "body" in post, "Missing body"
-        assert "sources" in post, "Missing sources"
-        assert isinstance(post["body"], list), "body should be a list"
-        assert isinstance(post["sources"], list), "sources should be a list"
-        print(f"   Post: {post['title']}")
-        print(f"   Body sections: {len(post['body'])}")
-        print(f"   Sources: {len(post['sources'])}")
-
-    def test_blog_public_404():
-        """Test GET /api/blog/{slug} returns 404 for invalid slug"""
-        resp = requests.get(f"{BASE_URL}/api/blog/nonexistent-slug-12345")
-        assert resp.status_code == 404, f"Expected 404, got {resp.status_code}"
-        print(f"   Correctly returns 404 for invalid slug")
-
-    def test_blog_admin_requires_auth():
-        """Test GET /api/blog/admin/list requires authentication"""
-        resp = requests.get(f"{BASE_URL}/api/blog/admin/list")
-        assert resp.status_code == 401, f"Expected 401 without token, got {resp.status_code}"
-        print(f"   Correctly returns 401 without token")
-
-    def test_blog_admin_list():
-        """Test GET /api/blog/admin/list with auth"""
-        resp = requests.get(f"{BASE_URL}/api/blog/admin/list", headers=runner.headers())
-        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
-        posts = resp.json()
-        assert isinstance(posts, list), "Response should be a list"
-        print(f"   Found {len(posts)} post(s) in admin view")
-        assert len(posts) == 12, f"Expected 12 posts, got {len(posts)}"
-        return posts
-
-    def test_blog_admin_crud():
-        """Test CREATE, UPDATE, DELETE blog post"""
-        # CREATE
-        new_post = {
-            "title": "TEST Post - Automated Testing",
-            "slug": "test-post-automated",
-            "excerpt": "This is a test post created by automated testing",
-            "cover": "/blog/test.webp",
-            "category": "TEST",
-            "read_time": "1 min",
-            "date": "2026-03-15",
-            "author": "Test Bot",
-            "related_query": "test",
-            "body": [
-                {"h": "Test Section", "p": "Test content for automated testing"}
-            ],
-            "sources": [
-                {"label": "Test Source", "url": "https://example.com/test"}
-            ],
-            "seo": {
-                "meta_title": "Test Post SEO Title",
-                "meta_description": "Test post meta description",
-                "keywords": ["test", "automated"]
-            },
-            "published": True
+        self.log("Logging in as admin...")
+        try:
+            resp = requests.post(f"{BASE_URL}/auth/login", json={
+                "email": "admin@ecoandes.com",
+                "password": "Admin123!"
+            }, timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                self.admin_token = data.get("access_token")
+                self.log(f"✅ Admin login successful", "PASS")
+                return True
+            else:
+                self.log(f"❌ Admin login failed: {resp.status_code} - {resp.text}", "ERROR")
+                return False
+        except Exception as e:
+            self.log(f"❌ Admin login exception: {e}", "ERROR")
+            return False
+    
+    def admin_headers(self):
+        """Get headers with admin auth"""
+        return {
+            "Authorization": f"Bearer {self.admin_token}",
+            "Content-Type": "application/json"
         }
+    
+    # ========== SHIPPING QUOTE TESTS ==========
+    
+    def test_retail_shipping_below_threshold(self):
+        """Test retail España CP 28004 subtotal_with_vat 40, weight 3kg -> shipping_cost 7.26"""
+        self.log("\n=== Test: Retail shipping below 50€ threshold ===")
+        try:
+            resp = requests.post(f"{BASE_URL}/orders/shipping-quote", json={
+                "customer_type": "retail",
+                "country": "España",
+                "postal_code": "28004",
+                "subtotal_with_vat": 40.0,
+                "subtotal_ex_vat": 36.36,
+                "total_weight_kg": 3.0,
+                "has_bulk": False
+            }, timeout=10)
+            
+            if resp.status_code != 200:
+                self.test("Retail shipping quote API call", False, f"Status {resp.status_code}: {resp.text}")
+                return
+            
+            data = resp.json()
+            self.test("Retail shipping quote API call", True, f"Status 200")
+            self.test("Retail shipping status is 'ok'", data.get("status") == "ok", f"Got: {data.get('status')}")
+            self.test("Retail shipping cost is 7.26", abs(data.get("shipping_cost", 0) - 7.26) < 0.01, f"Got: {data.get('shipping_cost')}")
+            self.test("Retail shipping ex_vat is 6.0", abs(data.get("shipping_cost_ex_vat", 0) - 6.0) < 0.01, f"Got: {data.get('shipping_cost_ex_vat')}")
+            self.test("Retail shipping vat is 1.26", abs(data.get("shipping_vat", 0) - 1.26) < 0.01, f"Got: {data.get('shipping_vat')}")
+            self.test("Retail remaining_for_free_shipping is 10", abs(data.get("remaining_for_free_shipping", 0) - 10.0) < 0.01, f"Got: {data.get('remaining_for_free_shipping')}")
+            
+        except Exception as e:
+            self.test("Retail shipping quote below threshold", False, f"Exception: {e}")
+    
+    def test_retail_shipping_free(self):
+        """Test retail subtotal_with_vat >= 50 -> free_shipping true, cost 0"""
+        self.log("\n=== Test: Retail shipping free (>= 50€) ===")
+        try:
+            resp = requests.post(f"{BASE_URL}/orders/shipping-quote", json={
+                "customer_type": "retail",
+                "country": "España",
+                "postal_code": "28004",
+                "subtotal_with_vat": 50.0,
+                "subtotal_ex_vat": 45.45,
+                "total_weight_kg": 3.0,
+                "has_bulk": False
+            }, timeout=10)
+            
+            if resp.status_code != 200:
+                self.test("Retail free shipping API call", False, f"Status {resp.status_code}: {resp.text}")
+                return
+            
+            data = resp.json()
+            self.test("Retail free shipping API call", True, f"Status 200")
+            self.test("Retail free_shipping is true", data.get("free_shipping") == True, f"Got: {data.get('free_shipping')}")
+            self.test("Retail shipping_cost is 0", data.get("shipping_cost") == 0, f"Got: {data.get('shipping_cost')}")
+            
+        except Exception as e:
+            self.test("Retail free shipping test", False, f"Exception: {e}")
+    
+    def test_professional_shipping_below_threshold(self):
+        """Test professional CP 08001 subtotal_ex_vat 100 weight 22kg -> cost 27.83 (net 23)"""
+        self.log("\n=== Test: Professional shipping below 150€ threshold ===")
+        try:
+            resp = requests.post(f"{BASE_URL}/orders/shipping-quote", json={
+                "customer_type": "professional",
+                "country": "España",
+                "postal_code": "08001",
+                "subtotal_with_vat": 110.0,
+                "subtotal_ex_vat": 100.0,
+                "total_weight_kg": 22.0,
+                "has_bulk": True
+            }, timeout=10)
+            
+            if resp.status_code != 200:
+                self.test("Professional shipping quote API call", False, f"Status {resp.status_code}: {resp.text}")
+                return
+            
+            data = resp.json()
+            self.test("Professional shipping quote API call", True, f"Status 200")
+            self.test("Professional shipping status is 'ok'", data.get("status") == "ok", f"Got: {data.get('status')}")
+            self.test("Professional shipping cost is 27.83", abs(data.get("shipping_cost", 0) - 27.83) < 0.01, f"Got: {data.get('shipping_cost')}")
+            self.test("Professional shipping ex_vat is 23.0", abs(data.get("shipping_cost_ex_vat", 0) - 23.0) < 0.01, f"Got: {data.get('shipping_cost_ex_vat')}")
+            self.test("Professional remaining_for_free_shipping is 50", abs(data.get("remaining_for_free_shipping", 0) - 50.0) < 0.01, f"Got: {data.get('remaining_for_free_shipping')}")
+            
+        except Exception as e:
+            self.test("Professional shipping quote below threshold", False, f"Exception: {e}")
+    
+    def test_professional_shipping_free(self):
+        """Test professional subtotal_ex_vat 150 -> free"""
+        self.log("\n=== Test: Professional shipping free (>= 150€) ===")
+        try:
+            resp = requests.post(f"{BASE_URL}/orders/shipping-quote", json={
+                "customer_type": "professional",
+                "country": "España",
+                "postal_code": "08001",
+                "subtotal_with_vat": 165.0,
+                "subtotal_ex_vat": 150.0,
+                "total_weight_kg": 22.0,
+                "has_bulk": True
+            }, timeout=10)
+            
+            if resp.status_code != 200:
+                self.test("Professional free shipping API call", False, f"Status {resp.status_code}: {resp.text}")
+                return
+            
+            data = resp.json()
+            self.test("Professional free shipping API call", True, f"Status 200")
+            self.test("Professional free_shipping is true", data.get("free_shipping") == True, f"Got: {data.get('free_shipping')}")
+            self.test("Professional shipping_cost is 0", data.get("shipping_cost") == 0, f"Got: {data.get('shipping_cost')}")
+            
+        except Exception as e:
+            self.test("Professional free shipping test", False, f"Exception: {e}")
+    
+    def test_weight_cap_40kg(self):
+        """Test weight 40kg below threshold -> capped at net 29 / gross 35.09"""
+        self.log("\n=== Test: Weight cap at 40kg (max 29€ net / 35.09€ gross) ===")
+        try:
+            resp = requests.post(f"{BASE_URL}/orders/shipping-quote", json={
+                "customer_type": "retail",
+                "country": "España",
+                "postal_code": "28004",
+                "subtotal_with_vat": 40.0,
+                "subtotal_ex_vat": 36.36,
+                "total_weight_kg": 40.0,
+                "has_bulk": True
+            }, timeout=10)
+            
+            if resp.status_code != 200:
+                self.test("Weight cap 40kg API call", False, f"Status {resp.status_code}: {resp.text}")
+                return
+            
+            data = resp.json()
+            self.test("Weight cap 40kg API call", True, f"Status 200")
+            self.test("Weight cap status is 'ok' (NOT manual)", data.get("status") == "ok", f"Got: {data.get('status')}")
+            self.test("Weight cap shipping ex_vat is 29.0", abs(data.get("shipping_cost_ex_vat", 0) - 29.0) < 0.01, f"Got: {data.get('shipping_cost_ex_vat')}")
+            self.test("Weight cap shipping gross is 35.09", abs(data.get("shipping_cost", 0) - 35.09) < 0.01, f"Got: {data.get('shipping_cost')}")
+            
+        except Exception as e:
+            self.test("Weight cap 40kg test", False, f"Exception: {e}")
+    
+    def test_manual_quote_canarias(self):
+        """Test retail to Canarias CP 35001 -> status manual_quote, zone CANARIAS_EU"""
+        self.log("\n=== Test: Manual quote for Canarias ===")
+        try:
+            resp = requests.post(f"{BASE_URL}/orders/shipping-quote", json={
+                "customer_type": "retail",
+                "country": "España",
+                "postal_code": "35001",
+                "subtotal_with_vat": 40.0,
+                "subtotal_ex_vat": 36.36,
+                "total_weight_kg": 3.0,
+                "has_bulk": False
+            }, timeout=10)
+            
+            if resp.status_code != 200:
+                self.test("Manual quote Canarias API call", False, f"Status {resp.status_code}: {resp.text}")
+                return
+            
+            data = resp.json()
+            self.test("Manual quote Canarias API call", True, f"Status 200")
+            self.test("Manual quote status is 'manual_quote'", data.get("status") == "manual_quote", f"Got: {data.get('status')}")
+            self.test("Manual quote zone is 'CANARIAS_EU'", data.get("zone") == "CANARIAS_EU", f"Got: {data.get('zone')}")
+            
+        except Exception as e:
+            self.test("Manual quote Canarias test", False, f"Exception: {e}")
+    
+    def test_manual_quote_france(self):
+        """Test retail to France -> status manual_quote"""
+        self.log("\n=== Test: Manual quote for France ===")
+        try:
+            resp = requests.post(f"{BASE_URL}/orders/shipping-quote", json={
+                "customer_type": "retail",
+                "country": "France",
+                "postal_code": "75001",
+                "subtotal_with_vat": 40.0,
+                "subtotal_ex_vat": 36.36,
+                "total_weight_kg": 3.0,
+                "has_bulk": False
+            }, timeout=10)
+            
+            if resp.status_code != 200:
+                self.test("Manual quote France API call", False, f"Status {resp.status_code}: {resp.text}")
+                return
+            
+            data = resp.json()
+            self.test("Manual quote France API call", True, f"Status 200")
+            self.test("Manual quote France status is 'manual_quote'", data.get("status") == "manual_quote", f"Got: {data.get('status')}")
+            
+        except Exception as e:
+            self.test("Manual quote France test", False, f"Exception: {e}")
+    
+    # ========== ORDER CREATION TESTS ==========
+    
+    def test_order_canarias_pending_quote(self):
+        """Test POST /api/orders with Canarias address -> status 'Pendiente portes', payment_method 'pending_quote'"""
+        self.log("\n=== Test: Order creation with Canarias address (pending quote) ===")
+        try:
+            # First, get a product to add to cart
+            products_resp = requests.get(f"{BASE_URL}/products", timeout=10)
+            if products_resp.status_code != 200 or not products_resp.json():
+                self.test("Get products for order test", False, "No products available")
+                return
+            
+            product = products_resp.json()[0]
+            
+            order_payload = {
+                "email": f"test_canarias_{datetime.now().strftime('%H%M%S')}@test.com",
+                "items": [{
+                    "product_id": product["id"],
+                    "sku": product.get("sku", "TEST-SKU"),
+                    "name": product["name"],
+                    "variation_name": None,
+                    "unit_price": product["price_retail"],
+                    "quantity": 1,
+                    "image_url": product.get("image_url", "")
+                }],
+                "shipping_address": {
+                    "full_name": "Test Canarias",
+                    "phone": "600000000",
+                    "street": "Calle Test 123",
+                    "city": "Las Palmas",
+                    "province": "Las Palmas",
+                    "postal_code": "35001",
+                    "country": "España",
+                    "notes": ""
+                },
+                "customer_type": "retail",
+                "payment_method": "pending_quote",
+                "delivery_method": "shipping",
+                "coupon_code": None,
+                "acquisition": {}
+            }
+            
+            resp = requests.post(f"{BASE_URL}/orders", json=order_payload, timeout=10)
+            
+            if resp.status_code != 200:
+                self.test("Order creation Canarias API call", False, f"Status {resp.status_code}: {resp.text}")
+                return
+            
+            order = resp.json()
+            self.test_order_ids.append(order["id"])
+            self.test_user_emails.append(order["email"])
+            
+            self.test("Order creation Canarias API call", True, f"Status 200, Order: {order.get('order_number')}")
+            self.test("Order status is 'Pendiente portes'", order.get("status") == "Pendiente portes", f"Got: {order.get('status')}")
+            self.test("Order payment_method is 'pending_quote'", order.get("payment_method") == "pending_quote", f"Got: {order.get('payment_method')}")
+            self.test("Order payment_status is 'awaiting_quote'", order.get("payment_status") == "awaiting_quote", f"Got: {order.get('payment_status')}")
+            self.test("Order shipping_cost is 0", order.get("shipping_cost") == 0, f"Got: {order.get('shipping_cost')}")
+            
+            # Store order ID for later tests
+            self.canarias_order_id = order["id"]
+            
+        except Exception as e:
+            self.test("Order creation Canarias test", False, f"Exception: {e}")
+    
+    def test_stripe_checkout_awaiting_quote_blocked(self):
+        """Test POST /api/payments/stripe/checkout for awaiting_quote order -> 400"""
+        self.log("\n=== Test: Stripe checkout blocked for awaiting_quote order ===")
+        if not hasattr(self, 'canarias_order_id'):
+            self.test("Stripe checkout awaiting_quote test", False, "No Canarias order created in previous test")
+            return
         
-        resp = requests.post(
-            f"{BASE_URL}/api/blog/admin",
-            headers=runner.headers(),
-            json=new_post
-        )
-        assert resp.status_code == 200, f"Failed to create post: {resp.status_code} {resp.text}"
-        created = resp.json()
-        assert "id" in created, "No id in created post"
-        post_id = created["id"]
-        print(f"   ✅ Created post: {post_id}")
+        try:
+            resp = requests.post(f"{BASE_URL}/payments/stripe/checkout", json={
+                "order_id": self.canarias_order_id,
+                "origin_url": "https://eco-andes-test.preview.emergentagent.com"
+            }, timeout=10)
+            
+            self.test("Stripe checkout awaiting_quote returns 400", resp.status_code == 400, f"Got status: {resp.status_code}")
+            if resp.status_code == 400:
+                detail = resp.json().get("detail", "")
+                self.test("Stripe checkout error mentions pending quote", "presupuesto" in detail.lower() or "quote" in detail.lower(), f"Got: {detail}")
+            
+        except Exception as e:
+            self.test("Stripe checkout awaiting_quote test", False, f"Exception: {e}")
+    
+    def test_order_retail_invalid_payment_method(self):
+        """Test POST /api/orders retail peninsular with payment_method 'transfer' -> 400"""
+        self.log("\n=== Test: Order creation retail with invalid payment method (transfer) ===")
+        try:
+            products_resp = requests.get(f"{BASE_URL}/products", timeout=10)
+            if products_resp.status_code != 200 or not products_resp.json():
+                self.test("Get products for retail payment test", False, "No products available")
+                return
+            
+            product = products_resp.json()[0]
+            
+            order_payload = {
+                "email": f"test_retail_{datetime.now().strftime('%H%M%S')}@test.com",
+                "items": [{
+                    "product_id": product["id"],
+                    "sku": product.get("sku", "TEST-SKU"),
+                    "name": product["name"],
+                    "variation_name": None,
+                    "unit_price": product["price_retail"],
+                    "quantity": 1,
+                    "image_url": product.get("image_url", "")
+                }],
+                "shipping_address": {
+                    "full_name": "Test Retail",
+                    "phone": "600000000",
+                    "street": "Calle Test 123",
+                    "city": "Madrid",
+                    "province": "Madrid",
+                    "postal_code": "28004",
+                    "country": "España",
+                    "notes": ""
+                },
+                "customer_type": "retail",
+                "payment_method": "transfer",
+                "delivery_method": "shipping",
+                "coupon_code": None,
+                "acquisition": {}
+            }
+            
+            resp = requests.post(f"{BASE_URL}/orders", json=order_payload, timeout=10)
+            
+            self.test("Order retail with transfer returns 400", resp.status_code == 400, f"Got status: {resp.status_code}")
+            if resp.status_code == 400:
+                detail = resp.json().get("detail", "")
+                self.test("Error mentions payment method not available", "pago" in detail.lower() or "payment" in detail.lower(), f"Got: {detail}")
+            
+        except Exception as e:
+            self.test("Order retail invalid payment method test", False, f"Exception: {e}")
+    
+    def test_order_peninsular_retail_shipping_fields(self):
+        """Test order created peninsular retail -> has shipping_cost_ex_vat, shipping_vat, shipping_vat_rate=21"""
+        self.log("\n=== Test: Order peninsular retail has shipping VAT fields ===")
+        try:
+            products_resp = requests.get(f"{BASE_URL}/products", timeout=10)
+            if products_resp.status_code != 200 or not products_resp.json():
+                self.test("Get products for peninsular order test", False, "No products available")
+                return
+            
+            product = products_resp.json()[0]
+            
+            order_payload = {
+                "email": f"test_peninsular_{datetime.now().strftime('%H%M%S')}@test.com",
+                "items": [{
+                    "product_id": product["id"],
+                    "sku": product.get("sku", "TEST-SKU"),
+                    "name": product["name"],
+                    "variation_name": None,
+                    "unit_price": product["price_retail"],
+                    "quantity": 1,
+                    "image_url": product.get("image_url", "")
+                }],
+                "shipping_address": {
+                    "full_name": "Test Peninsular",
+                    "phone": "600000000",
+                    "street": "Calle Test 123",
+                    "city": "Madrid",
+                    "province": "Madrid",
+                    "postal_code": "28004",
+                    "country": "España",
+                    "notes": ""
+                },
+                "customer_type": "retail",
+                "payment_method": "stripe",
+                "delivery_method": "shipping",
+                "coupon_code": None,
+                "acquisition": {}
+            }
+            
+            resp = requests.post(f"{BASE_URL}/orders", json=order_payload, timeout=10)
+            
+            if resp.status_code != 200:
+                self.test("Order peninsular retail API call", False, f"Status {resp.status_code}: {resp.text}")
+                return
+            
+            order = resp.json()
+            self.test_order_ids.append(order["id"])
+            self.test_user_emails.append(order["email"])
+            
+            self.test("Order peninsular retail API call", True, f"Status 200, Order: {order.get('order_number')}")
+            self.test("Order has shipping_cost_ex_vat field", "shipping_cost_ex_vat" in order, f"Fields: {list(order.keys())}")
+            self.test("Order has shipping_vat field", "shipping_vat" in order, f"Fields: {list(order.keys())}")
+            self.test("Order has shipping_vat_rate field", "shipping_vat_rate" in order, f"Fields: {list(order.keys())}")
+            self.test("Order shipping_vat_rate is 21", order.get("shipping_vat_rate") == 21, f"Got: {order.get('shipping_vat_rate')}")
+            
+            # Verify total = subtotal + shipping
+            expected_total = order.get("subtotal", 0) + order.get("shipping_cost", 0)
+            self.test("Order total = subtotal + shipping", abs(order.get("total", 0) - expected_total) < 0.01, f"Total: {order.get('total')}, Expected: {expected_total}")
+            
+        except Exception as e:
+            self.test("Order peninsular retail shipping fields test", False, f"Exception: {e}")
+    
+    # ========== ADMIN TESTS ==========
+    
+    def test_admin_shipping_quote_patch(self):
+        """Test PATCH /api/orders/admin/{id}/shipping with {shipping_cost_ex_vat: 45} -> shipping_cost 54.45"""
+        self.log("\n=== Test: Admin set shipping quote ===")
+        if not self.admin_token:
+            self.test("Admin shipping quote patch", False, "Admin not logged in")
+            return
         
-        # Verify it appears in public list
-        resp = requests.get(f"{BASE_URL}/api/blog")
-        posts = resp.json()
-        assert len(posts) == 13, f"Expected 13 posts after creation, got {len(posts)}"
-        print(f"   ✅ Post appears in public list (13 posts)")
+        if not hasattr(self, 'canarias_order_id'):
+            self.test("Admin shipping quote patch", False, "No Canarias order created")
+            return
         
-        # UPDATE
-        updated_post = new_post.copy()
-        updated_post["title"] = "TEST Post - UPDATED"
-        updated_post["published"] = False
+        try:
+            resp = requests.patch(
+                f"{BASE_URL}/orders/admin/{self.canarias_order_id}/shipping",
+                json={"shipping_cost_ex_vat": 45.0},
+                headers=self.admin_headers(),
+                timeout=10
+            )
+            
+            if resp.status_code != 200:
+                self.test("Admin shipping quote patch API call", False, f"Status {resp.status_code}: {resp.text}")
+                return
+            
+            order = resp.json()
+            self.test("Admin shipping quote patch API call", True, f"Status 200")
+            self.test("Order shipping_cost is 54.45", abs(order.get("shipping_cost", 0) - 54.45) < 0.01, f"Got: {order.get('shipping_cost')}")
+            self.test("Order shipping_cost_ex_vat is 45.0", abs(order.get("shipping_cost_ex_vat", 0) - 45.0) < 0.01, f"Got: {order.get('shipping_cost_ex_vat')}")
+            self.test("Order shipping_vat is 9.45", abs(order.get("shipping_vat", 0) - 9.45) < 0.01, f"Got: {order.get('shipping_vat')}")
+            self.test("Order status changed to 'Pendiente'", order.get("status") == "Pendiente", f"Got: {order.get('status')}")
+            self.test("Order payment_status changed to 'pending'", order.get("payment_status") == "pending", f"Got: {order.get('payment_status')}")
+            self.test("Order shipping_status is 'quoted'", order.get("shipping_status") == "quoted", f"Got: {order.get('shipping_status')}")
+            
+            # Verify total recalculated
+            expected_total = order.get("subtotal", 0) + 54.45
+            self.test("Order total recalculated", abs(order.get("total", 0) - expected_total) < 0.01, f"Total: {order.get('total')}, Expected: {expected_total}")
+            
+        except Exception as e:
+            self.test("Admin shipping quote patch test", False, f"Exception: {e}")
+    
+    def test_admin_status_counts(self):
+        """Test GET /api/orders/admin/status-counts includes 'Pendiente portes' key"""
+        self.log("\n=== Test: Admin status counts includes 'Pendiente portes' ===")
+        if not self.admin_token:
+            self.test("Admin status counts", False, "Admin not logged in")
+            return
         
-        resp = requests.put(
-            f"{BASE_URL}/api/blog/admin/{post_id}",
-            headers=runner.headers(),
-            json=updated_post
-        )
-        assert resp.status_code == 200, f"Failed to update post: {resp.status_code} {resp.text}"
-        updated = resp.json()
-        assert updated["title"] == "TEST Post - UPDATED", "Title not updated"
-        assert updated["published"] is False, "Published flag not updated"
-        print(f"   ✅ Updated post: title changed, published=false")
+        try:
+            resp = requests.get(
+                f"{BASE_URL}/orders/admin/status-counts",
+                headers=self.admin_headers(),
+                timeout=10
+            )
+            
+            if resp.status_code != 200:
+                self.test("Admin status counts API call", False, f"Status {resp.status_code}: {resp.text}")
+                return
+            
+            counts = resp.json()
+            self.test("Admin status counts API call", True, f"Status 200")
+            self.test("Status counts includes 'Pendiente portes'", "Pendiente portes" in counts, f"Keys: {list(counts.keys())}")
+            
+        except Exception as e:
+            self.test("Admin status counts test", False, f"Exception: {e}")
+    
+    # ========== AUTH TESTS ==========
+    
+    def test_professional_registration_with_message(self):
+        """Test POST /api/auth/register professional with message field -> 200, message persisted"""
+        self.log("\n=== Test: Professional registration with optional message ===")
+        try:
+            test_email = f"test_pro_{datetime.now().strftime('%H%M%S')}@test.com"
+            self.test_user_emails.append(test_email)
+            
+            resp = requests.post(f"{BASE_URL}/auth/register", json={
+                "email": test_email,
+                "password": "TestPass123!",
+                "first_name": "Test",
+                "last_name": "Professional",
+                "role": "professional",
+                "company": "Test Company SL",
+                "tax_id": "B12345678",
+                "business_type": "Distribuidor",
+                "phone": "600000000",
+                "message": "Necesito lista de precios profesionales"
+            }, timeout=10)
+            
+            if resp.status_code != 200:
+                self.test("Professional registration API call", False, f"Status {resp.status_code}: {resp.text}")
+                return
+            
+            user = resp.json()
+            self.test("Professional registration API call", True, f"Status 200, User: {user.get('email')}")
+            
+            # Verify message persisted by logging in and checking user doc
+            # (We can't directly check the message field from the public response, but we can verify registration succeeded)
+            self.test("Professional registration succeeded", user.get("role") == "professional", f"Got role: {user.get('role')}")
+            
+        except Exception as e:
+            self.test("Professional registration with message test", False, f"Exception: {e}")
+    
+    # ========== REFUND TESTS ==========
+    
+    def test_refund_breakdown(self):
+        """Test POST /api/admin/orders/{id}/refund -> refund doc includes breakdown with VAT details"""
+        self.log("\n=== Test: Refund breakdown includes VAT details ===")
+        if not self.admin_token:
+            self.test("Refund breakdown test", False, "Admin not logged in")
+            return
         
-        # Verify it's hidden from public list
-        resp = requests.get(f"{BASE_URL}/api/blog")
-        posts = resp.json()
-        assert len(posts) == 12, f"Expected 12 posts after unpublish, got {len(posts)}"
-        print(f"   ✅ Unpublished post hidden from public (12 posts)")
+        # Use one of the test orders created earlier
+        if not self.test_order_ids:
+            self.test("Refund breakdown test", False, "No test orders available")
+            return
         
-        # DELETE
-        resp = requests.delete(
-            f"{BASE_URL}/api/blog/admin/{post_id}",
-            headers=runner.headers()
-        )
-        assert resp.status_code == 200, f"Failed to delete post: {resp.status_code}"
-        print(f"   ✅ Deleted post: {post_id}")
+        try:
+            test_order_id = self.test_order_ids[0]
+            
+            resp = requests.post(
+                f"{BASE_URL}/admin/orders/{test_order_id}/refund",
+                json={
+                    "reason": "Test refund for automated testing",
+                    "amount": None,  # full refund
+                    "restock": False,
+                    "notify": False
+                },
+                headers=self.admin_headers(),
+                timeout=10
+            )
+            
+            if resp.status_code != 200:
+                self.test("Refund creation API call", False, f"Status {resp.status_code}: {resp.text}")
+                return
+            
+            result = resp.json()
+            refund = result.get("refund", {})
+            breakdown = refund.get("breakdown", {})
+            
+            self.test("Refund creation API call", True, f"Status 200")
+            self.test("Refund has breakdown field", "breakdown" in refund, f"Refund keys: {list(refund.keys())}")
+            self.test("Breakdown has products_ex_vat", "products_ex_vat" in breakdown, f"Breakdown keys: {list(breakdown.keys())}")
+            self.test("Breakdown has products_vat", "products_vat" in breakdown, f"Breakdown keys: {list(breakdown.keys())}")
+            self.test("Breakdown has shipping_ex_vat", "shipping_ex_vat" in breakdown, f"Breakdown keys: {list(breakdown.keys())}")
+            self.test("Breakdown has shipping_vat", "shipping_vat" in breakdown, f"Breakdown keys: {list(breakdown.keys())}")
+            self.test("Breakdown shipping_vat_rate is 21", breakdown.get("shipping_vat_rate") == 21, f"Got: {breakdown.get('shipping_vat_rate')}")
+            
+        except Exception as e:
+            self.test("Refund breakdown test", False, f"Exception: {e}")
+    
+    # ========== CLEANUP ==========
+    
+    def cleanup(self):
+        """Clean up test data"""
+        self.log("\n=== Cleanup: Removing test data ===")
+        if not self.admin_token:
+            self.log("⚠️  Cannot cleanup: Admin not logged in", "WARN")
+            return
         
-        # Verify it's gone
-        resp = requests.get(f"{BASE_URL}/api/blog/admin/list", headers=runner.headers())
-        posts = resp.json()
-        assert len(posts) == 12, f"Expected 12 posts after deletion, got {len(posts)}"
-        print(f"   ✅ Post removed from admin list (12 posts)")
-
-    # ========== SITE IMAGES API TESTS ==========
-    def test_site_images_public():
-        """Test GET /api/site-images returns all image keys"""
-        resp = requests.get(f"{BASE_URL}/api/site-images")
-        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
-        data = resp.json()
-        assert "images" in data, "No 'images' in response"
-        images = data["images"]
+        # Delete test orders
+        for order_id in self.test_order_ids:
+            try:
+                # Note: There's no delete endpoint, but we can mark as cancelled
+                requests.patch(
+                    f"{BASE_URL}/orders/admin/{order_id}/status",
+                    json={"status": "Cancelado"},
+                    headers=self.admin_headers(),
+                    timeout=5
+                )
+                self.log(f"Marked order {order_id} as Cancelado")
+            except:
+                pass
         
-        # Check all 4 keys exist
-        required_keys = ["collection_main", "b2b_landscape", "b2b_portrait", "philosophy"]
-        for key in required_keys:
-            assert key in images, f"Missing key: {key}"
-            assert images[key], f"Empty value for key: {key}"
-            print(f"   {key}: {images[key][:60]}...")
-
-    def test_site_images_admin_requires_auth():
-        """Test GET /api/site-images/admin requires authentication"""
-        resp = requests.get(f"{BASE_URL}/api/site-images/admin")
-        assert resp.status_code == 401, f"Expected 401 without token, got {resp.status_code}"
-        print(f"   Correctly returns 401 without token")
-
-    def test_site_images_admin_get():
-        """Test GET /api/site-images/admin with auth"""
-        resp = requests.get(f"{BASE_URL}/api/site-images/admin", headers=runner.headers())
-        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
-        data = resp.json()
-        assert "images" in data, "No 'images' in response"
-        assert "defaults" in data, "No 'defaults' in response"
-        assert "spots" in data, "No 'spots' in response"
-        print(f"   Found {len(data['spots'])} image spot(s)")
-        for spot in data['spots']:
-            print(f"   - {spot['label']}: {spot['where']}")
-
-    def test_site_images_admin_update_and_restore():
-        """Test PUT /api/site-images/admin - update and restore"""
-        # Get current images
-        resp = requests.get(f"{BASE_URL}/api/site-images/admin", headers=runner.headers())
-        assert resp.status_code == 200, "Failed to get current images"
-        original = resp.json()
-        original_images = original["images"]
-        defaults = original["defaults"]
-        print(f"   Original collection_main: {original_images['collection_main'][:60]}...")
+        # Note: We cannot delete users via API, so test users will remain
+        # This is acceptable for testing purposes
+        self.log(f"✅ Cleanup completed (marked {len(self.test_order_ids)} orders as cancelled)")
+    
+    def run_all(self):
+        """Run all tests"""
+        self.log("=" * 80)
+        self.log("EcoAndes Backend Test Suite - Shipping/Payments/Refunds/Registration")
+        self.log("=" * 80)
         
-        # Update collection_main to test URL
-        test_url = "https://picsum.photos/seed/eco-col/800/600.jpg"
-        updated_images = original_images.copy()
-        updated_images["collection_main"] = test_url
+        # Admin login first
+        if not self.admin_login():
+            self.log("❌ Cannot proceed without admin login", "ERROR")
+            return False
         
-        resp = requests.put(
-            f"{BASE_URL}/api/site-images/admin",
-            headers=runner.headers(),
-            json={"images": updated_images}
-        )
-        assert resp.status_code == 200, f"Failed to update: {resp.status_code} {resp.text}"
-        data = resp.json()
-        assert data["images"]["collection_main"] == test_url, "URL not updated"
-        print(f"   ✅ Updated collection_main to: {test_url}")
+        # Run all test groups
+        self.test_retail_shipping_below_threshold()
+        self.test_retail_shipping_free()
+        self.test_professional_shipping_below_threshold()
+        self.test_professional_shipping_free()
+        self.test_weight_cap_40kg()
+        self.test_manual_quote_canarias()
+        self.test_manual_quote_france()
         
-        # Verify public endpoint returns new URL
-        resp = requests.get(f"{BASE_URL}/api/site-images")
-        assert resp.status_code == 200, "Failed to get public images"
-        public_images = resp.json()["images"]
-        assert public_images["collection_main"] == test_url, "Public endpoint not updated"
-        print(f"   ✅ Public endpoint reflects new URL")
+        self.test_order_canarias_pending_quote()
+        self.test_stripe_checkout_awaiting_quote_blocked()
+        self.test_order_retail_invalid_payment_method()
+        self.test_order_peninsular_retail_shipping_fields()
         
-        # Restore to default
-        restored_images = original_images.copy()
-        restored_images["collection_main"] = defaults["collection_main"]
+        self.test_admin_shipping_quote_patch()
+        self.test_admin_status_counts()
         
-        resp = requests.put(
-            f"{BASE_URL}/api/site-images/admin",
-            headers=runner.headers(),
-            json={"images": restored_images}
-        )
-        assert resp.status_code == 200, f"Failed to restore: {resp.status_code}"
-        data = resp.json()
-        assert data["images"]["collection_main"] == defaults["collection_main"], "Not restored to default"
-        print(f"   ✅ Restored collection_main to default: {defaults['collection_main'][:60]}...")
-
-    # ========== CAROUSEL CATEGORIES API TESTS ==========
-    def test_carousel_public_get():
-        """Test GET /api/carousel-categories returns 15 items with auto-descriptions"""
-        resp = requests.get(f"{BASE_URL}/api/carousel-categories")
-        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
-        data = resp.json()
-        assert "items" in data, "No 'items' in response"
-        items = data["items"]
+        self.test_professional_registration_with_message()
         
-        # Should have 15 items (default seed)
-        assert len(items) == 15, f"Expected 15 items, got {len(items)}"
-        print(f"   Found {len(items)} carousel items")
+        self.test_refund_breakdown()
         
-        # Check structure of first item
-        first = items[0]
-        assert "id" in first, "Missing id"
-        assert "title" in first, "Missing title"
-        assert "cat" in first, "Missing cat"
-        assert "img" in first, "Missing img"
-        assert "description" in first, "Missing description"
-        assert "product_count" in first, "Missing product_count"
+        # Cleanup
+        self.cleanup()
         
-        print(f"   First item: {first['title']}")
-        print(f"   Category: {first['cat']}")
-        print(f"   Product count: {first['product_count']}")
-        print(f"   Description: {first['description'][:80]}...")
+        # Summary
+        self.log("\n" + "=" * 80)
+        self.log(f"TEST SUMMARY")
+        self.log("=" * 80)
+        self.log(f"Total tests run: {self.tests_run}")
+        self.log(f"✅ Passed: {self.tests_passed}")
+        self.log(f"❌ Failed: {self.tests_failed}")
+        self.log(f"Success rate: {(self.tests_passed / self.tests_run * 100) if self.tests_run > 0 else 0:.1f}%")
+        self.log("=" * 80)
         
-        # Verify all items have descriptions (auto-generated or manual)
-        for idx, item in enumerate(items):
-            assert "description" in item, f"Item {idx} missing description"
-            assert "product_count" in item, f"Item {idx} missing product_count"
-            if item.get("cat"):
-                # Items with categories should have product info
-                print(f"   Item {idx+1}: {item['title']} - {item['product_count']} productos")
-        
-        return items
-
-    def test_carousel_admin_requires_auth():
-        """Test GET /api/admin/carousel-categories requires authentication"""
-        resp = requests.get(f"{BASE_URL}/api/admin/carousel-categories")
-        assert resp.status_code == 401, f"Expected 401 without token, got {resp.status_code}"
-        print(f"   Correctly returns 401 without token")
-
-    def test_carousel_admin_get():
-        """Test GET /api/admin/carousel-categories with auth"""
-        resp = requests.get(f"{BASE_URL}/api/admin/carousel-categories", headers=runner.headers())
-        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
-        data = resp.json()
-        assert "items" in data, "No 'items' in response"
-        items = data["items"]
-        print(f"   Found {len(items)} items in admin view")
-        return items
-
-    def test_carousel_admin_manual_description():
-        """Test manual description save and auto-generation restore"""
-        # Get current items
-        resp = requests.get(f"{BASE_URL}/api/admin/carousel-categories", headers=runner.headers())
-        assert resp.status_code == 200, "Failed to get carousel items"
-        data = resp.json()
-        items = data["items"]
-        assert len(items) > 0, "No items to test"
-        
-        # Save original first item
-        original_first = items[0].copy()
-        print(f"   Original first item: {original_first['title']}")
-        print(f"   Original description: {original_first.get('description', '')[:80]}...")
-        
-        # Set manual description on first item
-        manual_desc = "Esta es una descripción manual de prueba para testing automatizado."
-        items[0]["description"] = manual_desc
-        
-        resp = requests.put(
-            f"{BASE_URL}/api/admin/carousel-categories",
-            headers=runner.headers(),
-            json={"items": items}
-        )
-        assert resp.status_code == 200, f"Failed to save: {resp.status_code} {resp.text}"
-        print(f"   ✅ Saved manual description")
-        
-        # Verify manual description appears in public endpoint
-        resp = requests.get(f"{BASE_URL}/api/carousel-categories")
-        assert resp.status_code == 200, "Failed to get public carousel"
-        public_items = resp.json()["items"]
-        first_public = public_items[0]
-        assert first_public["description"] == manual_desc, "Manual description not used"
-        print(f"   ✅ Manual description appears in public endpoint")
-        
-        # Clear description (empty string) to restore auto-generation
-        resp = requests.get(f"{BASE_URL}/api/admin/carousel-categories", headers=runner.headers())
-        items = resp.json()["items"]
-        items[0]["description"] = ""
-        
-        resp = requests.put(
-            f"{BASE_URL}/api/admin/carousel-categories",
-            headers=runner.headers(),
-            json={"items": items}
-        )
-        assert resp.status_code == 200, f"Failed to clear description: {resp.status_code}"
-        print(f"   ✅ Cleared description")
-        
-        # Verify auto-generated description is restored
-        resp = requests.get(f"{BASE_URL}/api/carousel-categories")
-        public_items = resp.json()["items"]
-        first_public = public_items[0]
-        assert first_public["description"] != manual_desc, "Manual description still present"
-        assert first_public["description"] != "", "Description should be auto-generated"
-        # Auto-generated should contain product names
-        assert len(first_public["description"]) > 0, "Auto-generated description is empty"
-        print(f"   ✅ Auto-generated description restored: {first_public['description'][:80]}...")
-
-    # ========== RUN ALL TESTS ==========
-    runner.test("Carousel: GET /api/carousel-categories (public)", test_carousel_public_get)
-    runner.test("Carousel: GET /api/admin/carousel-categories requires auth", test_carousel_admin_requires_auth)
-    runner.test("Carousel: GET /api/admin/carousel-categories with auth", test_carousel_admin_get)
-    runner.test("Carousel: Manual description save and auto-restore", test_carousel_admin_manual_description)
-
-    return runner.summary()
+        return self.tests_failed == 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    runner = TestRunner()
+    success = runner.run_all()
+    sys.exit(0 if success else 1)

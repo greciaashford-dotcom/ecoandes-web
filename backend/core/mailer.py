@@ -26,6 +26,18 @@ def _order_email_html(order: dict) -> str:
         for it in order.get("items", [])
     )
     addr = order.get("shipping_address", {}) or {}
+    awaiting_quote = order.get("payment_status") == "awaiting_quote" or order.get("status") == "Pendiente portes"
+    shipping_display = (
+        "Pendiente de presupuesto" if awaiting_quote else f"{order.get('shipping_cost', 0):.2f} €"
+    )
+    intro_text = (
+        f"Hemos recibido tu pedido <strong>#{order.get('order_number', '')}</strong>. "
+        "Los portes para tu destino se calculan según peso, volumen y destino: nuestra administración "
+        "revisará el pedido y te enviaremos un correo con el importe total (portes incluidos) para realizar el pago."
+        if awaiting_quote
+        else f"Hemos recibido tu pedido <strong>#{order.get('order_number', '')}</strong>. Pronto recibirás otro email cuando sea enviado."
+    )
+    total_label = "Total (sin portes)" if awaiting_quote else "Total"
     return f"""
     <div style="font-family:Manrope,Arial,sans-serif;background:#F9F8F6;padding:40px 20px;color:#2D332F;">
       <div style="max-width:560px;margin:0 auto;background:#FFFFFF;padding:40px;">
@@ -35,8 +47,7 @@ def _order_email_html(order: dict) -> str:
         </div>
         <h2 style="font-family:Outfit,Arial,sans-serif;font-weight:300;color:#2D332F;margin:24px 0 8px;">Gracias por tu pedido</h2>
         <p style="color:#606962;font-size:14px;line-height:1.6;">
-          Hemos recibido tu pedido <strong>#{order.get('order_number', '')}</strong>.
-          Pronto recibirás otro email cuando sea enviado.
+          {intro_text}
         </p>
         <table style="width:100%;border-collapse:collapse;margin-top:24px;">
           {rows}
@@ -45,8 +56,8 @@ def _order_email_html(order: dict) -> str:
           <tr><td style="color:#606962;font-size:13px;padding:4px 0;">Subtotal</td>
               <td style="text-align:right;font-size:13px;color:#2D332F;">{order.get('subtotal', 0):.2f} €</td></tr>
           <tr><td style="color:#606962;font-size:13px;padding:4px 0;">Envío</td>
-              <td style="text-align:right;font-size:13px;color:#2D332F;">{order.get('shipping_cost', 0):.2f} €</td></tr>
-          <tr><td style="color:#2D332F;font-size:16px;padding:12px 0;border-top:1px solid #EAE6DF;"><strong>Total</strong></td>
+              <td style="text-align:right;font-size:13px;color:#2D332F;">{shipping_display}</td></tr>
+          <tr><td style="color:#2D332F;font-size:16px;padding:12px 0;border-top:1px solid #EAE6DF;"><strong>{total_label}</strong></td>
               <td style="text-align:right;font-size:16px;color:#2D332F;border-top:1px solid #EAE6DF;padding:12px 0;"><strong>{order.get('total', 0):.2f} €</strong></td></tr>
         </table>
         <h3 style="font-family:Outfit,Arial,sans-serif;font-weight:400;color:#2D332F;margin-top:32px;">Envío a</h3>
@@ -378,6 +389,10 @@ async def send_company_registration_notice(user: dict, verification: str) -> Opt
         {f"<tr><td style='padding:5px 0;color:#606962;'>NIF/CIF</td><td style='text-align:right;'>{user.get('tax_id','')}</td></tr>" if user.get('tax_id') else ''}
         {f"<tr><td style='padding:5px 0;color:#606962;'>Actividad</td><td style='text-align:right;'>{user.get('business_type','')}</td></tr>" if user.get('business_type') else ''}
       </table>
+      {f'''<div style="margin-top:14px;padding:12px 14px;background:#F4F6F2;border-left:3px solid #6B826E;">
+        <div style="color:#6B826E;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:4px;">Mensaje del cliente</div>
+        <div style="color:#2D332F;font-size:13px;line-height:1.6;">{user.get('message','')}</div>
+      </div>''' if user.get('message') else ''}
       <p style="color:{status_line[1]};font-size:14px;line-height:1.6;margin-top:14px;"><strong>{status_line[0]}</strong></p>
     """
     tag = "B2B" if user.get("role") == "professional" else "Retail"
@@ -394,13 +409,23 @@ async def send_company_order_notice(order: dict) -> Optional[str]:
         for it in order.get("items", [])
     )
     acq = order.get("acquisition") or {}
+    awaiting_quote = order.get("payment_status") == "awaiting_quote" or order.get("status") == "Pendiente portes"
+    quote_alert = (
+        """<p style="color:#B0654F;font-size:14px;line-height:1.6;margin-top:14px;">
+        <strong>⚠️ PEDIDO PENDIENTE DE PRESUPUESTO DE PORTES</strong><br/>
+        Destino fuera de península (Canarias u otro destino). Calcula los portes según peso, volumen y
+        destino, fíjalos en el panel de administración y envía manualmente al cliente el correo con el
+        importe total para que realice el pago.</p>"""
+        if awaiting_quote else ""
+    )
     body = f"""
       <p style="color:#606962;font-size:14px;line-height:1.7;">
         Se ha recibido un nuevo pedido <strong>#{order.get('order_number','')}</strong>.
       </p>
+      {quote_alert}
       <table style="width:100%;border-collapse:collapse;">{rows}</table>
       <table style="width:100%;margin-top:12px;font-size:13px;color:#2D332F;">
-        <tr><td style="color:#606962;padding:4px 0;">Total</td><td style="text-align:right;"><strong>{order.get('total',0):.2f} €</strong></td></tr>
+        <tr><td style="color:#606962;padding:4px 0;">Total</td><td style="text-align:right;"><strong>{order.get('total',0):.2f} €{' (sin portes)' if awaiting_quote else ''}</strong></td></tr>
         <tr><td style="color:#606962;padding:4px 0;">Pago</td><td style="text-align:right;">{order.get('payment_method','')} · {order.get('payment_status','')}</td></tr>
         <tr><td style="color:#606962;padding:4px 0;">Cliente</td><td style="text-align:right;">{addr.get('full_name','')} ({order.get('email','')})</td></tr>
         <tr><td style="color:#606962;padding:4px 0;">Tipo</td><td style="text-align:right;">{'Profesional (B2B)' if order.get('customer_type') == 'professional' else 'Retail (B2C)'}</td></tr>

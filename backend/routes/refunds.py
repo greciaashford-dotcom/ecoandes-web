@@ -164,6 +164,41 @@ async def _paypal_refund(order: dict, amount: float) -> dict:
 
 
 # ---------- Refund an order ----------
+def order_refund_breakdown(order: dict) -> dict:
+    """Desglose para reembolsos: productos (base + IVA por %) y envío (base + IVA 21%)."""
+    vat_groups: dict = {}
+    products_ex = 0.0
+    for it in order.get("items", []):
+        rate = int(it.get("vat_rate", 0) or 0)
+        qty = int(it.get("quantity", 1) or 1)
+        unit_ex = it.get("unit_price_ex_vat")
+        if unit_ex is None:
+            # pedidos antiguos: derivar la base desde el precio cobrado
+            unit_price = float(it.get("unit_price", 0) or 0)
+            unit_ex = unit_price / (1 + rate / 100) if rate else unit_price
+        line_ex = round(float(unit_ex) * qty, 2)
+        products_ex += line_ex
+        vat_groups[rate] = round(vat_groups.get(rate, 0.0) + round(line_ex * rate / 100, 2), 2)
+    shipping_gross = float(order.get("shipping_cost", 0) or 0)
+    ship_ex = order.get("shipping_cost_ex_vat")
+    ship_vat = order.get("shipping_vat")
+    if ship_ex is None or ship_vat is None:
+        # pedidos antiguos sin desglose: el IVA del envío es siempre 21%
+        ship_ex = round(shipping_gross / 1.21, 2)
+        ship_vat = round(shipping_gross - ship_ex, 2)
+    return {
+        "products_ex_vat": round(products_ex, 2),
+        "products_vat": [
+            {"rate": r, "amount": a} for r, a in sorted(vat_groups.items()) if a > 0 or r > 0
+        ],
+        "products_vat_total": round(sum(vat_groups.values()), 2),
+        "shipping_ex_vat": round(float(ship_ex or 0), 2),
+        "shipping_vat": round(float(ship_vat or 0), 2),
+        "shipping_vat_rate": 21,
+        "shipping_gross": round(shipping_gross, 2),
+    }
+
+
 class RefundIn(BaseModel):
     reason: str = Field(..., min_length=2)
     amount: Optional[float] = None  # default = full order total
@@ -207,6 +242,7 @@ async def refund_order(order_id: str, payload: RefundIn):
         "manual": bool(result.get("manual")),
         "provider_ok": bool(result.get("ok")),
         "provider_error": result.get("error"),
+        "breakdown": order_refund_breakdown(order),
         "created_at": now,
     }
     await db.refunds.insert_one(dict(refund_doc))

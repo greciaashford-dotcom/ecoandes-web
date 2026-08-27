@@ -55,7 +55,9 @@ export default function Checkout() {
     notes: "",
   });
 
-  const customerType = user?.role === "professional" ? "professional" : "retail";
+  // Solo profesionales VERIFICADOS compran con condiciones B2B (precios/envío/pagos)
+  const isVerifiedPro = !!user && user.role === "professional" && user.approved !== false;
+  const customerType = isVerifiedPro ? "professional" : "retail";
   const isPickup = delivery === "pickup";
   const isPro = customerType === "professional";
 
@@ -101,6 +103,11 @@ export default function Checkout() {
     if (v === "pickup" && (method === "transfer" || method === "other")) setMethod("stripe");
   };
 
+  // Offline methods are exclusive to verified professionals
+  useEffect(() => {
+    if (!isVerifiedPro && (method === "transfer" || method === "other")) setMethod("stripe");
+  }, [isVerifiedPro, method]);
+
   const applyCoupon = async () => {
     const code = coupon.trim();
     if (!code) return;
@@ -138,6 +145,7 @@ export default function Checkout() {
   const discount = couponState.applied ? couponState.discount : 0;
   const isBlocked = shipping?.status === "blocked";
   const isManual = shipping?.status === "manual_quote";
+  const isManualQuote = isManual && !isPickup;
   const shippingCost = shipping && typeof shipping.shipping_cost === "number" ? shipping.shipping_cost : 0;
   const grandTotal = Math.max(0, subtotalWithVat + shippingCost - discount);
 
@@ -184,13 +192,22 @@ export default function Checkout() {
         })),
         shipping_address,
         customer_type: customerType,
-        payment_method: method,
+        payment_method: isManualQuote ? "pending_quote" : method,
         delivery_method: delivery,
         coupon_code: couponState.applied ? coupon.trim() : null,
         acquisition: getAcquisition(),
       };
       const { data: order } = await api.post("/orders", payload);
 
+      if (isManualQuote) {
+        // Canarias / fuera de península: pedido registrado SIN pago, pendiente de presupuesto de portes
+        clearCart();
+        toast.success("Pedido registrado", {
+          description: "Calcularemos los portes y te enviaremos un correo con el importe total para realizar el pago.",
+        });
+        nav(`/pago/success?order_number=${order.order_number}&quote=1`);
+        return;
+      }
       if (method === "stripe") {
         const { data: sess } = await api.post("/payments/stripe/checkout", {
           order_id: order.id,
@@ -311,12 +328,24 @@ export default function Checkout() {
 
           <section>
             <h2 className="font-heading text-xl font-normal mb-5">Método de pago</h2>
+            {isManualQuote ? (
+              <div className="border border-terracotta/40 bg-terracotta/5 rounded-xl p-5" data-testid="manual-quote-notice">
+                <div className="text-sm text-ink font-medium">Portes pendientes de presupuesto</div>
+                <p className="text-xs text-ink-soft mt-2 leading-relaxed">
+                  {shipping?.message || "Los portes para Canarias y destinos fuera de la península se calculan según peso, volumen y destino."}
+                </p>
+                <p className="text-xs text-ink-soft mt-2 leading-relaxed">
+                  Tu pedido se registrará <strong>sin pago</strong>. Nuestra administración lo revisará y te
+                  enviaremos un correo con el importe total (portes incluidos) para que realices el pago.
+                </p>
+              </div>
+            ) : (
             <div className="space-y-3" data-testid="payment-methods">
               {[
                 { v: "stripe", label: "Pago con Tarjeta", desc: "Pago seguro con tarjeta Visa, MasterCard o American Express.", logos: <CardLogos /> },
                 { v: "paypal", label: "PayPal", desc: "Finaliza con tu cuenta PayPal.", logos: <PaypalLogo /> },
-                !isPickup && { v: "transfer", label: "Transferencia bancaria", desc: "Recibirás nuestras instrucciones por email para realizar la transferencia." },
-                !isPickup && { v: "other", label: "Otro (Confirming, solo para clientes que llegan a un acuerdo con EcoAndes)", desc: "Nos pondremos en contacto contigo para gestionar el pago acordado." },
+                isVerifiedPro && !isPickup && { v: "transfer", label: "Transferencia bancaria", desc: "Recibirás nuestras instrucciones por email para realizar la transferencia." },
+                isVerifiedPro && !isPickup && { v: "other", label: "Otro (Confirming, solo para clientes que llegan a un acuerdo con EcoAndes)", desc: "Nos pondremos en contacto contigo para gestionar el pago acordado." },
               ].filter(Boolean).map((m) => (
                 <label
                   key={m.v}
@@ -336,6 +365,7 @@ export default function Checkout() {
                 </label>
               ))}
             </div>
+            )}
           </section>
         </div>
 
@@ -366,11 +396,19 @@ export default function Checkout() {
               <div className="flex justify-between"><span className="text-ink-soft">Subtotal <span className="text-[10px] text-ink-muted">(IVA incl.)</span></span><span data-testid="summary-subtotal">{formatEUR(subtotalWithVat)}</span></div>
             )}
             <div className="flex justify-between">
-              <span className="text-ink-soft">{isPickup ? "Recogida en tienda" : "Envío"}</span>
+              <span className="text-ink-soft">
+                {isPickup ? "Recogida en tienda" : "Envío"}
+                {!isPickup && shippingCost > 0 && <span className="text-[10px] text-ink-muted"> (IVA 21% incl.)</span>}
+              </span>
               <span data-testid="summary-shipping">
-                {!shipping ? "…" : isBlocked ? "No disponible" : isManual ? "A calcular" : shipping.free_shipping ? "Gratis" : formatEUR(shippingCost)}
+                {!shipping ? "…" : isBlocked ? "No disponible" : isManual ? "A presupuestar" : shipping.free_shipping ? "Gratis" : formatEUR(shippingCost)}
               </span>
             </div>
+            {!isPickup && shipping && typeof shipping.shipping_cost_ex_vat === "number" && shipping.shipping_cost_ex_vat > 0 && (
+              <div className="text-[11px] text-ink-muted" data-testid="summary-shipping-vat">
+                Portes: {formatEUR(shipping.shipping_cost_ex_vat)} + IVA 21% ({formatEUR(shipping.shipping_vat)})
+              </div>
+            )}
             {!isPickup && shipping && shipping.weight_tier && (
               <div className="text-[11px] text-ink-muted" data-testid="summary-weight-tier">
                 Tramo {shipping.weight_tier.from_kg}–{shipping.weight_tier.to_kg} kg · peso total {totalWeightKg.toFixed(2)} kg
@@ -379,7 +417,7 @@ export default function Checkout() {
             {!isPickup && shipping && !shipping.free_shipping && shipping.remaining_for_free_shipping > 0 && !isBlocked && !isManual && (
               <div className="text-[11px] text-sage-700" data-testid="summary-free-remaining">
                 {isPro
-                  ? `Te faltan ${formatEUR(shipping.remaining_for_free_shipping)} (sin IVA) en formatos de detalle para envío gratis`
+                  ? `Te faltan ${formatEUR(shipping.remaining_for_free_shipping)} (base imponible) para portes gratuitos`
                   : `Te faltan ${formatEUR(shipping.remaining_for_free_shipping)} para el envío gratis`}
               </div>
             )}
@@ -390,11 +428,13 @@ export default function Checkout() {
               </div>
             )}
             <div className="flex justify-between font-medium text-base pt-3 border-t border-bone-200">
-              <span>Total {isManual && <span className="text-[10px] text-ink-muted">(sin envío)</span>}</span>
+              <span>Total {isManual && <span className="text-[10px] text-ink-muted">(sin portes)</span>}</span>
               <span data-testid="summary-total">{formatEUR(grandTotal)}</span>
             </div>
-            {isManual && !isPickup && (
-              <p className="text-[11px] text-terracotta" data-testid="summary-manual-note">{shipping?.message || "El transporte se calculará y comunicará tras revisar el pedido."}</p>
+            {isManualQuote && (
+              <p className="text-[11px] text-terracotta" data-testid="summary-manual-note">
+                Portes pendientes de presupuesto (peso, volumen y destino). Te enviaremos un correo con el total para realizar el pago.
+              </p>
             )}
             {isBlocked && !isPickup && (
               <p className="text-[11px] text-terracotta" data-testid="summary-blocked-note">{shipping?.message}</p>
@@ -439,7 +479,13 @@ export default function Checkout() {
             </div>
           )}
           <button type="submit" disabled={submitting || (!isPickup && isBlocked)} className="btn-primary w-full mt-6 disabled:opacity-50 disabled:pointer-events-none" data-testid="checkout-submit">
-            {submitting ? "Procesando..." : (!isPickup && isBlocked) ? "Envío no disponible" : "Pagar y confirmar pedido"}
+            {submitting
+              ? "Procesando..."
+              : (!isPickup && isBlocked)
+              ? "Envío no disponible"
+              : isManualQuote
+              ? "Confirmar pedido (portes a presupuestar)"
+              : "Pagar y confirmar pedido"}
           </button>
         </aside>
       </form>

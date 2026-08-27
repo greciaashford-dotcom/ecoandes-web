@@ -44,6 +44,11 @@ async def stripe_checkout(payload: StripeCheckoutRequest, request: Request):
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
     if order.get("payment_status") == "paid":
         raise HTTPException(status_code=400, detail="Pedido ya pagado")
+    if order.get("payment_status") == "awaiting_quote":
+        raise HTTPException(
+            status_code=400,
+            detail="Este pedido está pendiente de presupuesto de portes. Recibirás un correo con el importe total para realizar el pago.",
+        )
 
     amount = float(order["total"])
     currency = (order.get("currency") or "EUR").lower()
@@ -227,6 +232,11 @@ async def paypal_create(payload: PayPalCreateRequest):
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
     if order.get("payment_status") == "paid":
         raise HTTPException(status_code=400, detail="Pedido ya pagado")
+    if order.get("payment_status") == "awaiting_quote":
+        raise HTTPException(
+            status_code=400,
+            detail="Este pedido está pendiente de presupuesto de portes. Recibirás un correo con el importe total para realizar el pago.",
+        )
 
     token = await _paypal_access_token()
     amount = float(order["total"])

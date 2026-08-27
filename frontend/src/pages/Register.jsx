@@ -30,6 +30,7 @@ export default function Register() {
     tax_id: "",
     business_type: "",
     phone: "",
+    message: "",
   });
   const [acceptPrivacy, setAcceptPrivacy] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -46,7 +47,9 @@ export default function Register() {
         delete payload.company;
         delete payload.tax_id;
         delete payload.business_type;
+        delete payload.message;
       }
+      if (!payload.message || !payload.message.trim()) delete payload.message;
       const u = await register(payload);
       if (form.role === "professional") {
         if (u.verification === "auto" && u.approved) {
@@ -162,6 +165,17 @@ export default function Register() {
               es correcta, tu cuenta profesional se activa al instante; en caso contrario, quedará
               en revisión manual (máx. 24 h) y te avisaremos por correo.
             </p>
+            <label className="md:col-span-2 block" data-testid="register-message-label">
+              <span className="text-xs uppercase tracking-[0.16em] text-ink-soft">Escribe tu mensaje (opcional)</span>
+              <textarea
+                className="input-eco mt-1.5 w-full min-h-[88px]"
+                placeholder="Ejemplo: Necesito lista de precios/ Necesito las claves de acceso para ver los precios profesionales en la web."
+                value={form.message}
+                onChange={onChange("message")}
+                maxLength={1000}
+                data-testid="register-message"
+              />
+            </label>
           </>
         )}
         <input className="input-eco" placeholder={t("register.firstName")} required value={form.first_name} onChange={onChange("first_name")} data-testid="register-first-name" />

@@ -9,7 +9,7 @@ const FAQS = [
   },
   {
     q: "¿Cuál es el coste de envío?",
-    a: "6,50 € en pedidos retail y 4,50 € en pedidos profesionales. Envío gratuito a partir de 60 € de subtotal. Baleares, Canarias, Ceuta y Melilla aplican tarifa especial; consúltanos."
+    a: "En España/Portugal peninsular y Baleares, los portes se calculan por peso (desde 4 € + IVA hasta un máximo de 29 € + IVA). Envío gratuito a partir de 50 € (IVA incluido) para particulares y a partir de 150 € (base imponible) para profesionales. Para Canarias y destinos fuera de la península, los portes se presupuestan manualmente según peso, volumen y destino: te enviaremos un correo con el importe total antes del pago."
   },
   {
     q: "¿Puedo devolver un producto?",

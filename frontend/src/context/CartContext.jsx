@@ -36,7 +36,19 @@ export function CartProvider({ children }) {
         ? src.display_price_ex_vat
         : (isPro ? src.price_professional : src.price_retail);
     const vat_rate = typeof product.vat_rate === "number" ? product.vat_rate : 10;
-    const weight_kg = typeof src.weight_kg === "number" ? src.weight_kg : 0;
+    // Peso: usa weight_kg si existe; si no, deriva del formato del producto ("150 g", "1 kg")
+    const parseWeightFromName = (name) => {
+      if (!name) return 0;
+      const m = String(name).toLowerCase().match(/(\d+(?:[.,]\d+)?)\s*(kg|kilos?|g|gr|gramos|ml|l|litros?)\b/);
+      if (!m) return 0;
+      const val = parseFloat(m[1].replace(",", "."));
+      if (Number.isNaN(val)) return 0;
+      return m[2].startsWith("k") || m[2].startsWith("l") ? val : val / 1000;
+    };
+    const weight_kg =
+      typeof src.weight_kg === "number" && src.weight_kg > 0
+        ? src.weight_kg
+        : parseWeightFromName(variationName || product.name);
     const sku = variation ? variation.sku : product.sku;
     setItems((prev) => {
       const key = lineKey(product.id, variationName);

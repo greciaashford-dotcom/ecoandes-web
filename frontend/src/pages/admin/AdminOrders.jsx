@@ -6,7 +6,7 @@ import { originLabel, SOURCE_LABELS } from "../../lib/tracking";
 import { Eye, Search, X } from "lucide-react";
 import { toast } from "sonner";
 
-const STATUSES = ["Pendiente", "Pagado", "Enviado", "Completado", "Cancelado"];
+const STATUSES = ["Pendiente portes", "Pendiente", "Pagado", "Enviado", "Completado", "Cancelado"];
 
 const CHANNELS = [
   ["", "Todos los canales"],

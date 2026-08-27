@@ -10,6 +10,7 @@ export default function PaymentSuccess() {
   const orderNumber = params.get("order_number");
   const provider = params.get("provider");
   const offline = params.get("offline") || params.get("transfer");
+  const isQuote = params.get("quote") === "1";
   const payMethod = params.get("method") || "transfer";
   const [status, setStatus] = useState("checking");
   const [order, setOrder] = useState(null);
@@ -30,6 +31,10 @@ export default function PaymentSuccess() {
         } else if (orderNumber) {
           const { data } = await api.get(`/orders/by-number/${orderNumber}`);
           setOrder(data);
+          if (isQuote) {
+            setStatus("quote");
+            return;
+          }
           if (data.payment_status === "paid" || offline) {
             setStatus(offline ? "transfer" : "success");
             return;
@@ -45,7 +50,7 @@ export default function PaymentSuccess() {
     };
     poll();
     return () => { active = false; };
-  }, [sessionId, orderNumber, provider, offline]);
+  }, [sessionId, orderNumber, provider, offline, isQuote]);
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-24 text-center" data-testid="payment-success-page">
@@ -75,6 +80,16 @@ export default function PaymentSuccess() {
             {payMethod === "other"
               ? "Hemos registrado tu pedido. Nos pondremos en contacto contigo para gestionar la domiciliación / confirming."
               : t("paymentSuccess.transferDesc")}
+          </p>
+        </>
+      )}
+      {status === "quote" && (
+        <>
+          <h1 className="font-heading text-4xl font-light text-sage-700" data-testid="quote-pending-title">Pedido registrado · portes pendientes</h1>
+          <p className="mt-4 text-ink-soft" data-testid="quote-pending-desc">
+            Tu pedido se ha registrado <strong>sin pago</strong>. Los portes a tu destino se calculan según
+            peso, volumen y destino: nuestra administración revisará el pedido y te enviaremos un correo con
+            el importe total (portes incluidos) para que realices el pago.
           </p>
         </>
       )}

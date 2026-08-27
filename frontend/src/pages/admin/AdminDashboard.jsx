@@ -330,6 +330,7 @@ function EmptyTraffic({ loading, small }) {
 
 export function StatusPill({ status }) {
   const map = {
+    "Pendiente portes": "bg-terracotta/15 text-terracotta",
     Pendiente: "bg-amber-100 text-amber-800",
     Pagado: "bg-sage-100 text-sage-700",
     Enviado: "bg-sky-100 text-sky-700",

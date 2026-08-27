@@ -1,24 +1,28 @@
-"""Shipping engine: zone detection + rule evaluation (user_type + zone + weight).
+"""Shipping engine v2: zone detection + rule evaluation (user_type + zone + weight).
 
-Business rules (confirmed by client):
+Business rules (confirmed by client, Aug 2026 — Excel portes_b2b.xlsx):
 
-PARTICULARES (retail / B2C):
-  - ES + PT peninsular + Baleares: subtotal CON IVA >= 50€ -> gratis; si no -> 4,99€
-  - Francia: subtotal CON IVA >= 70€ -> gratis; si no -> 10€
-  - Ceuta / Melilla / Canarias: bloqueado
-  - Resto de países: bloqueado (B2C)
+PARTICULARES (retail / B2C) — ES + PT peninsular + Baleares:
+  - Envío gratis desde 50 € (subtotal CON IVA).
+  - Por debajo: escala por peso del Excel (misma que profesionales).
 
-PROFESIONALES (B2B):
-  - ES + PT peninsular + Baleares:
-      * gratis si base SIN IVA > 150€ Y todos los items <= 1 kg (retail)
-      * si hay cualquier item > 1 kg -> siempre escala por peso
-      * si base SIN IVA <= 150€ -> escala por peso
-      * escala (peso total carrito): 0-2=4, 2-5=6, 5-10=10, 10-15=15, 15-20=20, 20-35=22, 35-100=25
-      * > 100 kg -> presupuesto manual
-  - Canarias y resto de Europa (incl. Francia para B2B): presupuesto manual
+PROFESIONALES (B2B verificados) — ES + PT peninsular + Baleares:
+  - Envío gratis desde 150 € (base imponible, SIN IVA).
+  - Por debajo: escala por peso del Excel.
 
-Zone detection: país + prefijo de código postal (07 Baleares incluido; 35/38 Canarias;
-51 Ceuta; 52 Melilla).
+ESCALA POR PESO (Excel portes_b2b.xlsx, importes SIN IVA):
+  0–2 kg: 4 · 2–5: 6 · 5–10: 10 · 10–15: 15 · 15–20: 20 ·
+  20–25: 23 · 25–30: 26 · 30–35: 29 · >35 kg: 29 (porte máximo)
+
+IVA DEL ENVÍO: siempre 21 % (se cobra el bruto = neto × 1,21).
+
+CANARIAS / CEUTA / MELILLA y cualquier destino fuera de la España/Portugal
+peninsular + Baleares (retail Y profesional): presupuesto manual. Los portes
+se calculan según peso, volumen y destino, y el pedido queda pendiente de
+verificación por la administración de la tienda (sin pago hasta presupuesto).
+
+Zone detection: país + prefijo de código postal (07 Baleares incluido;
+35/38 Canarias; 51 Ceuta; 52 Melilla).
 """
 from typing import Optional
 
@@ -26,11 +30,33 @@ from core.config import db
 
 CONFIG_ID = "shipping_config"
 
+SHIPPING_VAT_RATE = 21  # IVA del transporte: siempre 21 %
+
+# Escala del Excel portes_b2b.xlsx (fees SIN IVA)
+EXCEL_WEIGHT_SCALE = [
+    {"from_kg": 0, "to_kg": 2, "fee": 4.0},
+    {"from_kg": 2, "to_kg": 5, "fee": 6.0},
+    {"from_kg": 5, "to_kg": 10, "fee": 10.0},
+    {"from_kg": 10, "to_kg": 15, "fee": 15.0},
+    {"from_kg": 15, "to_kg": 20, "fee": 20.0},
+    {"from_kg": 20, "to_kg": 25, "fee": 23.0},
+    {"from_kg": 25, "to_kg": 30, "fee": 26.0},
+    {"from_kg": 30, "to_kg": 35, "fee": 29.0},
+]
+
+MANUAL_QUOTE_MESSAGE = (
+    "Los portes para Canarias y destinos fuera de la España/Portugal peninsular y Baleares "
+    "se calculan según peso, volumen y destino. Tu pedido quedará pendiente de presupuesto de "
+    "portes: la administración lo revisará y te enviaremos un correo con el importe total "
+    "(portes incluidos) para realizar el pago."
+)
+
 DEFAULT_SHIPPING_CONFIG = {
     "id": CONFIG_ID,
-    "version": 1,
+    "version": 2,
     "currency": "EUR",
     "weight_unit": "kg",
+    "shipping_vat_rate": SHIPPING_VAT_RATE,
     "special_postal_prefixes": {
         "canarias": ["35", "38"],
         "ceuta": ["51"],
@@ -40,26 +66,16 @@ DEFAULT_SHIPPING_CONFIG = {
     "rules": {
         "retail": {
             "ES_PT_BAL": {
-                "method": "flat_with_free_threshold",
-                "amount_basis": "total_with_vat",
-                "free_threshold": 50.0,
+                "method": "weight_scale_conditional_free",
+                "free_amount_basis": "total_with_vat",
+                "free_min_amount": 50.0,
                 "free_operator": ">=",
-                "flat_fee": 4.99,
+                "weight_scale": EXCEL_WEIGHT_SCALE,
+                "over_scale_fee": 29.0,  # porte máximo (>35 kg)
             },
-            "FR": {
-                "method": "flat_with_free_threshold",
-                "amount_basis": "total_with_vat",
-                "free_threshold": 70.0,
-                "free_operator": ">=",
-                "flat_fee": 10.0,
-            },
-            "RESTRICTED": {
-                "method": "blocked",
-                "message": "Por el momento no realizamos envíos a Ceuta, Melilla y Canarias.",
-            },
-            "INTL": {
-                "method": "blocked",
-                "message": "Por el momento no realizamos envíos a tu país.",
+            "CANARIAS_EU": {
+                "method": "manual_quote",
+                "message": MANUAL_QUOTE_MESSAGE,
             },
         },
         "professional": {
@@ -67,23 +83,13 @@ DEFAULT_SHIPPING_CONFIG = {
                 "method": "weight_scale_conditional_free",
                 "free_amount_basis": "base_without_vat",
                 "free_min_amount": 150.0,
-                "free_operator": ">",
-                "retail_max_item_weight_kg": 1.0,
-                "bulk_item_weight_threshold_kg": 1.0,
-                "weight_scale": [
-                    {"from_kg": 0, "to_kg": 2, "fee": 4.0},
-                    {"from_kg": 2, "to_kg": 5, "fee": 6.0},
-                    {"from_kg": 5, "to_kg": 10, "fee": 10.0},
-                    {"from_kg": 10, "to_kg": 15, "fee": 15.0},
-                    {"from_kg": 15, "to_kg": 20, "fee": 20.0},
-                    {"from_kg": 20, "to_kg": 35, "fee": 22.0},
-                    {"from_kg": 35, "to_kg": 100, "fee": 25.0},
-                ],
-                "over_max_weight_kg": 100.0,
+                "free_operator": ">=",
+                "weight_scale": EXCEL_WEIGHT_SCALE,
+                "over_scale_fee": 29.0,  # porte máximo (>35 kg)
             },
             "CANARIAS_EU": {
                 "method": "manual_quote",
-                "message": "El coste de transporte se calculará manualmente y se le comunicará tras revisar el pedido.",
+                "message": MANUAL_QUOTE_MESSAGE,
             },
         },
     },
@@ -103,6 +109,7 @@ def country_to_code(country: str) -> str:
 
 
 def detect_zone(country: str, postal_code: str, is_retail: bool, cfg: dict) -> str:
+    """ES/PT peninsular + Baleares -> ES_PT_BAL. Todo lo demás -> CANARIAS_EU (manual)."""
     cc = country_to_code(country)
     pp = (str(postal_code or "")).strip()[:2]
     prefixes = cfg.get("special_postal_prefixes", {})
@@ -113,14 +120,12 @@ def detect_zone(country: str, postal_code: str, is_retail: bool, cfg: dict) -> s
 
     if cc == "ES":
         if pp in special_es:
-            return "RESTRICTED" if is_retail else "CANARIAS_EU"
+            return "CANARIAS_EU"
         return "ES_PT_BAL"  # mainland + Baleares (07)
     if cc == "PT":
         return "ES_PT_BAL"  # peninsular
-    if cc == "FR":
-        return "FR" if is_retail else "CANARIAS_EU"
-    # any other country
-    return "INTL" if is_retail else "CANARIAS_EU"
+    # Francia y cualquier otro país: presupuesto manual (retail y profesional)
+    return "CANARIAS_EU"
 
 
 def _weight_tier(scale: list, weight: float) -> Optional[dict]:
@@ -135,10 +140,20 @@ def _weight_tier(scale: list, weight: float) -> Optional[dict]:
     return None
 
 
+def shipping_with_vat(net_fee: float, vat_rate: int = SHIPPING_VAT_RATE) -> dict:
+    """Given a net shipping fee, return {ex_vat, vat, gross} at the given rate (21%)."""
+    net = round(float(net_fee), 2)
+    vat = round(net * vat_rate / 100, 2)
+    return {"ex_vat": net, "vat": vat, "gross": round(net + vat, 2)}
+
+
 async def get_shipping_config() -> dict:
     cfg = await db.shipping_config.find_one({"id": CONFIG_ID}, {"_id": 0})
-    if not cfg:
-        await db.shipping_config.insert_one({**DEFAULT_SHIPPING_CONFIG})
+    if not cfg or int(cfg.get("version", 1)) < 2:
+        # v1 -> v2 migration: replace with the new confirmed rules (Excel portes_b2b.xlsx)
+        await db.shipping_config.replace_one(
+            {"id": CONFIG_ID}, {**DEFAULT_SHIPPING_CONFIG}, upsert=True
+        )
         cfg = {**DEFAULT_SHIPPING_CONFIG}
     return cfg
 
@@ -152,12 +167,13 @@ def evaluate_shipping(
     subtotal_with_vat: float,
     subtotal_ex_vat: float,
     total_weight_kg: float,
-    has_bulk: bool,
+    has_bulk: bool = False,  # kept for API compatibility (no longer gates free shipping)
 ) -> dict:
     is_retail = customer_type != "professional"
     user_key = "retail" if is_retail else "professional"
     zone = detect_zone(country, postal_code, is_retail, cfg)
     role_subtotal = round(subtotal_with_vat if is_retail else subtotal_ex_vat, 2)
+    vat_rate = int(cfg.get("shipping_vat_rate", SHIPPING_VAT_RATE))
 
     base = {
         "zone": zone,
@@ -166,7 +182,10 @@ def evaluate_shipping(
         "subtotal_with_vat": round(subtotal_with_vat, 2),
         "subtotal_ex_vat": round(subtotal_ex_vat, 2),
         "total_weight_kg": round(total_weight_kg, 3),
-        "shipping_cost": 0.0,
+        "shipping_cost": 0.0,           # bruto (IVA 21% incl.) — importe cobrado
+        "shipping_cost_ex_vat": 0.0,    # base imponible del envío
+        "shipping_vat": 0.0,            # IVA del envío (21%)
+        "shipping_vat_rate": vat_rate,
         "total": role_subtotal,
         "free_shipping": False,
         "free_shipping_threshold": 0.0,
@@ -179,15 +198,13 @@ def evaluate_shipping(
 
     rule = (cfg.get("rules", {}).get(user_key, {}) or {}).get(zone)
     if not rule:
-        base["status"] = "blocked" if is_retail else "manual_quote"
-        base["method"] = "blocked" if is_retail else "manual_quote"
+        base["status"] = "manual_quote"
+        base["method"] = "manual_quote"
         base["shipping_cost"] = None
+        base["shipping_cost_ex_vat"] = None
+        base["shipping_vat"] = None
         base["total"] = None
-        base["message"] = (
-            "Por el momento no realizamos envíos a tu zona."
-            if is_retail
-            else "El coste de transporte se calculará manualmente."
-        )
+        base["message"] = MANUAL_QUOTE_MESSAGE
         return base
 
     method = rule["method"]
@@ -196,6 +213,8 @@ def evaluate_shipping(
     if method == "blocked":
         base["status"] = "blocked"
         base["shipping_cost"] = None
+        base["shipping_cost_ex_vat"] = None
+        base["shipping_vat"] = None
         base["total"] = None
         base["message"] = rule.get("message", "Envío no disponible para tu zona.")
         return base
@@ -203,61 +222,66 @@ def evaluate_shipping(
     if method == "manual_quote":
         base["status"] = "manual_quote"
         base["shipping_cost"] = None
+        base["shipping_cost_ex_vat"] = None
+        base["shipping_vat"] = None
         base["total"] = None
-        base["message"] = rule.get("message", "Coste de transporte pendiente de cálculo manual.")
+        base["message"] = rule.get("message", MANUAL_QUOTE_MESSAGE)
         return base
 
-    if method == "flat_with_free_threshold":
-        threshold = float(rule["free_threshold"])
-        amount = subtotal_with_vat if rule.get("amount_basis") == "total_with_vat" else subtotal_ex_vat
-        base["amount_basis"] = rule.get("amount_basis")
-        base["free_shipping_threshold"] = threshold
-        if amount >= threshold:
+    if method in ("weight_scale_conditional_free", "flat_with_free_threshold"):
+        basis_key = rule.get("free_amount_basis") or rule.get("amount_basis") or "total_with_vat"
+        amount = subtotal_with_vat if basis_key == "total_with_vat" else subtotal_ex_vat
+        free_min = float(rule.get("free_min_amount") or rule.get("free_threshold") or 0.0)
+        operator = rule.get("free_operator", ">=")
+        base["amount_basis"] = basis_key
+        base["free_shipping_threshold"] = free_min
+
+        is_free = amount > free_min if operator == ">" else amount >= free_min
+        if is_free:
             base["shipping_cost"] = 0.0
             base["free_shipping"] = True
             base["remaining_for_free_shipping"] = 0.0
-        else:
-            base["shipping_cost"] = round(float(rule["flat_fee"]), 2)
-            base["remaining_for_free_shipping"] = round(threshold - amount, 2)
-        base["total"] = round(role_subtotal + (base["shipping_cost"] or 0), 2)
-        return base
-
-    if method == "weight_scale_conditional_free":
-        base["amount_basis"] = rule.get("free_amount_basis", "base_without_vat")
-        free_min = float(rule.get("free_min_amount", 150.0))
-        base["free_shipping_threshold"] = free_min
-        # 1) Conditional free: only if NO bulk item AND base ex-VAT > min
-        if (not has_bulk) and subtotal_ex_vat > free_min:
-            base["shipping_cost"] = 0.0
-            base["free_shipping"] = True
             base["total"] = round(role_subtotal, 2)
-            base["message"] = "Portes gratuitos (pedido de detalle superior al mínimo)."
+            base["message"] = "Portes gratuitos."
             return base
-        # 2) Otherwise weight scale
-        over = float(rule.get("over_max_weight_kg", 100.0))
-        if total_weight_kg > over:
-            base["status"] = "manual_quote"
-            base["shipping_cost"] = None
-            base["total"] = None
-            base["message"] = f"Pedido superior a {over:.0f} kg: transporte calculado manualmente."
-            return base
-        tier = _weight_tier(rule.get("weight_scale", []), total_weight_kg)
-        if tier is None:
-            base["status"] = "manual_quote"
-            base["shipping_cost"] = None
-            base["total"] = None
-            base["message"] = "Transporte calculado manualmente según peso."
-            return base
-        base["shipping_cost"] = round(float(tier["fee"]), 2)
-        base["weight_tier"] = {"from_kg": tier["from_kg"], "to_kg": tier["to_kg"], "fee": tier["fee"]}
-        if not has_bulk:
-            base["remaining_for_free_shipping"] = round(max(0.0, free_min - subtotal_ex_vat), 2)
-        base["total"] = round(role_subtotal + base["shipping_cost"], 2)
+
+        base["remaining_for_free_shipping"] = round(max(0.0, free_min - amount), 2)
+
+        # fee (net) from weight scale (Excel) or flat fee
+        if method == "flat_with_free_threshold":
+            net_fee = float(rule.get("flat_fee", 0.0))
+        else:
+            scale = rule.get("weight_scale", EXCEL_WEIGHT_SCALE)
+            tier = _weight_tier(scale, total_weight_kg)
+            if tier is None:
+                # peso por encima de la escala -> porte máximo (Excel: >35 kg = 29 €)
+                over_fee = rule.get("over_scale_fee")
+                if over_fee is None:
+                    base["status"] = "manual_quote"
+                    base["shipping_cost"] = None
+                    base["shipping_cost_ex_vat"] = None
+                    base["shipping_vat"] = None
+                    base["total"] = None
+                    base["message"] = "Transporte calculado manualmente según peso."
+                    return base
+                net_fee = float(over_fee)
+                base["weight_tier"] = {"from_kg": 35, "to_kg": None, "fee": net_fee, "max": True}
+            else:
+                net_fee = float(tier["fee"])
+                base["weight_tier"] = {"from_kg": tier["from_kg"], "to_kg": tier["to_kg"], "fee": net_fee}
+
+        parts = shipping_with_vat(net_fee, vat_rate)
+        base["shipping_cost_ex_vat"] = parts["ex_vat"]
+        base["shipping_vat"] = parts["vat"]
+        base["shipping_cost"] = parts["gross"]
+        base["total"] = round(role_subtotal + parts["gross"], 2)
         return base
 
     # unknown method fallback
     base["status"] = "manual_quote"
     base["shipping_cost"] = None
+    base["shipping_cost_ex_vat"] = None
+    base["shipping_vat"] = None
     base["total"] = None
     base["message"] = "Coste de transporte pendiente."
     return base

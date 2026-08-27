@@ -7,15 +7,17 @@ import { useAuth } from "../context/AuthContext";
 import { formatEUR } from "../lib/api";
 import { useNavigate } from "react-router-dom";
 
-const FREE_SHIPPING = 50;
-
 export default function CartDrawer() {
   const { t } = useTranslation();
-  const { drawerOpen, closeDrawer, items, subtotal, updateQuantity, removeItem } = useCart();
+  const { drawerOpen, closeDrawer, items, subtotal, subtotalExVat, subtotalWithVat, updateQuantity, removeItem } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const remaining = useMemo(() => Math.max(0, FREE_SHIPPING - subtotal), [subtotal]);
-  const progressPct = Math.min(100, (subtotal / FREE_SHIPPING) * 100);
+  // Umbral de envío gratis por rol: particulares 50€ (IVA incl.) · profesionales verificados 150€ (base imponible)
+  const isVerifiedPro = !!user && user.role === "professional" && user.approved !== false;
+  const freeThreshold = isVerifiedPro ? 150 : 50;
+  const progressBasis = isVerifiedPro ? subtotalExVat : subtotalWithVat;
+  const remaining = useMemo(() => Math.max(0, freeThreshold - progressBasis), [freeThreshold, progressBasis]);
+  const progressPct = Math.min(100, (progressBasis / freeThreshold) * 100);
 
   return (
     <AnimatePresence>
@@ -46,7 +48,7 @@ export default function CartDrawer() {
             </div>
 
             <div className="px-6 py-4 bg-white border-b border-bone-200">
-              {subtotal >= FREE_SHIPPING ? (
+              {progressBasis >= freeThreshold ? (
                 <div
                   className="flex items-center gap-3 rounded-md bg-sage-50 border border-sage-200 px-4 py-3"
                   data-testid="free-shipping-achieved"

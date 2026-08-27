@@ -10,29 +10,21 @@ def slugify(value: str) -> str:
     return value.strip("-") or "producto"
 
 
-def calc_shipping(subtotal: float, customer_type: str) -> dict:
-    """Simple shipping calculator. Free over threshold."""
-    from core.config import (
-        FREE_SHIPPING_THRESHOLD,
-        SHIPPING_BASE,
-        SHIPPING_PROFESSIONAL,
-    )
+# NOTE: legacy calc_shipping removed — the active shipping engine is core/shipping.py
 
-    base = SHIPPING_PROFESSIONAL if customer_type == "professional" else SHIPPING_BASE
-    if subtotal >= FREE_SHIPPING_THRESHOLD:
-        shipping_cost = 0.0
-        remaining = 0.0
-        free = True
-    else:
-        shipping_cost = base
-        remaining = round(FREE_SHIPPING_THRESHOLD - subtotal, 2)
-        free = False
-    total = round(subtotal + shipping_cost, 2)
-    return {
-        "subtotal": round(subtotal, 2),
-        "shipping_cost": shipping_cost,
-        "total": total,
-        "free_shipping_threshold": FREE_SHIPPING_THRESHOLD,
-        "remaining_for_free_shipping": remaining,
-        "free_shipping": free,
-    }
+
+def parse_weight_from_format(name: str) -> float:
+    """Deriva el peso (kg) desde el nombre del formato: '150 g', '1 kg', '5 kg', '500 ml'."""
+    if not name:
+        return 0.0
+    m = re.search(r"(\d+(?:[.,]\d+)?)\s*(kg|kilos?|g|gr|gramos|ml|l|litros?)\b", str(name).lower())
+    if not m:
+        return 0.0
+    try:
+        val = float(m.group(1).replace(",", "."))
+    except ValueError:
+        return 0.0
+    unit = m.group(2)
+    if unit.startswith("k") or unit.startswith("l"):
+        return round(val, 3)  # kg / litros (≈1 kg por litro)
+    return round(val / 1000, 3)  # g / gr / ml

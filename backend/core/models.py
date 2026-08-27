@@ -31,6 +31,7 @@ class UserRegister(BaseModel):
     tax_id: Optional[str] = None
     business_type: Optional[str] = None
     phone: Optional[str] = None
+    message: Optional[str] = None  # mensaje opcional del registro profesional
 
 
 class UserLogin(BaseModel):
@@ -186,8 +187,8 @@ class NewsletterSubscribe(BaseModel):
 
 
 # ---------- Order ----------
-OrderStatus = Literal["Pendiente", "Pagado", "Enviado", "Completado", "Cancelado", "Reembolsado"]
-PaymentMethod = Literal["stripe", "paypal", "transfer", "other"]
+OrderStatus = Literal["Pendiente portes", "Pendiente", "Pagado", "Enviado", "Completado", "Cancelado", "Reembolsado"]
+PaymentMethod = Literal["stripe", "paypal", "transfer", "other", "pending_quote"]
 DeliveryMethod = Literal["shipping", "pickup"]
 
 

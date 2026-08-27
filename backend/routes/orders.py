@@ -15,8 +15,8 @@ from core.models import (
     OrderStatusUpdate,
     ShippingQuote,
 )
-from core.shipping import evaluate_shipping, get_shipping_config, CONFIG_ID
-from core.utils import calc_shipping
+from core.shipping import evaluate_shipping, get_shipping_config, shipping_with_vat, CONFIG_ID
+from core.utils import parse_weight_from_format
 
 logger = logging.getLogger("ecoandes.orders")
 
@@ -142,11 +142,18 @@ async def _next_order_number() -> str:
 
 
 def _allowed_payment_methods(delivery_method: str, is_pro: bool) -> list:
-    """Payment methods allowed per delivery + role. No cash on delivery anywhere."""
+    """Payment methods allowed per delivery + role. No cash on delivery anywhere.
+
+    - Particulares / invitados / profesionales NO verificados: solo Tarjeta (Stripe) y PayPal.
+    - Profesionales verificados: los 4 métodos (Tarjeta, PayPal, Transferencia, Otro/Confirming).
+    - Recogida en tienda: siempre pago online (Tarjeta / PayPal).
+    """
     if delivery_method == "pickup":
         return ["stripe", "paypal"]  # pay now to collect
-    # "other" = Confirming: disponible para clientes que llegan a un acuerdo con EcoAndes
-    return ["stripe", "paypal", "transfer", "other"]
+    if is_pro:
+        # "other" = Confirming: disponible para clientes que llegan a un acuerdo con EcoAndes
+        return ["stripe", "paypal", "transfer", "other"]
+    return ["stripe", "paypal"]
 
 
 @router.post("")
@@ -168,13 +175,8 @@ async def create_order(
         user.get("role") == "admin"
         or (user.get("role") == "professional" and user.get("approved"))
     )
-    # Validate payment method against role + delivery (no COD anywhere)
-    allowed_methods = _allowed_payment_methods(payload.delivery_method, bool(is_pro))
-    if payload.payment_method not in allowed_methods:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Método de pago no disponible para tu tipo de pedido. Permitidos: {', '.join(allowed_methods)}",
-        )
+    # Tipo efectivo: un profesional NO verificado compra con condiciones de particular
+    effective_type = "professional" if is_pro else "retail"
     for item in payload.items:
         product = await db.products.find_one({"id": item.product_id}, {"_id": 0})
         if not product:
@@ -189,8 +191,13 @@ async def create_order(
                 if v["name"] == item.variation_name or v["sku"] == item.sku:
                     unit_ex_vat = v["price_professional"] if is_pro else v["price_retail"]
                     weight_kg = float(v.get("weight_kg", 0) or 0)
+                    if weight_kg <= 0:
+                        # peso del formato del producto (ej. "150 g", "1 kg")
+                        weight_kg = parse_weight_from_format(v.get("name", ""))
                     variation_sku = v["sku"]
                     break
+        if weight_kg <= 0:
+            weight_kg = parse_weight_from_format(item.variation_name or product.get("name", ""))
         qty = max(1, int(item.quantity))
         line_ex_vat = round(unit_ex_vat * qty, 2)
         line_vat = round(line_ex_vat * vat_rate / 100, 2)
@@ -227,7 +234,7 @@ async def create_order(
     cfg = await get_shipping_config()
     ship = evaluate_shipping(
         cfg,
-        customer_type=payload.customer_type,
+        customer_type=effective_type,
         country=addr.country,
         postal_code=addr.postal_code,
         subtotal_with_vat=subtotal_with_vat,
@@ -236,6 +243,11 @@ async def create_order(
         has_bulk=has_bulk,
     )
     shipping_status = ship.get("status", "ok")
+    payment_method = payload.payment_method
+    payment_status = "pending"
+    order_status = "Pendiente"
+    shipping_cost_ex_vat = 0.0
+    shipping_vat = 0.0
     if payload.delivery_method == "pickup":
         # Click & Collect: no shipping cost
         shipping_cost = 0.0
@@ -243,9 +255,25 @@ async def create_order(
     elif shipping_status == "blocked":
         raise HTTPException(status_code=400, detail=ship.get("message", "Envío no disponible para tu zona."))
     elif shipping_status == "manual_quote":
-        shipping_cost = 0.0  # to be set by admin afterwards
+        # Canarias / fuera de península: pedido SIN pago, pendiente de presupuesto de portes.
+        # La administración fijará los portes y EcoAndes enviará al cliente el total por email.
+        shipping_cost = 0.0
+        payment_method = "pending_quote"
+        payment_status = "awaiting_quote"
+        order_status = "Pendiente portes"
     else:
-        shipping_cost = float(ship.get("shipping_cost") or 0.0)
+        shipping_cost = float(ship.get("shipping_cost") or 0.0)  # bruto (IVA 21% incl.)
+        shipping_cost_ex_vat = float(ship.get("shipping_cost_ex_vat") or 0.0)
+        shipping_vat = float(ship.get("shipping_vat") or 0.0)
+
+    # Validate payment method against role + delivery (skipped for manual-quote orders)
+    if shipping_status != "manual_quote":
+        allowed_methods = _allowed_payment_methods(payload.delivery_method, bool(is_pro))
+        if payment_method not in allowed_methods:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Método de pago no disponible para tu tipo de pedido. Permitidos: {', '.join(allowed_methods)}",
+            )
 
     # Apply coupon server-side (re-validated against DB rules). Stacks with free shipping.
     discount = 0.0
@@ -267,7 +295,7 @@ async def create_order(
         "order_number": order_number,
         "email": payload.email.lower(),
         "user_id": user["id"] if user else None,
-        "customer_type": payload.customer_type,
+        "customer_type": effective_type,
         "items": recomputed_items,
         "shipping_address": payload.shipping_address.model_dump(),
         "billing_address": payload.billing_address.model_dump() if payload.billing_address else None,
@@ -275,6 +303,9 @@ async def create_order(
         "subtotal_ex_vat": subtotal_ex_vat,
         "vat_amount": vat_amount,
         "shipping_cost": shipping_cost,
+        "shipping_cost_ex_vat": round(shipping_cost_ex_vat, 2),
+        "shipping_vat": round(shipping_vat, 2),
+        "shipping_vat_rate": 21,
         "shipping_status": shipping_status,
         "shipping_zone": ship.get("zone"),
         "total_weight_kg": round(total_weight_kg, 3),
@@ -282,10 +313,10 @@ async def create_order(
         "coupon_code": applied_coupon,
         "total": total,
         "currency": "EUR",
-        "status": "Pendiente",
-        "payment_method": payload.payment_method,
+        "status": order_status,
+        "payment_method": payment_method,
         "delivery_method": payload.delivery_method,
-        "payment_status": "pending",
+        "payment_status": payment_status,
         "payment_session_id": None,
         "payment_id": None,
         "notes": payload.notes,
@@ -395,7 +426,7 @@ async def admin_list_orders(
     return orders
 
 
-ORDER_STATUSES = ["Pendiente", "Pagado", "Enviado", "Completado", "Cancelado"]
+ORDER_STATUSES = ["Pendiente portes", "Pendiente", "Pagado", "Enviado", "Completado", "Cancelado"]
 
 
 @router.get("/admin/status-counts", dependencies=[Depends(require_admin)])
@@ -507,3 +538,46 @@ async def admin_update_status(order_id: str, payload: OrderStatusUpdate):
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
     order = await db.orders.find_one({"id": order_id}, {"_id": 0})
     return order
+
+
+class AdminShippingUpdate(BaseModel):
+    shipping_cost_ex_vat: float  # base imponible del transporte fijada por administración
+
+
+@router.patch("/admin/{order_id}/shipping", dependencies=[Depends(require_admin)])
+async def admin_set_shipping(order_id: str, payload: AdminShippingUpdate):
+    """Fija los portes de un pedido pendiente de presupuesto (Canarias / fuera de península).
+
+    La administración introduce la base imponible; se aplica siempre IVA 21% al transporte
+    y se recalcula el total. Después, EcoAndes envía manualmente al cliente el correo con
+    el importe total para que realice el pago.
+    """
+    order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado")
+    if payload.shipping_cost_ex_vat < 0:
+        raise HTTPException(status_code=400, detail="El importe de portes no puede ser negativo")
+
+    parts = shipping_with_vat(payload.shipping_cost_ex_vat)
+    new_total = round(
+        float(order.get("subtotal", 0.0)) + parts["gross"] - float(order.get("discount", 0.0)), 2
+    )
+    if new_total < 0:
+        new_total = 0.0
+    now = datetime.now(timezone.utc).isoformat()
+    updates = {
+        "shipping_cost": parts["gross"],
+        "shipping_cost_ex_vat": parts["ex_vat"],
+        "shipping_vat": parts["vat"],
+        "shipping_vat_rate": 21,
+        "shipping_status": "quoted",
+        "total": new_total,
+        "updated_at": now,
+    }
+    # El pedido pasa a Pendiente (ya se puede gestionar el pago)
+    if order.get("status") == "Pendiente portes":
+        updates["status"] = "Pendiente"
+    if order.get("payment_status") == "awaiting_quote":
+        updates["payment_status"] = "pending"
+    await db.orders.update_one({"id": order_id}, {"$set": updates})
+    return await db.orders.find_one({"id": order_id}, {"_id": 0})

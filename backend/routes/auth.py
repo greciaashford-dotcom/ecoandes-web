@@ -71,6 +71,7 @@ async def register(payload: UserRegister):
         "tax_id": payload.tax_id,
         "business_type": payload.business_type,
         "phone": payload.phone,
+        "message": (payload.message or "").strip()[:1000] or None,
         "approved": approved,
         "verification": verification if is_professional else None,
         "verified_company_name": verified_company_name,

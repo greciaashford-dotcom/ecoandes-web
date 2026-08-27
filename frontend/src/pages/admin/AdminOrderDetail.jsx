@@ -1,10 +1,46 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, formatEUR } from "../../lib/api";
 import { toast } from "sonner";
 import { StatusPill } from "./AdminDashboard";
 
-const STATUSES = ["Pendiente", "Pagado", "Enviado", "Completado", "Cancelado", "Reembolsado"];
+const STATUSES = ["Pendiente portes", "Pendiente", "Pagado", "Enviado", "Completado", "Cancelado", "Reembolsado"];
+
+// Desglose fiscal del pedido: productos (base + IVA por %) y envío (base + IVA siempre 21%)
+function computeBreakdown(order) {
+  if (!order) return null;
+  const groups = {};
+  let productsEx = 0;
+  (order.items || []).forEach((it) => {
+    const rate = Number(it.vat_rate ?? 0);
+    const qty = Number(it.quantity || 1);
+    let unitEx = it.unit_price_ex_vat;
+    if (unitEx == null) {
+      const unit = Number(it.unit_price || 0);
+      unitEx = rate ? unit / (1 + rate / 100) : unit;
+    }
+    const lineEx = Math.round(Number(unitEx) * qty * 100) / 100;
+    productsEx += lineEx;
+    groups[rate] = (groups[rate] || 0) + Math.round(lineEx * rate) / 100;
+  });
+  const shippingGross = Number(order.shipping_cost || 0);
+  let shipEx = order.shipping_cost_ex_vat;
+  let shipVat = order.shipping_vat;
+  if (shipEx == null || shipVat == null) {
+    shipEx = Math.round((shippingGross / 1.21) * 100) / 100;
+    shipVat = Math.round((shippingGross - shipEx) * 100) / 100;
+  }
+  return {
+    productsEx: Math.round(productsEx * 100) / 100,
+    vatGroups: Object.entries(groups)
+      .map(([rate, amount]) => ({ rate: Number(rate), amount: Math.round(amount * 100) / 100 }))
+      .filter((g) => g.amount > 0)
+      .sort((a, b) => a.rate - b.rate),
+    shippingEx: Number(shipEx || 0),
+    shippingVat: Number(shipVat || 0),
+    shippingGross,
+  };
+}
 
 export default function AdminOrderDetail() {
   const { id } = useParams();
@@ -14,6 +50,8 @@ export default function AdminOrderDetail() {
   const [refundReason, setRefundReason] = useState("");
   const [refundAmount, setRefundAmount] = useState("");
   const [refunding, setRefunding] = useState(false);
+  const [quoteNet, setQuoteNet] = useState("");
+  const [savingQuote, setSavingQuote] = useState(false);
 
   const load = async () => {
     const { data } = await api.get(`/orders/admin/${id}`);
@@ -30,6 +68,12 @@ export default function AdminOrderDetail() {
     }).catch(() => {});
   }, []);
 
+  const breakdown = useMemo(() => computeBreakdown(order), [order]);
+  const awaitingQuote = order && (order.shipping_status === "manual_quote" || order.status === "Pendiente portes");
+  const quoteNetNum = Number(quoteNet) || 0;
+  const quoteVat = Math.round(quoteNetNum * 21) / 100;
+  const quoteGross = Math.round((quoteNetNum + quoteVat) * 100) / 100;
+
   const updateStatus = async (status) => {
     setUpdating(true);
     try {
@@ -41,12 +85,27 @@ export default function AdminOrderDetail() {
     } finally { setUpdating(false); }
   };
 
+  const saveShippingQuote = async () => {
+    if (quoteNet === "" || quoteNetNum < 0) { toast.error("Introduce la base imponible de los portes"); return; }
+    setSavingQuote(true);
+    try {
+      const { data } = await api.patch(`/orders/admin/${id}/shipping`, { shipping_cost_ex_vat: quoteNetNum });
+      setOrder(data);
+      setRefundAmount(String(data.total ?? ""));
+      toast.success("Portes fijados", {
+        description: `${formatEUR(data.shipping_cost)} (base ${formatEUR(data.shipping_cost_ex_vat)} + IVA 21%). Envía manualmente al cliente el correo con el total para el pago.`,
+      });
+    } catch (e) {
+      toast.error("Error al fijar portes", { description: e?.response?.data?.detail });
+    } finally { setSavingQuote(false); }
+  };
+
   const doRefund = async () => {
     if (!refundReason) { toast.error("Selecciona un motivo"); return; }
     if (!window.confirm(`¿Reembolsar ${refundAmount}€ del pedido ${order.order_number}?`)) return;
     setRefunding(true);
     try {
-      const { data } = await api.post(`/orders/admin/${id}/refund`, {
+      const { data } = await api.post(`/admin/orders/${id}/refund`, {
         reason: refundReason,
         amount: refundAmount === "" ? null : Number(refundAmount),
         notify: true,
@@ -74,6 +133,33 @@ export default function AdminOrderDetail() {
         <StatusPill status={order.status} />
       </div>
 
+      {awaitingQuote && (
+        <div className="mt-6 bg-terracotta/5 border border-terracotta/40 rounded-sm p-5" data-testid="shipping-quote-panel">
+          <h2 className="font-heading text-lg font-normal text-ink">Portes pendientes de presupuesto</h2>
+          <p className="text-xs text-ink-soft mt-1.5 leading-relaxed">
+            Destino: <strong>{addr.postal_code} {addr.city}, {addr.country}</strong> · Peso total: <strong>{Number(order.total_weight_kg || 0).toFixed(2)} kg</strong>.
+            Calcula los portes según peso, volumen y destino, fíjalos aquí y después envía manualmente al cliente el correo con el importe total para que realice el pago.
+          </p>
+          <div className="mt-4 flex flex-wrap items-end gap-3">
+            <label className="block text-xs text-ink-soft">Portes (base imponible, €)
+              <input
+                type="number" min="0" step="0.01"
+                className="input-eco mt-1 w-44"
+                value={quoteNet}
+                onChange={(e) => setQuoteNet(e.target.value)}
+                data-testid="shipping-quote-input"
+              />
+            </label>
+            <div className="text-xs text-ink-soft pb-2.5" data-testid="shipping-quote-preview">
+              + IVA 21% ({formatEUR(quoteVat)}) = <strong className="text-ink">{formatEUR(quoteGross)}</strong>
+            </div>
+            <button onClick={saveShippingQuote} disabled={savingQuote || quoteNet === ""} className="btn-primary disabled:opacity-60" data-testid="shipping-quote-save">
+              {savingQuote ? "Guardando…" : "Fijar portes y actualizar total"}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-white border border-bone-200 p-6">
           <h2 className="font-heading text-xl font-normal mb-4">Productos</h2>
@@ -86,17 +172,38 @@ export default function AdminOrderDetail() {
                 <div className="flex-1">
                   <div className="text-sm text-ink">{it.name}</div>
                   {it.variation_name && <div className="text-xs text-ink-soft">{it.variation_name}</div>}
-                  <div className="text-xs text-ink-soft">SKU: {it.sku}</div>
+                  <div className="text-xs text-ink-soft">SKU: {it.sku}{it.vat_rate != null ? ` · IVA ${it.vat_rate}%` : ""}</div>
                 </div>
                 <div className="text-sm">{it.quantity} × {formatEUR(it.unit_price)}</div>
                 <div className="text-sm font-medium">{formatEUR(it.unit_price * it.quantity)}</div>
               </li>
             ))}
           </ul>
-          <div className="mt-6 border-t border-bone-200 pt-4 text-sm space-y-1.5 max-w-xs ml-auto">
-            <div className="flex justify-between"><span className="text-ink-soft">Subtotal</span><span>{formatEUR(order.subtotal)}</span></div>
-            <div className="flex justify-between"><span className="text-ink-soft">Envío</span><span>{formatEUR(order.shipping_cost)}</span></div>
-            <div className="flex justify-between text-base font-medium pt-2 border-t border-bone-200"><span>Total</span><span>{formatEUR(order.total)}</span></div>
+          <div className="mt-6 border-t border-bone-200 pt-4 text-sm space-y-1.5 max-w-xs ml-auto" data-testid="order-totals">
+            {breakdown && (
+              <>
+                <div className="flex justify-between"><span className="text-ink-soft">Productos (base imponible)</span><span data-testid="totals-products-ex">{formatEUR(breakdown.productsEx)}</span></div>
+                {breakdown.vatGroups.map((g) => (
+                  <div key={g.rate} className="flex justify-between" data-testid={`totals-products-vat-${g.rate}`}>
+                    <span className="text-ink-soft">IVA productos ({g.rate}%)</span><span>{formatEUR(g.amount)}</span>
+                  </div>
+                ))}
+              </>
+            )}
+            <div className="flex justify-between">
+              <span className="text-ink-soft">Envío (base)</span>
+              <span data-testid="totals-shipping-ex">{awaitingQuote ? "Pendiente" : formatEUR(breakdown?.shippingEx || 0)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-ink-soft">IVA envío (21%)</span>
+              <span data-testid="totals-shipping-vat">{awaitingQuote ? "Pendiente" : formatEUR(breakdown?.shippingVat || 0)}</span>
+            </div>
+            {Number(order.discount || 0) > 0 && (
+              <div className="flex justify-between text-sage-700"><span>Descuento{order.coupon_code ? ` (${order.coupon_code})` : ""}</span><span>-{formatEUR(order.discount)}</span></div>
+            )}
+            <div className="flex justify-between text-base font-medium pt-2 border-t border-bone-200">
+              <span>Total{awaitingQuote ? " (sin portes)" : ""}</span><span data-testid="totals-total">{formatEUR(order.total)}</span>
+            </div>
           </div>
         </div>
 
@@ -115,12 +222,15 @@ export default function AdminOrderDetail() {
               {addr.postal_code} {addr.city}<br />
               {addr.province}, {addr.country}
             </div>
+            {order.total_weight_kg != null && (
+              <div className="text-xs text-ink-muted mt-2">Peso total: {Number(order.total_weight_kg).toFixed(2)} kg{order.shipping_zone ? ` · Zona: ${order.shipping_zone}` : ""}</div>
+            )}
             {addr.notes && <div className="text-xs text-ink-muted mt-3">Notas: {addr.notes}</div>}
           </div>
           <div className="bg-white border border-bone-200 p-6">
             <h3 className="overline mb-3">Pago</h3>
-            <div className="text-sm capitalize">{order.payment_method}</div>
-            <div className="text-xs text-ink-soft">Estado: {order.payment_status}</div>
+            <div className="text-sm capitalize">{order.payment_method === "pending_quote" ? "Pendiente de presupuesto de portes" : order.payment_method}</div>
+            <div className="text-xs text-ink-soft">Estado: {order.payment_status === "awaiting_quote" ? "esperando presupuesto" : order.payment_status}</div>
           </div>
           <div className="bg-white border border-bone-200 p-6">
             <h3 className="overline mb-3">Cambiar estado</h3>
@@ -138,6 +248,20 @@ export default function AdminOrderDetail() {
           {/* Refund */}
           <div className="bg-white border border-bone-200 p-6" data-testid="order-refund-panel">
             <h3 className="overline mb-3">Reembolso</h3>
+            {breakdown && (
+              <div className="mb-4 rounded-sm bg-bone-50 border border-bone-200 p-3 text-xs space-y-1" data-testid="refund-breakdown">
+                <div className="text-[10px] uppercase tracking-[0.18em] text-ink-muted mb-1.5">Desglose del pedido</div>
+                <div className="flex justify-between"><span className="text-ink-soft">Productos (base)</span><span data-testid="refund-products-ex">{formatEUR(breakdown.productsEx)}</span></div>
+                {breakdown.vatGroups.map((g) => (
+                  <div key={g.rate} className="flex justify-between" data-testid={`refund-products-vat-${g.rate}`}>
+                    <span className="text-ink-soft">IVA productos ({g.rate}%)</span><span>{formatEUR(g.amount)}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between"><span className="text-ink-soft">Envío (base)</span><span data-testid="refund-shipping-ex">{formatEUR(breakdown.shippingEx)}</span></div>
+                <div className="flex justify-between"><span className="text-ink-soft">IVA envío (21%)</span><span data-testid="refund-shipping-vat">{formatEUR(breakdown.shippingVat)}</span></div>
+                <div className="flex justify-between font-medium text-ink pt-1.5 border-t border-bone-200"><span>Total pedido</span><span>{formatEUR(order.total)}</span></div>
+              </div>
+            )}
             {order.status === "Reembolsado" || order.payment_status === "refunded" ? (
               <div className="text-sm" data-testid="order-refunded-note">
                 <div className="inline-flex items-center gap-1.5 text-sage-700 bg-sage-50 border border-sage-200 rounded-full px-3 py-1 text-xs uppercase tracking-wide">Reembolsado</div>
