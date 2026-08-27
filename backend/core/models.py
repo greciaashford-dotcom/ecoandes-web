@@ -124,6 +124,7 @@ class ProductBase(BaseModel):
     highlights: str = ""  # premium subtitle / tagline from source site
     price_retail: float        # default/base format PVP, SIN IVA
     price_professional: float  # default/base format B2B, SIN IVA
+    compare_at_price: Optional[float] = None  # precio anterior (retail, IVA incl.) para ofertas/descuentos
     vat_rate: int = 10         # 4 | 10 | 21 (% IVA aplicado dinámicamente)
     origin_country: str = ""   # país de origen (Excel "Origen")
     stock: int = 0
@@ -160,6 +161,7 @@ class ProductUpdate(BaseModel):
     highlights: Optional[str] = None
     price_retail: Optional[float] = None
     price_professional: Optional[float] = None
+    compare_at_price: Optional[float] = None
     vat_rate: Optional[int] = None
     origin_country: Optional[str] = None
     stock: Optional[int] = None

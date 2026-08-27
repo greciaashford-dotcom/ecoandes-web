@@ -52,6 +52,9 @@ export default function AdminOrderDetail() {
   const [refunding, setRefunding] = useState(false);
   const [quoteNet, setQuoteNet] = useState("");
   const [savingQuote, setSavingQuote] = useState(false);
+  const [msgSubject, setMsgSubject] = useState("");
+  const [msgBody, setMsgBody] = useState("");
+  const [sendingMsg, setSendingMsg] = useState(false);
 
   const load = async () => {
     const { data } = await api.get(`/orders/admin/${id}`);
@@ -98,6 +101,30 @@ export default function AdminOrderDetail() {
     } catch (e) {
       toast.error("Error al fijar portes", { description: e?.response?.data?.detail });
     } finally { setSavingQuote(false); }
+  };
+
+  const sendCustomerMessage = async () => {
+    const msg = msgBody.trim();
+    if (!msg) { toast.error("Escribe el mensaje para el cliente"); return; }
+    setSendingMsg(true);
+    try {
+      const { data } = await api.post(`/orders/admin/${id}/message`, {
+        subject: msgSubject.trim() || null,
+        message: msg,
+      });
+      if (data.sent) {
+        toast.success("Mensaje enviado", { description: `Correo enviado a ${order.email}` });
+      } else {
+        toast.warning("Mensaje registrado, pero el correo no se pudo enviar", {
+          description: "Revisa la configuración de Resend (dominio remitente sin verificar).",
+        });
+      }
+      setMsgSubject("");
+      setMsgBody("");
+      load();
+    } catch (e) {
+      toast.error("Error al enviar", { description: e?.response?.data?.detail });
+    } finally { setSendingMsg(false); }
   };
 
   const doRefund = async () => {
@@ -243,6 +270,57 @@ export default function AdminOrderDetail() {
             >
               {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
+          </div>
+
+          {/* Mensaje personalizado al cliente */}
+          <div className="bg-white border border-bone-200 p-6" data-testid="customer-message-panel">
+            <h3 className="overline mb-3">Mensaje al cliente</h3>
+            <p className="text-[11px] text-ink-muted mb-3 leading-relaxed">
+              Se enviará directamente al correo del cliente (<strong>{order.email}</strong>) con la
+              plantilla corporativa de EcoAndes. Útil para comunicar portes, reembolsos o incidencias.
+            </p>
+            <div className="space-y-3">
+              <input
+                type="text"
+                className="input-eco w-full"
+                placeholder="Asunto (opcional)"
+                value={msgSubject}
+                onChange={(e) => setMsgSubject(e.target.value)}
+                maxLength={150}
+                data-testid="customer-message-subject"
+              />
+              <textarea
+                className="input-eco w-full min-h-[110px]"
+                placeholder="Escribe aquí el mensaje personalizado para el cliente…"
+                value={msgBody}
+                onChange={(e) => setMsgBody(e.target.value)}
+                maxLength={5000}
+                data-testid="customer-message-body"
+              />
+              <button
+                onClick={sendCustomerMessage}
+                disabled={sendingMsg || !msgBody.trim()}
+                className="btn-primary w-full disabled:opacity-60"
+                data-testid="customer-message-send"
+              >
+                {sendingMsg ? "Enviando…" : "Enviar al correo del cliente"}
+              </button>
+            </div>
+            {(order.customer_messages || []).length > 0 && (
+              <div className="mt-4 border-t border-bone-200 pt-3 space-y-2" data-testid="customer-message-history">
+                <div className="text-[10px] uppercase tracking-[0.18em] text-ink-muted">Mensajes enviados</div>
+                {[...order.customer_messages].reverse().slice(0, 3).map((m, i) => (
+                  <div key={i} className="text-xs bg-bone-50 border border-bone-200 rounded-sm p-2.5">
+                    <div className="flex items-center justify-between text-[10px] text-ink-muted mb-1">
+                      <span>{new Date(m.sent_at).toLocaleString("es-ES")}</span>
+                      <span className={m.sent ? "text-sage-700" : "text-terracotta"}>{m.sent ? "Enviado" : "No entregado"}</span>
+                    </div>
+                    {m.subject && <div className="font-medium text-ink">{m.subject}</div>}
+                    <div className="text-ink-soft line-clamp-3 whitespace-pre-line">{m.message}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Refund */}

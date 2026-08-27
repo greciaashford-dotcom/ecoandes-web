@@ -227,6 +227,29 @@ async def _send(to: str, subject: str, html: str) -> Optional[str]:
         return None
 
 
+# ---------- Mensaje personalizado de EcoAndes al cliente (desde admin) ----------
+async def send_custom_customer_message(order: dict, subject: Optional[str], message: str) -> Optional[str]:
+    """Envía un mensaje personalizado al correo del cliente con la plantilla de marca."""
+    from html import escape as _esc
+
+    order_no = order.get("order_number", "")
+    addr = order.get("shipping_address", {}) or {}
+    name = (addr.get("full_name") or "").split(" ")[0] or "cliente"
+    subj = (subject or "").strip() or f"Mensaje de EcoAndes sobre tu pedido #{order_no}"
+    safe = _esc(message).replace("\n", "<br/>")
+    body = f"""
+      <p style="color:#606962;font-size:14px;line-height:1.7;">Hola {_esc(name)},</p>
+      <div style="margin-top:10px;padding:16px 18px;background:#F4F6F2;border-left:3px solid #72A638;color:#2D332F;font-size:14px;line-height:1.7;">
+        {safe}
+      </div>
+      <p style="color:#9AA39C;font-size:12px;line-height:1.6;margin-top:16px;">
+        Referencia: pedido <strong>#{order_no}</strong>. Si tienes cualquier duda, responde a este correo
+        o escríbenos a través de la web.
+      </p>
+    """
+    return await _send(order.get("email"), subj, _wrap("Mensaje de EcoAndes", body))
+
+
 # ---------- Professional account: under review ----------
 async def send_professional_review(user: dict) -> Optional[str]:
     name = user.get("first_name", "")

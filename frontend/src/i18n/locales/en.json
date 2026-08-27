@@ -45,7 +45,13 @@
     "checkout": "Proceed to checkout",
     "decrease": "Decrease",
     "increase": "Increase",
-    "remove": "Remove"
+    "remove": "Remove",
+    "continueShopping": "Continue shopping",
+    "addedToCart": "Added to cart",
+    "related": "Related products",
+    "recommended": "Recommended for you",
+    "explore": "Explore more items",
+    "offersIn": "Deals for you in {{category}}"
   },
   "cookie": {
     "badge": "Cookies · RGPD / LSSI-CE",

@@ -45,7 +45,13 @@
     "checkout": "購入手続きへ",
     "decrease": "減らす",
     "increase": "増やす",
-    "remove": "削除"
+    "remove": "削除",
+    "continueShopping": "買い物を続ける",
+    "addedToCart": "カートに追加しました",
+    "related": "関連商品",
+    "recommended": "あなたへのおすすめ",
+    "explore": "その他の商品を見る",
+    "offersIn": "{{category}}のお得な商品"
   },
   "cookie": {
     "badge": "Cookie · RGPD / LSSI-CE",

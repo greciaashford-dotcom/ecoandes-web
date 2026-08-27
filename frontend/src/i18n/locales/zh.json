@@ -45,7 +45,13 @@
     "checkout": "结账",
     "decrease": "减少",
     "increase": "增加",
-    "remove": "删除"
+    "remove": "删除",
+    "continueShopping": "继续购物",
+    "addedToCart": "已加入购物车",
+    "related": "相关商品",
+    "recommended": "为您推荐",
+    "explore": "探索更多商品",
+    "offersIn": "{{category}}的优惠商品"
   },
   "cookie": {
     "badge": "Cookie · RGPD / LSSI-CE",

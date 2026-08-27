@@ -183,6 +183,104 @@ async def list_categories(lang: Optional[str] = None):
     return [{"value": c, "label": mapping.get(c, c)} for c in cats]
 
 
+@router.get("/recommendations")
+async def product_recommendations(
+    product_id: Optional[str] = None,
+    viewed: Optional[str] = None,  # ids recientes separados por coma (historial de navegación)
+    lang: Optional[str] = None,
+    limit: int = Query(8, le=12),
+    user: Optional[dict] = Depends(get_current_user_optional),
+):
+    """Secciones dinámicas estilo Amazon para el panel del carrito.
+
+    - related: cross-selling (misma categoría del producto añadido)
+    - recommended: up-selling (perfil de compra del usuario o destacados)
+    - explore: historial de navegación + más vendidos
+    - offers: productos con descuento (compare_at_price) — aparece automáticamente
+      cuando existan descuentos; prioriza la categoría del producto añadido.
+    """
+    base_prod = None
+    if product_id:
+        base_prod = await db.products.find_one({"id": product_id, "active": True}, {"_id": 0})
+    category = (base_prod or {}).get("category")
+    seen = {product_id} if product_id else set()
+
+    def take(pool: List[dict], n: int) -> List[dict]:
+        out = []
+        for p in pool:
+            if p["id"] in seen:
+                continue
+            seen.add(p["id"])
+            out.append(p)
+            if len(out) >= n:
+                break
+        return out
+
+    # 1) Relacionados (cross-selling): misma categoría, priorizando bestsellers/destacados
+    related_pool: List[dict] = []
+    if category:
+        related_pool = await db.products.find({"active": True, "category": category}, {"_id": 0}).to_list(80)
+        related_pool.sort(key=lambda p: (not p.get("best_seller"), not p.get("featured"), -(p.get("web_rating") or 0)))
+    related = take(related_pool, limit)
+
+    # 2) Recomendados (up-selling): categorías compradas por el usuario; fallback destacados
+    rec_pool: List[dict] = []
+    if user and user.get("email"):
+        past = await db.orders.find({"email": user["email"]}, {"items.product_id": 1, "_id": 0}).sort("created_at", -1).to_list(10)
+        past_ids = [it.get("product_id") for o in past for it in (o.get("items") or []) if it.get("product_id")]
+        if past_ids:
+            past_cats = await db.products.distinct("category", {"id": {"$in": past_ids}})
+            if past_cats:
+                rec_pool = await db.products.find({"active": True, "category": {"$in": past_cats}}, {"_id": 0}).to_list(100)
+                rec_pool.sort(key=lambda p: (not p.get("best_seller"), -(p.get("web_rating") or 0)))
+    if not rec_pool:
+        rec_pool = await db.products.find({"active": True, "featured": True}, {"_id": 0}).to_list(60)
+        rec_pool.sort(key=lambda p: (not p.get("best_seller"), -(p.get("web_rating") or 0)))
+    if len(rec_pool) < limit * 2:
+        more = await db.products.find({"active": True, "best_seller": True}, {"_id": 0}).to_list(60)
+        top = await db.products.find({"active": True}, {"_id": 0}).limit(120).to_list(120)
+        top.sort(key=lambda p: -(p.get("web_rating") or 0))
+        rec_pool.extend(more + top[:40])
+    recommended = take(rec_pool, limit)
+
+    # 3) Explorar más artículos: historial de navegación + populares
+    explore_pool: List[dict] = []
+    viewed_ids = [v.strip() for v in (viewed or "").split(",") if v.strip()][:20]
+    if viewed_ids:
+        v_items = await db.products.find({"active": True, "id": {"$in": viewed_ids}}, {"_id": 0}).to_list(40)
+        order_map = {pid: i for i, pid in enumerate(viewed_ids)}
+        v_items.sort(key=lambda d: order_map.get(d["id"], 999))
+        explore_pool.extend(v_items)
+    populars = await db.products.find({"active": True, "best_seller": True}, {"_id": 0}).to_list(60)
+    explore_pool.extend(populars)
+    if len(explore_pool) < limit:
+        extra = await db.products.find({"active": True}, {"_id": 0}).limit(80).to_list(80)
+        extra.sort(key=lambda p: -(p.get("web_rating") or 0))
+        explore_pool.extend(extra)
+    explore = take(explore_pool, limit)
+
+    # 4) Ofertas: solo productos con compare_at_price > precio actual (auto cuando haya descuentos)
+    offers_pool = await db.products.find(
+        {"active": True, "compare_at_price": {"$gt": 0}}, {"_id": 0}
+    ).to_list(100)
+
+    def _current_retail_with_vat(p: dict) -> float:
+        vat = p.get("vat_rate", 10) or 0
+        return round((p.get("price_retail") or 0) * (1 + vat / 100), 2)
+
+    offers_pool = [p for p in offers_pool if (p.get("compare_at_price") or 0) > _current_retail_with_vat(p)]
+    offers_pool.sort(key=lambda p: (p.get("category") != category, not p.get("best_seller")))
+    offers = take(offers_pool, limit)
+
+    return {
+        "category": category,
+        "related": [_decorate(p, user, lang) for p in related],
+        "recommended": [_decorate(p, user, lang) for p in recommended],
+        "explore": [_decorate(p, user, lang) for p in explore],
+        "offers": [_decorate(p, user, lang) for p in offers],
+    }
+
+
 @router.get("/slug/{slug}")
 async def get_by_slug(
     slug: str,

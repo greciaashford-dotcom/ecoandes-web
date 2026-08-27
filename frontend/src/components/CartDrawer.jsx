@@ -1,15 +1,16 @@
 import React, { useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
-import { X, Plus, Minus, Trash2, Truck, PartyPopper } from "lucide-react";
+import { X, Plus, Minus, Trash2, Truck, PartyPopper, CheckCircle2 } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
-import { formatEUR } from "../lib/api";
+import { formatEUR, resolveAsset } from "../lib/api";
 import { useNavigate } from "react-router-dom";
+import CartRecommendations from "./CartRecommendations";
 
 export default function CartDrawer() {
   const { t } = useTranslation();
-  const { drawerOpen, closeDrawer, items, subtotal, subtotalExVat, subtotalWithVat, updateQuantity, removeItem } = useCart();
+  const { drawerOpen, closeDrawer, items, subtotal, subtotalExVat, subtotalWithVat, updateQuantity, removeItem, lastAdded } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
   // Umbral de envío gratis por rol: particulares 50€ (IVA incl.) · profesionales verificados 150€ (base imponible)
@@ -46,6 +47,25 @@ export default function CartDrawer() {
                 <X size={22} />
               </button>
             </div>
+
+            {/* Confirmación estilo Amazon del último producto añadido */}
+            {lastAdded && items.length > 0 && (
+              <div className="px-6 py-3.5 bg-sage-50 border-b border-sage-200 flex items-center gap-3" data-testid="cart-added-confirmation">
+                <CheckCircle2 size={20} className="text-sage-600 shrink-0" />
+                <div className="w-10 h-10 bg-white border border-bone-200 rounded-md overflow-hidden shrink-0">
+                  {lastAdded.image_url ? (
+                    <img src={resolveAsset(lastAdded.image_url)} alt={lastAdded.name} className="w-full h-full object-contain p-0.5" />
+                  ) : null}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-sage-700 leading-tight">{t("cart.addedToCart")}</div>
+                  <div className="text-xs text-ink-soft truncate">
+                    {lastAdded.name}
+                    {lastAdded.variation_name ? ` · ${lastAdded.variation_name}` : ""}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="px-6 py-4 bg-white border-b border-bone-200">
               {progressBasis >= freeThreshold ? (
@@ -147,6 +167,11 @@ export default function CartDrawer() {
                   ))}
                 </ul>
               )}
+
+              {/* Secciones dinámicas: relacionados, recomendados, explorar, ofertas */}
+              {items.length > 0 && (
+                <CartRecommendations seedProductId={(lastAdded || items[items.length - 1])?.product_id} />
+              )}
             </div>
 
             {items.length > 0 && (
@@ -158,6 +183,13 @@ export default function CartDrawer() {
                 <div className="text-xs text-ink-muted mb-4">
                   {user?.role === "professional" ? t("cart.proPrices") : t("cart.taxesNote")}
                 </div>
+                <button
+                  onClick={closeDrawer}
+                  data-testid="cart-continue-shopping-btn"
+                  className="btn-outline w-full mb-3"
+                >
+                  {t("cart.continueShopping")}
+                </button>
                 <button
                   onClick={() => { closeDrawer(); navigate("/checkout"); }}
                   data-testid="cart-checkout-btn"

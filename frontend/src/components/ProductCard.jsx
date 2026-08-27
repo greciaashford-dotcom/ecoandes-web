@@ -84,7 +84,6 @@ export default function ProductCard({ product }) {
       </div>
 
       <div className="p-4">
-        <div className="overline text-sage-600 mb-1.5 line-clamp-1">{product.category}</div>
         <h3 className="font-heading text-base text-ink leading-snug line-clamp-2 min-h-[2.6rem] transition-colors duration-200 group-hover:text-sage-700">{product.name}</h3>
         {rating > 0 && (
           <div className="flex items-center gap-1.5 mt-1.5">

@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from core.auth import get_current_user_optional, require_admin
 from core.config import db
-from core.mailer import send_company_order_notice, send_order_confirmation
+from core.mailer import send_company_order_notice, send_order_confirmation, send_custom_customer_message
 from core.models import (
     Order,
     OrderCreate,
@@ -581,3 +581,34 @@ async def admin_set_shipping(order_id: str, payload: AdminShippingUpdate):
         updates["payment_status"] = "pending"
     await db.orders.update_one({"id": order_id}, {"$set": updates})
     return await db.orders.find_one({"id": order_id}, {"_id": 0})
+
+
+class AdminCustomerMessage(BaseModel):
+    subject: Optional[str] = None
+    message: str
+
+
+@router.post("/admin/{order_id}/message", dependencies=[Depends(require_admin)])
+async def admin_send_customer_message(order_id: str, payload: AdminCustomerMessage):
+    """Mensaje personalizado de EcoAndes enviado directamente al correo del cliente.
+
+    Usa la plantilla corporativa. Queda registrado en el pedido (customer_messages).
+    """
+    order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado")
+    msg = (payload.message or "").strip()
+    if not msg:
+        raise HTTPException(status_code=400, detail="El mensaje no puede estar vacío")
+    if len(msg) > 5000:
+        raise HTTPException(status_code=400, detail="Mensaje demasiado largo (máx. 5000 caracteres)")
+    email_id = await send_custom_customer_message(order, payload.subject, msg)
+    entry = {
+        "subject": (payload.subject or "").strip() or None,
+        "message": msg,
+        "sent": bool(email_id),
+        "email_id": email_id,
+        "sent_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.orders.update_one({"id": order_id}, {"$push": {"customer_messages": entry}})
+    return {"sent": bool(email_id), "entry": entry}

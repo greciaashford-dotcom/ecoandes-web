@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { toast } from "sonner";
 
 const CartContext = createContext(null);
 const STORAGE_KEY = "eco_cart_v1";
@@ -34,6 +33,7 @@ export function CartProvider({ children }) {
     }
   });
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [lastAdded, setLastAdded] = useState(null);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
@@ -82,11 +82,20 @@ export function CartProvider({ children }) {
           weight_kg,
           quantity,
           image_url: product.image_url || "",
+          category: product.category || "",
         },
       ];
     });
-    toast.success("Añadido al carrito", {
-      description: `${product.name}${variation ? " · " + variation.name : ""}`,
+    // Confirmación estilo Amazon dentro del panel (sin toast que tape los botones)
+    setLastAdded({
+      product_id: product.id,
+      name: product.name,
+      variation_name: variationName,
+      image_url: product.image_url || "",
+      unit_price,
+      quantity,
+      category: product.category || "",
+      at: Date.now(),
     });
     setDrawerOpen(true);
   }, []);
@@ -141,6 +150,7 @@ export function CartProvider({ children }) {
     totalWeightKg,
     hasBulk,
     count,
+    lastAdded,
     addItem,
     updateQuantity,
     removeItem,

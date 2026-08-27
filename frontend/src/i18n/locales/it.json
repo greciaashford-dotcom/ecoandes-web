@@ -45,7 +45,13 @@
     "checkout": "Procedi all'acquisto",
     "decrease": "Diminuisci",
     "increase": "Aumenta",
-    "remove": "Rimuovi"
+    "remove": "Rimuovi",
+    "continueShopping": "Continua ad acquistare",
+    "addedToCart": "Aggiunto al carrello",
+    "related": "Prodotti correlati",
+    "recommended": "Consigliati per te",
+    "explore": "Scopri altri articoli",
+    "offersIn": "Offerte per te in {{category}}"
   },
   "cookie": {
     "badge": "Cookie · RGPD / LSSI-CE",

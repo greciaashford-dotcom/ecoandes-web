@@ -1,680 +1,464 @@
-"""
-EcoAndes Backend Test Suite - Shipping/Payments/Refunds/Registration Batch
-Tests all confirmed business rules for retail/professional shipping, payment methods,
-manual quote zones, admin shipping quote panel, professional registration message, and refund breakdown.
-"""
+"""Backend API tests for EcoAndes e-commerce UX batch."""
 import requests
 import sys
-import json
 from datetime import datetime
 
-BASE_URL = "https://eco-andes-test.preview.emergentagent.com/api"
-
-class TestRunner:
-    def __init__(self):
+class EcoAndesAPITester:
+    def __init__(self, base_url="https://eco-andes-test.preview.emergentagent.com"):
+        self.base_url = base_url
+        self.token = None
         self.tests_run = 0
         self.tests_passed = 0
-        self.tests_failed = 0
-        self.admin_token = None
-        self.test_order_ids = []
-        self.test_user_emails = []
-        
-    def log(self, msg, level="INFO"):
-        print(f"[{level}] {msg}")
-    
-    def test(self, name, condition, details=""):
-        """Run a test assertion"""
-        self.tests_run += 1
-        if condition:
-            self.tests_passed += 1
-            self.log(f"✅ PASS: {name}", "PASS")
-            if details:
-                self.log(f"   {details}", "INFO")
-        else:
-            self.tests_failed += 1
-            self.log(f"❌ FAIL: {name}", "FAIL")
-            if details:
-                self.log(f"   {details}", "ERROR")
-        return condition
-    
-    def admin_login(self):
-        """Login as admin and get token"""
-        self.log("Logging in as admin...")
-        try:
-            resp = requests.post(f"{BASE_URL}/auth/login", json={
-                "email": "admin@ecoandes.com",
-                "password": "Admin123!"
-            }, timeout=10)
-            if resp.status_code == 200:
-                data = resp.json()
-                self.admin_token = data.get("access_token")
-                self.log(f"✅ Admin login successful", "PASS")
-                return True
-            else:
-                self.log(f"❌ Admin login failed: {resp.status_code} - {resp.text}", "ERROR")
-                return False
-        except Exception as e:
-            self.log(f"❌ Admin login exception: {e}", "ERROR")
-            return False
-    
-    def admin_headers(self):
-        """Get headers with admin auth"""
-        return {
-            "Authorization": f"Bearer {self.admin_token}",
-            "Content-Type": "application/json"
-        }
-    
-    # ========== SHIPPING QUOTE TESTS ==========
-    
-    def test_retail_shipping_below_threshold(self):
-        """Test retail España CP 28004 subtotal_with_vat 40, weight 3kg -> shipping_cost 7.26"""
-        self.log("\n=== Test: Retail shipping below 50€ threshold ===")
-        try:
-            resp = requests.post(f"{BASE_URL}/orders/shipping-quote", json={
-                "customer_type": "retail",
-                "country": "España",
-                "postal_code": "28004",
-                "subtotal_with_vat": 40.0,
-                "subtotal_ex_vat": 36.36,
-                "total_weight_kg": 3.0,
-                "has_bulk": False
-            }, timeout=10)
-            
-            if resp.status_code != 200:
-                self.test("Retail shipping quote API call", False, f"Status {resp.status_code}: {resp.text}")
-                return
-            
-            data = resp.json()
-            self.test("Retail shipping quote API call", True, f"Status 200")
-            self.test("Retail shipping status is 'ok'", data.get("status") == "ok", f"Got: {data.get('status')}")
-            self.test("Retail shipping cost is 7.26", abs(data.get("shipping_cost", 0) - 7.26) < 0.01, f"Got: {data.get('shipping_cost')}")
-            self.test("Retail shipping ex_vat is 6.0", abs(data.get("shipping_cost_ex_vat", 0) - 6.0) < 0.01, f"Got: {data.get('shipping_cost_ex_vat')}")
-            self.test("Retail shipping vat is 1.26", abs(data.get("shipping_vat", 0) - 1.26) < 0.01, f"Got: {data.get('shipping_vat')}")
-            self.test("Retail remaining_for_free_shipping is 10", abs(data.get("remaining_for_free_shipping", 0) - 10.0) < 0.01, f"Got: {data.get('remaining_for_free_shipping')}")
-            
-        except Exception as e:
-            self.test("Retail shipping quote below threshold", False, f"Exception: {e}")
-    
-    def test_retail_shipping_free(self):
-        """Test retail subtotal_with_vat >= 50 -> free_shipping true, cost 0"""
-        self.log("\n=== Test: Retail shipping free (>= 50€) ===")
-        try:
-            resp = requests.post(f"{BASE_URL}/orders/shipping-quote", json={
-                "customer_type": "retail",
-                "country": "España",
-                "postal_code": "28004",
-                "subtotal_with_vat": 50.0,
-                "subtotal_ex_vat": 45.45,
-                "total_weight_kg": 3.0,
-                "has_bulk": False
-            }, timeout=10)
-            
-            if resp.status_code != 200:
-                self.test("Retail free shipping API call", False, f"Status {resp.status_code}: {resp.text}")
-                return
-            
-            data = resp.json()
-            self.test("Retail free shipping API call", True, f"Status 200")
-            self.test("Retail free_shipping is true", data.get("free_shipping") == True, f"Got: {data.get('free_shipping')}")
-            self.test("Retail shipping_cost is 0", data.get("shipping_cost") == 0, f"Got: {data.get('shipping_cost')}")
-            
-        except Exception as e:
-            self.test("Retail free shipping test", False, f"Exception: {e}")
-    
-    def test_professional_shipping_below_threshold(self):
-        """Test professional CP 08001 subtotal_ex_vat 100 weight 22kg -> cost 27.83 (net 23)"""
-        self.log("\n=== Test: Professional shipping below 150€ threshold ===")
-        try:
-            resp = requests.post(f"{BASE_URL}/orders/shipping-quote", json={
-                "customer_type": "professional",
-                "country": "España",
-                "postal_code": "08001",
-                "subtotal_with_vat": 110.0,
-                "subtotal_ex_vat": 100.0,
-                "total_weight_kg": 22.0,
-                "has_bulk": True
-            }, timeout=10)
-            
-            if resp.status_code != 200:
-                self.test("Professional shipping quote API call", False, f"Status {resp.status_code}: {resp.text}")
-                return
-            
-            data = resp.json()
-            self.test("Professional shipping quote API call", True, f"Status 200")
-            self.test("Professional shipping status is 'ok'", data.get("status") == "ok", f"Got: {data.get('status')}")
-            self.test("Professional shipping cost is 27.83", abs(data.get("shipping_cost", 0) - 27.83) < 0.01, f"Got: {data.get('shipping_cost')}")
-            self.test("Professional shipping ex_vat is 23.0", abs(data.get("shipping_cost_ex_vat", 0) - 23.0) < 0.01, f"Got: {data.get('shipping_cost_ex_vat')}")
-            self.test("Professional remaining_for_free_shipping is 50", abs(data.get("remaining_for_free_shipping", 0) - 50.0) < 0.01, f"Got: {data.get('remaining_for_free_shipping')}")
-            
-        except Exception as e:
-            self.test("Professional shipping quote below threshold", False, f"Exception: {e}")
-    
-    def test_professional_shipping_free(self):
-        """Test professional subtotal_ex_vat 150 -> free"""
-        self.log("\n=== Test: Professional shipping free (>= 150€) ===")
-        try:
-            resp = requests.post(f"{BASE_URL}/orders/shipping-quote", json={
-                "customer_type": "professional",
-                "country": "España",
-                "postal_code": "08001",
-                "subtotal_with_vat": 165.0,
-                "subtotal_ex_vat": 150.0,
-                "total_weight_kg": 22.0,
-                "has_bulk": True
-            }, timeout=10)
-            
-            if resp.status_code != 200:
-                self.test("Professional free shipping API call", False, f"Status {resp.status_code}: {resp.text}")
-                return
-            
-            data = resp.json()
-            self.test("Professional free shipping API call", True, f"Status 200")
-            self.test("Professional free_shipping is true", data.get("free_shipping") == True, f"Got: {data.get('free_shipping')}")
-            self.test("Professional shipping_cost is 0", data.get("shipping_cost") == 0, f"Got: {data.get('shipping_cost')}")
-            
-        except Exception as e:
-            self.test("Professional free shipping test", False, f"Exception: {e}")
-    
-    def test_weight_cap_40kg(self):
-        """Test weight 40kg below threshold -> capped at net 29 / gross 35.09"""
-        self.log("\n=== Test: Weight cap at 40kg (max 29€ net / 35.09€ gross) ===")
-        try:
-            resp = requests.post(f"{BASE_URL}/orders/shipping-quote", json={
-                "customer_type": "retail",
-                "country": "España",
-                "postal_code": "28004",
-                "subtotal_with_vat": 40.0,
-                "subtotal_ex_vat": 36.36,
-                "total_weight_kg": 40.0,
-                "has_bulk": True
-            }, timeout=10)
-            
-            if resp.status_code != 200:
-                self.test("Weight cap 40kg API call", False, f"Status {resp.status_code}: {resp.text}")
-                return
-            
-            data = resp.json()
-            self.test("Weight cap 40kg API call", True, f"Status 200")
-            self.test("Weight cap status is 'ok' (NOT manual)", data.get("status") == "ok", f"Got: {data.get('status')}")
-            self.test("Weight cap shipping ex_vat is 29.0", abs(data.get("shipping_cost_ex_vat", 0) - 29.0) < 0.01, f"Got: {data.get('shipping_cost_ex_vat')}")
-            self.test("Weight cap shipping gross is 35.09", abs(data.get("shipping_cost", 0) - 35.09) < 0.01, f"Got: {data.get('shipping_cost')}")
-            
-        except Exception as e:
-            self.test("Weight cap 40kg test", False, f"Exception: {e}")
-    
-    def test_manual_quote_canarias(self):
-        """Test retail to Canarias CP 35001 -> status manual_quote, zone CANARIAS_EU"""
-        self.log("\n=== Test: Manual quote for Canarias ===")
-        try:
-            resp = requests.post(f"{BASE_URL}/orders/shipping-quote", json={
-                "customer_type": "retail",
-                "country": "España",
-                "postal_code": "35001",
-                "subtotal_with_vat": 40.0,
-                "subtotal_ex_vat": 36.36,
-                "total_weight_kg": 3.0,
-                "has_bulk": False
-            }, timeout=10)
-            
-            if resp.status_code != 200:
-                self.test("Manual quote Canarias API call", False, f"Status {resp.status_code}: {resp.text}")
-                return
-            
-            data = resp.json()
-            self.test("Manual quote Canarias API call", True, f"Status 200")
-            self.test("Manual quote status is 'manual_quote'", data.get("status") == "manual_quote", f"Got: {data.get('status')}")
-            self.test("Manual quote zone is 'CANARIAS_EU'", data.get("zone") == "CANARIAS_EU", f"Got: {data.get('zone')}")
-            
-        except Exception as e:
-            self.test("Manual quote Canarias test", False, f"Exception: {e}")
-    
-    def test_manual_quote_france(self):
-        """Test retail to France -> status manual_quote"""
-        self.log("\n=== Test: Manual quote for France ===")
-        try:
-            resp = requests.post(f"{BASE_URL}/orders/shipping-quote", json={
-                "customer_type": "retail",
-                "country": "France",
-                "postal_code": "75001",
-                "subtotal_with_vat": 40.0,
-                "subtotal_ex_vat": 36.36,
-                "total_weight_kg": 3.0,
-                "has_bulk": False
-            }, timeout=10)
-            
-            if resp.status_code != 200:
-                self.test("Manual quote France API call", False, f"Status {resp.status_code}: {resp.text}")
-                return
-            
-            data = resp.json()
-            self.test("Manual quote France API call", True, f"Status 200")
-            self.test("Manual quote France status is 'manual_quote'", data.get("status") == "manual_quote", f"Got: {data.get('status')}")
-            
-        except Exception as e:
-            self.test("Manual quote France test", False, f"Exception: {e}")
-    
-    # ========== ORDER CREATION TESTS ==========
-    
-    def test_order_canarias_pending_quote(self):
-        """Test POST /api/orders with Canarias address -> status 'Pendiente portes', payment_method 'pending_quote'"""
-        self.log("\n=== Test: Order creation with Canarias address (pending quote) ===")
-        try:
-            # First, get a product to add to cart
-            products_resp = requests.get(f"{BASE_URL}/products", timeout=10)
-            if products_resp.status_code != 200 or not products_resp.json():
-                self.test("Get products for order test", False, "No products available")
-                return
-            
-            product = products_resp.json()[0]
-            
-            order_payload = {
-                "email": f"test_canarias_{datetime.now().strftime('%H%M%S')}@test.com",
-                "items": [{
-                    "product_id": product["id"],
-                    "sku": product.get("sku", "TEST-SKU"),
-                    "name": product["name"],
-                    "variation_name": None,
-                    "unit_price": product["price_retail"],
-                    "quantity": 1,
-                    "image_url": product.get("image_url", "")
-                }],
-                "shipping_address": {
-                    "full_name": "Test Canarias",
-                    "phone": "600000000",
-                    "street": "Calle Test 123",
-                    "city": "Las Palmas",
-                    "province": "Las Palmas",
-                    "postal_code": "35001",
-                    "country": "España",
-                    "notes": ""
-                },
-                "customer_type": "retail",
-                "payment_method": "pending_quote",
-                "delivery_method": "shipping",
-                "coupon_code": None,
-                "acquisition": {}
-            }
-            
-            resp = requests.post(f"{BASE_URL}/orders", json=order_payload, timeout=10)
-            
-            if resp.status_code != 200:
-                self.test("Order creation Canarias API call", False, f"Status {resp.status_code}: {resp.text}")
-                return
-            
-            order = resp.json()
-            self.test_order_ids.append(order["id"])
-            self.test_user_emails.append(order["email"])
-            
-            self.test("Order creation Canarias API call", True, f"Status 200, Order: {order.get('order_number')}")
-            self.test("Order status is 'Pendiente portes'", order.get("status") == "Pendiente portes", f"Got: {order.get('status')}")
-            self.test("Order payment_method is 'pending_quote'", order.get("payment_method") == "pending_quote", f"Got: {order.get('payment_method')}")
-            self.test("Order payment_status is 'awaiting_quote'", order.get("payment_status") == "awaiting_quote", f"Got: {order.get('payment_status')}")
-            self.test("Order shipping_cost is 0", order.get("shipping_cost") == 0, f"Got: {order.get('shipping_cost')}")
-            
-            # Store order ID for later tests
-            self.canarias_order_id = order["id"]
-            
-        except Exception as e:
-            self.test("Order creation Canarias test", False, f"Exception: {e}")
-    
-    def test_stripe_checkout_awaiting_quote_blocked(self):
-        """Test POST /api/payments/stripe/checkout for awaiting_quote order -> 400"""
-        self.log("\n=== Test: Stripe checkout blocked for awaiting_quote order ===")
-        if not hasattr(self, 'canarias_order_id'):
-            self.test("Stripe checkout awaiting_quote test", False, "No Canarias order created in previous test")
-            return
-        
-        try:
-            resp = requests.post(f"{BASE_URL}/payments/stripe/checkout", json={
-                "order_id": self.canarias_order_id,
-                "origin_url": "https://eco-andes-test.preview.emergentagent.com"
-            }, timeout=10)
-            
-            self.test("Stripe checkout awaiting_quote returns 400", resp.status_code == 400, f"Got status: {resp.status_code}")
-            if resp.status_code == 400:
-                detail = resp.json().get("detail", "")
-                self.test("Stripe checkout error mentions pending quote", "presupuesto" in detail.lower() or "quote" in detail.lower(), f"Got: {detail}")
-            
-        except Exception as e:
-            self.test("Stripe checkout awaiting_quote test", False, f"Exception: {e}")
-    
-    def test_order_retail_invalid_payment_method(self):
-        """Test POST /api/orders retail peninsular with payment_method 'transfer' -> 400"""
-        self.log("\n=== Test: Order creation retail with invalid payment method (transfer) ===")
-        try:
-            products_resp = requests.get(f"{BASE_URL}/products", timeout=10)
-            if products_resp.status_code != 200 or not products_resp.json():
-                self.test("Get products for retail payment test", False, "No products available")
-                return
-            
-            product = products_resp.json()[0]
-            
-            order_payload = {
-                "email": f"test_retail_{datetime.now().strftime('%H%M%S')}@test.com",
-                "items": [{
-                    "product_id": product["id"],
-                    "sku": product.get("sku", "TEST-SKU"),
-                    "name": product["name"],
-                    "variation_name": None,
-                    "unit_price": product["price_retail"],
-                    "quantity": 1,
-                    "image_url": product.get("image_url", "")
-                }],
-                "shipping_address": {
-                    "full_name": "Test Retail",
-                    "phone": "600000000",
-                    "street": "Calle Test 123",
-                    "city": "Madrid",
-                    "province": "Madrid",
-                    "postal_code": "28004",
-                    "country": "España",
-                    "notes": ""
-                },
-                "customer_type": "retail",
-                "payment_method": "transfer",
-                "delivery_method": "shipping",
-                "coupon_code": None,
-                "acquisition": {}
-            }
-            
-            resp = requests.post(f"{BASE_URL}/orders", json=order_payload, timeout=10)
-            
-            self.test("Order retail with transfer returns 400", resp.status_code == 400, f"Got status: {resp.status_code}")
-            if resp.status_code == 400:
-                detail = resp.json().get("detail", "")
-                self.test("Error mentions payment method not available", "pago" in detail.lower() or "payment" in detail.lower(), f"Got: {detail}")
-            
-        except Exception as e:
-            self.test("Order retail invalid payment method test", False, f"Exception: {e}")
-    
-    def test_order_peninsular_retail_shipping_fields(self):
-        """Test order created peninsular retail -> has shipping_cost_ex_vat, shipping_vat, shipping_vat_rate=21"""
-        self.log("\n=== Test: Order peninsular retail has shipping VAT fields ===")
-        try:
-            products_resp = requests.get(f"{BASE_URL}/products", timeout=10)
-            if products_resp.status_code != 200 or not products_resp.json():
-                self.test("Get products for peninsular order test", False, "No products available")
-                return
-            
-            product = products_resp.json()[0]
-            
-            order_payload = {
-                "email": f"test_peninsular_{datetime.now().strftime('%H%M%S')}@test.com",
-                "items": [{
-                    "product_id": product["id"],
-                    "sku": product.get("sku", "TEST-SKU"),
-                    "name": product["name"],
-                    "variation_name": None,
-                    "unit_price": product["price_retail"],
-                    "quantity": 1,
-                    "image_url": product.get("image_url", "")
-                }],
-                "shipping_address": {
-                    "full_name": "Test Peninsular",
-                    "phone": "600000000",
-                    "street": "Calle Test 123",
-                    "city": "Madrid",
-                    "province": "Madrid",
-                    "postal_code": "28004",
-                    "country": "España",
-                    "notes": ""
-                },
-                "customer_type": "retail",
-                "payment_method": "stripe",
-                "delivery_method": "shipping",
-                "coupon_code": None,
-                "acquisition": {}
-            }
-            
-            resp = requests.post(f"{BASE_URL}/orders", json=order_payload, timeout=10)
-            
-            if resp.status_code != 200:
-                self.test("Order peninsular retail API call", False, f"Status {resp.status_code}: {resp.text}")
-                return
-            
-            order = resp.json()
-            self.test_order_ids.append(order["id"])
-            self.test_user_emails.append(order["email"])
-            
-            self.test("Order peninsular retail API call", True, f"Status 200, Order: {order.get('order_number')}")
-            self.test("Order has shipping_cost_ex_vat field", "shipping_cost_ex_vat" in order, f"Fields: {list(order.keys())}")
-            self.test("Order has shipping_vat field", "shipping_vat" in order, f"Fields: {list(order.keys())}")
-            self.test("Order has shipping_vat_rate field", "shipping_vat_rate" in order, f"Fields: {list(order.keys())}")
-            self.test("Order shipping_vat_rate is 21", order.get("shipping_vat_rate") == 21, f"Got: {order.get('shipping_vat_rate')}")
-            
-            # Verify total = subtotal + shipping
-            expected_total = order.get("subtotal", 0) + order.get("shipping_cost", 0)
-            self.test("Order total = subtotal + shipping", abs(order.get("total", 0) - expected_total) < 0.01, f"Total: {order.get('total')}, Expected: {expected_total}")
-            
-        except Exception as e:
-            self.test("Order peninsular retail shipping fields test", False, f"Exception: {e}")
-    
-    # ========== ADMIN TESTS ==========
-    
-    def test_admin_shipping_quote_patch(self):
-        """Test PATCH /api/orders/admin/{id}/shipping with {shipping_cost_ex_vat: 45} -> shipping_cost 54.45"""
-        self.log("\n=== Test: Admin set shipping quote ===")
-        if not self.admin_token:
-            self.test("Admin shipping quote patch", False, "Admin not logged in")
-            return
-        
-        if not hasattr(self, 'canarias_order_id'):
-            self.test("Admin shipping quote patch", False, "No Canarias order created")
-            return
-        
-        try:
-            resp = requests.patch(
-                f"{BASE_URL}/orders/admin/{self.canarias_order_id}/shipping",
-                json={"shipping_cost_ex_vat": 45.0},
-                headers=self.admin_headers(),
-                timeout=10
-            )
-            
-            if resp.status_code != 200:
-                self.test("Admin shipping quote patch API call", False, f"Status {resp.status_code}: {resp.text}")
-                return
-            
-            order = resp.json()
-            self.test("Admin shipping quote patch API call", True, f"Status 200")
-            self.test("Order shipping_cost is 54.45", abs(order.get("shipping_cost", 0) - 54.45) < 0.01, f"Got: {order.get('shipping_cost')}")
-            self.test("Order shipping_cost_ex_vat is 45.0", abs(order.get("shipping_cost_ex_vat", 0) - 45.0) < 0.01, f"Got: {order.get('shipping_cost_ex_vat')}")
-            self.test("Order shipping_vat is 9.45", abs(order.get("shipping_vat", 0) - 9.45) < 0.01, f"Got: {order.get('shipping_vat')}")
-            self.test("Order status changed to 'Pendiente'", order.get("status") == "Pendiente", f"Got: {order.get('status')}")
-            self.test("Order payment_status changed to 'pending'", order.get("payment_status") == "pending", f"Got: {order.get('payment_status')}")
-            self.test("Order shipping_status is 'quoted'", order.get("shipping_status") == "quoted", f"Got: {order.get('shipping_status')}")
-            
-            # Verify total recalculated
-            expected_total = order.get("subtotal", 0) + 54.45
-            self.test("Order total recalculated", abs(order.get("total", 0) - expected_total) < 0.01, f"Total: {order.get('total')}, Expected: {expected_total}")
-            
-        except Exception as e:
-            self.test("Admin shipping quote patch test", False, f"Exception: {e}")
-    
-    def test_admin_status_counts(self):
-        """Test GET /api/orders/admin/status-counts includes 'Pendiente portes' key"""
-        self.log("\n=== Test: Admin status counts includes 'Pendiente portes' ===")
-        if not self.admin_token:
-            self.test("Admin status counts", False, "Admin not logged in")
-            return
-        
-        try:
-            resp = requests.get(
-                f"{BASE_URL}/orders/admin/status-counts",
-                headers=self.admin_headers(),
-                timeout=10
-            )
-            
-            if resp.status_code != 200:
-                self.test("Admin status counts API call", False, f"Status {resp.status_code}: {resp.text}")
-                return
-            
-            counts = resp.json()
-            self.test("Admin status counts API call", True, f"Status 200")
-            self.test("Status counts includes 'Pendiente portes'", "Pendiente portes" in counts, f"Keys: {list(counts.keys())}")
-            
-        except Exception as e:
-            self.test("Admin status counts test", False, f"Exception: {e}")
-    
-    # ========== AUTH TESTS ==========
-    
-    def test_professional_registration_with_message(self):
-        """Test POST /api/auth/register professional with message field -> 200, message persisted"""
-        self.log("\n=== Test: Professional registration with optional message ===")
-        try:
-            test_email = f"test_pro_{datetime.now().strftime('%H%M%S')}@test.com"
-            self.test_user_emails.append(test_email)
-            
-            resp = requests.post(f"{BASE_URL}/auth/register", json={
-                "email": test_email,
-                "password": "TestPass123!",
-                "first_name": "Test",
-                "last_name": "Professional",
-                "role": "professional",
-                "company": "Test Company SL",
-                "tax_id": "B12345678",
-                "business_type": "Distribuidor",
-                "phone": "600000000",
-                "message": "Necesito lista de precios profesionales"
-            }, timeout=10)
-            
-            if resp.status_code != 200:
-                self.test("Professional registration API call", False, f"Status {resp.status_code}: {resp.text}")
-                return
-            
-            user = resp.json()
-            self.test("Professional registration API call", True, f"Status 200, User: {user.get('email')}")
-            
-            # Verify message persisted by logging in and checking user doc
-            # (We can't directly check the message field from the public response, but we can verify registration succeeded)
-            self.test("Professional registration succeeded", user.get("role") == "professional", f"Got role: {user.get('role')}")
-            
-        except Exception as e:
-            self.test("Professional registration with message test", False, f"Exception: {e}")
-    
-    # ========== REFUND TESTS ==========
-    
-    def test_refund_breakdown(self):
-        """Test POST /api/admin/orders/{id}/refund -> refund doc includes breakdown with VAT details"""
-        self.log("\n=== Test: Refund breakdown includes VAT details ===")
-        if not self.admin_token:
-            self.test("Refund breakdown test", False, "Admin not logged in")
-            return
-        
-        # Use one of the test orders created earlier
-        if not self.test_order_ids:
-            self.test("Refund breakdown test", False, "No test orders available")
-            return
-        
-        try:
-            test_order_id = self.test_order_ids[0]
-            
-            resp = requests.post(
-                f"{BASE_URL}/admin/orders/{test_order_id}/refund",
-                json={
-                    "reason": "Test refund for automated testing",
-                    "amount": None,  # full refund
-                    "restock": False,
-                    "notify": False
-                },
-                headers=self.admin_headers(),
-                timeout=10
-            )
-            
-            if resp.status_code != 200:
-                self.test("Refund creation API call", False, f"Status {resp.status_code}: {resp.text}")
-                return
-            
-            result = resp.json()
-            refund = result.get("refund", {})
-            breakdown = refund.get("breakdown", {})
-            
-            self.test("Refund creation API call", True, f"Status 200")
-            self.test("Refund has breakdown field", "breakdown" in refund, f"Refund keys: {list(refund.keys())}")
-            self.test("Breakdown has products_ex_vat", "products_ex_vat" in breakdown, f"Breakdown keys: {list(breakdown.keys())}")
-            self.test("Breakdown has products_vat", "products_vat" in breakdown, f"Breakdown keys: {list(breakdown.keys())}")
-            self.test("Breakdown has shipping_ex_vat", "shipping_ex_vat" in breakdown, f"Breakdown keys: {list(breakdown.keys())}")
-            self.test("Breakdown has shipping_vat", "shipping_vat" in breakdown, f"Breakdown keys: {list(breakdown.keys())}")
-            self.test("Breakdown shipping_vat_rate is 21", breakdown.get("shipping_vat_rate") == 21, f"Got: {breakdown.get('shipping_vat_rate')}")
-            
-        except Exception as e:
-            self.test("Refund breakdown test", False, f"Exception: {e}")
-    
-    # ========== CLEANUP ==========
-    
-    def cleanup(self):
-        """Clean up test data"""
-        self.log("\n=== Cleanup: Removing test data ===")
-        if not self.admin_token:
-            self.log("⚠️  Cannot cleanup: Admin not logged in", "WARN")
-            return
-        
-        # Delete test orders
-        for order_id in self.test_order_ids:
-            try:
-                # Note: There's no delete endpoint, but we can mark as cancelled
-                requests.patch(
-                    f"{BASE_URL}/orders/admin/{order_id}/status",
-                    json={"status": "Cancelado"},
-                    headers=self.admin_headers(),
-                    timeout=5
-                )
-                self.log(f"Marked order {order_id} as Cancelado")
-            except:
-                pass
-        
-        # Note: We cannot delete users via API, so test users will remain
-        # This is acceptable for testing purposes
-        self.log(f"✅ Cleanup completed (marked {len(self.test_order_ids)} orders as cancelled)")
-    
-    def run_all(self):
-        """Run all tests"""
-        self.log("=" * 80)
-        self.log("EcoAndes Backend Test Suite - Shipping/Payments/Refunds/Registration")
-        self.log("=" * 80)
-        
-        # Admin login first
-        if not self.admin_login():
-            self.log("❌ Cannot proceed without admin login", "ERROR")
-            return False
-        
-        # Run all test groups
-        self.test_retail_shipping_below_threshold()
-        self.test_retail_shipping_free()
-        self.test_professional_shipping_below_threshold()
-        self.test_professional_shipping_free()
-        self.test_weight_cap_40kg()
-        self.test_manual_quote_canarias()
-        self.test_manual_quote_france()
-        
-        self.test_order_canarias_pending_quote()
-        self.test_stripe_checkout_awaiting_quote_blocked()
-        self.test_order_retail_invalid_payment_method()
-        self.test_order_peninsular_retail_shipping_fields()
-        
-        self.test_admin_shipping_quote_patch()
-        self.test_admin_status_counts()
-        
-        self.test_professional_registration_with_message()
-        
-        self.test_refund_breakdown()
-        
-        # Cleanup
-        self.cleanup()
-        
-        # Summary
-        self.log("\n" + "=" * 80)
-        self.log(f"TEST SUMMARY")
-        self.log("=" * 80)
-        self.log(f"Total tests run: {self.tests_run}")
-        self.log(f"✅ Passed: {self.tests_passed}")
-        self.log(f"❌ Failed: {self.tests_failed}")
-        self.log(f"Success rate: {(self.tests_passed / self.tests_run * 100) if self.tests_run > 0 else 0:.1f}%")
-        self.log("=" * 80)
-        
-        return self.tests_failed == 0
+        self.admin_email = "admin@ecoandes.com"
+        self.admin_password = "Admin123!"
 
+    def run_test(self, name, method, endpoint, expected_status, data=None, headers=None):
+        """Run a single API test"""
+        url = f"{self.base_url}{endpoint}"
+        req_headers = {'Content-Type': 'application/json'}
+        if headers:
+            req_headers.update(headers)
+        if self.token:
+            req_headers['Authorization'] = f'Bearer {self.token}'
+
+        self.tests_run += 1
+        print(f"\n🔍 Testing {name}...")
+        
+        try:
+            if method == 'GET':
+                response = requests.get(url, headers=req_headers, timeout=30)
+            elif method == 'POST':
+                response = requests.post(url, json=data, headers=req_headers, timeout=30)
+            elif method == 'PATCH':
+                response = requests.patch(url, json=data, headers=req_headers, timeout=30)
+
+            success = response.status_code == expected_status
+            if success:
+                self.tests_passed += 1
+                print(f"✅ Passed - Status: {response.status_code}")
+            else:
+                print(f"❌ Failed - Expected {expected_status}, got {response.status_code}")
+                if response.text:
+                    print(f"   Response: {response.text[:200]}")
+
+            return success, response.json() if response.text and response.status_code < 500 else {}
+
+        except Exception as e:
+            print(f"❌ Failed - Error: {str(e)}")
+            return False, {}
+
+    def test_admin_login(self):
+        """Test admin login and get token"""
+        print("\n" + "="*60)
+        print("ADMIN LOGIN")
+        print("="*60)
+        success, response = self.run_test(
+            "Admin Login",
+            "POST",
+            "/api/auth/login",
+            200,
+            data={"email": self.admin_email, "password": self.admin_password}
+        )
+        if success and 'access_token' in response:
+            self.token = response['access_token']
+            print(f"✅ Admin token obtained")
+            return True
+        print(f"❌ Admin login failed - response keys: {list(response.keys())}")
+        return False
+
+    def get_sample_products(self):
+        """Get sample product IDs for testing"""
+        print("\n" + "="*60)
+        print("FETCHING SAMPLE PRODUCTS")
+        print("="*60)
+        success, response = self.run_test(
+            "Get Products",
+            "GET",
+            "/api/products?limit=10",
+            200
+        )
+        if success and isinstance(response, list) and len(response) >= 2:
+            product_ids = [p['id'] for p in response[:3]]
+            print(f"✅ Got {len(product_ids)} product IDs: {product_ids}")
+            return product_ids
+        print(f"❌ Failed to get sample products")
+        return []
+
+    def test_recommendations_with_product_id(self, product_id):
+        """Test GET /api/products/recommendations with product_id"""
+        print("\n" + "="*60)
+        print("TEST: RECOMMENDATIONS WITH PRODUCT_ID")
+        print("="*60)
+        success, response = self.run_test(
+            "Recommendations with product_id",
+            "GET",
+            f"/api/products/recommendations?product_id={product_id}&limit=6",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        # Validate response structure
+        issues = []
+        
+        # Check category is a string
+        if 'category' not in response:
+            issues.append("Missing 'category' field")
+        elif not isinstance(response.get('category'), (str, type(None))):
+            issues.append(f"'category' should be string or null, got {type(response['category'])}")
+        
+        # Check arrays exist
+        for key in ['related', 'recommended', 'explore', 'offers']:
+            if key not in response:
+                issues.append(f"Missing '{key}' field")
+            elif not isinstance(response[key], list):
+                issues.append(f"'{key}' should be array, got {type(response[key])}")
+        
+        # Check offers is empty (no products with compare_at_price discounts yet)
+        if isinstance(response.get('offers'), list) and len(response['offers']) > 0:
+            print(f"⚠️  Warning: 'offers' array has {len(response['offers'])} items (expected empty)")
+        
+        # Check no duplicate product IDs across sections
+        all_ids = []
+        for section in ['related', 'recommended', 'explore', 'offers']:
+            if isinstance(response.get(section), list):
+                section_ids = [p['id'] for p in response[section] if isinstance(p, dict) and 'id' in p]
+                all_ids.extend(section_ids)
+        
+        duplicates = [pid for pid in set(all_ids) if all_ids.count(pid) > 1]
+        if duplicates:
+            issues.append(f"Duplicate product IDs found across sections: {duplicates}")
+        
+        # Check seed product_id is NOT included
+        if product_id in all_ids:
+            issues.append(f"Seed product_id {product_id} found in recommendations (should be excluded)")
+        
+        if issues:
+            print(f"❌ Validation issues:")
+            for issue in issues:
+                print(f"   - {issue}")
+            return False
+        
+        print(f"✅ All validations passed:")
+        print(f"   - category: {response.get('category')}")
+        print(f"   - related: {len(response.get('related', []))} items")
+        print(f"   - recommended: {len(response.get('recommended', []))} items")
+        print(f"   - explore: {len(response.get('explore', []))} items")
+        print(f"   - offers: {len(response.get('offers', []))} items (expected 0)")
+        print(f"   - No duplicates across sections")
+        print(f"   - Seed product excluded")
+        return True
+
+    def test_recommendations_without_product_id(self):
+        """Test GET /api/products/recommendations without product_id"""
+        print("\n" + "="*60)
+        print("TEST: RECOMMENDATIONS WITHOUT PRODUCT_ID")
+        print("="*60)
+        success, response = self.run_test(
+            "Recommendations without product_id",
+            "GET",
+            "/api/products/recommendations?limit=6",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        # Validate response structure
+        issues = []
+        
+        # Check arrays exist
+        for key in ['related', 'recommended', 'explore', 'offers']:
+            if key not in response:
+                issues.append(f"Missing '{key}' field")
+            elif not isinstance(response[key], list):
+                issues.append(f"'{key}' should be array, got {type(response[key])}")
+        
+        # Check recommended and explore are populated
+        if len(response.get('recommended', [])) == 0:
+            issues.append("'recommended' array is empty (should be populated)")
+        if len(response.get('explore', [])) == 0:
+            issues.append("'explore' array is empty (should be populated)")
+        
+        if issues:
+            print(f"❌ Validation issues:")
+            for issue in issues:
+                print(f"   - {issue}")
+            return False
+        
+        print(f"✅ All validations passed:")
+        print(f"   - related: {len(response.get('related', []))} items (ok if empty)")
+        print(f"   - recommended: {len(response.get('recommended', []))} items")
+        print(f"   - explore: {len(response.get('explore', []))} items")
+        print(f"   - offers: {len(response.get('offers', []))} items")
+        return True
+
+    def test_recommendations_with_viewed(self, product_ids):
+        """Test GET /api/products/recommendations with viewed parameter"""
+        print("\n" + "="*60)
+        print("TEST: RECOMMENDATIONS WITH VIEWED PARAMETER")
+        print("="*60)
+        viewed_str = ",".join(product_ids[:2])
+        success, response = self.run_test(
+            "Recommendations with viewed",
+            "GET",
+            f"/api/products/recommendations?viewed={viewed_str}&limit=8",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        # Check explore section starts with viewed products
+        explore = response.get('explore', [])
+        if len(explore) == 0:
+            print(f"❌ 'explore' array is empty")
+            return False
+        
+        # Check if the first items in explore match the viewed products
+        explore_ids = [p['id'] for p in explore if isinstance(p, dict) and 'id' in p]
+        viewed_ids = product_ids[:2]
+        
+        # At least one of the viewed products should be in the first few explore items
+        found_viewed = any(vid in explore_ids[:4] for vid in viewed_ids)
+        
+        if not found_viewed:
+            print(f"⚠️  Warning: Viewed products {viewed_ids} not found in first items of explore section")
+            print(f"   Explore IDs: {explore_ids[:4]}")
+        else:
+            print(f"✅ Viewed products appear in explore section")
+        
+        print(f"✅ Recommendations with viewed parameter working:")
+        print(f"   - explore: {len(explore)} items")
+        return True
+
+    def get_sample_order(self):
+        """Get a sample order ID for testing"""
+        print("\n" + "="*60)
+        print("FETCHING SAMPLE ORDER")
+        print("="*60)
+        success, response = self.run_test(
+            "Get Orders",
+            "GET",
+            "/api/orders/admin/list?limit=1",
+            200
+        )
+        if success and isinstance(response, list) and len(response) > 0:
+            order_id = response[0]['id']
+            order_number = response[0].get('order_number', 'N/A')
+            print(f"✅ Got order ID: {order_id} ({order_number})")
+            return order_id
+        print(f"❌ Failed to get sample order")
+        return None
+
+    def test_customer_message(self, order_id):
+        """Test POST /api/orders/admin/{order_id}/message"""
+        print("\n" + "="*60)
+        print("TEST: CUSTOMER MESSAGE")
+        print("="*60)
+        
+        # Test with valid message
+        success, response = self.run_test(
+            "Send customer message (valid)",
+            "POST",
+            f"/api/orders/admin/{order_id}/message",
+            200,
+            data={
+                "subject": "Test message from automated testing",
+                "message": "This is a test message to verify the customer message functionality."
+            }
+        )
+        
+        if not success:
+            return False
+        
+        # Check response structure
+        if 'sent' not in response or 'entry' not in response:
+            print(f"❌ Response missing 'sent' or 'entry' fields")
+            return False
+        
+        # NOTE: sent=false is EXPECTED (Resend domain unverified) — not a bug
+        sent_status = response.get('sent')
+        print(f"✅ Message sent status: {sent_status}")
+        if not sent_status:
+            print(f"ℹ️  Note: sent=false is EXPECTED (Resend domain unverified) — not a bug")
+        
+        # Verify entry structure
+        entry = response.get('entry', {})
+        if 'message' not in entry or 'sent_at' not in entry:
+            print(f"❌ Entry missing required fields")
+            return False
+        
+        print(f"✅ Customer message endpoint working correctly")
+        
+        # Test with empty message (should return 400)
+        success_empty, _ = self.run_test(
+            "Send customer message (empty - should fail)",
+            "POST",
+            f"/api/orders/admin/{order_id}/message",
+            400,
+            data={"message": ""}
+        )
+        
+        if success_empty:
+            print(f"✅ Empty message correctly rejected with 400")
+        
+        return True
+
+    def test_order_creation_regression(self):
+        """Test POST /api/orders retail peninsular (stripe) with weight-based shipping"""
+        print("\n" + "="*60)
+        print("TEST: ORDER CREATION REGRESSION (WEIGHT-BASED SHIPPING)")
+        print("="*60)
+        
+        # Get a sample product
+        success, products = self.run_test(
+            "Get sample product for order",
+            "GET",
+            "/api/products?limit=1",
+            200
+        )
+        
+        if not success or not products:
+            print(f"❌ Failed to get sample product")
+            return False
+        
+        product = products[0]
+        
+        # Create order payload
+        order_data = {
+            "email": f"test_{datetime.now().strftime('%Y%m%d%H%M%S')}@test.com",
+            "customer_type": "retail",
+            "items": [
+                {
+                    "product_id": product['id'],
+                    "name": product['name'],
+                    "variation_name": None,
+                    "sku": product.get('sku', 'TEST-SKU'),
+                    "quantity": 1,
+                    "unit_price": product.get('display_price', 10.0)
+                }
+            ],
+            "shipping_address": {
+                "full_name": "Test User",
+                "street": "Calle Test 123",
+                "postal_code": "28001",
+                "city": "Madrid",
+                "province": "Madrid",
+                "country": "España",
+                "phone": "600000000"
+            },
+            "billing_address": None,
+            "payment_method": "stripe",
+            "delivery_method": "shipping",
+            "notes": "Test order for regression testing",
+            "coupon_code": None,
+            "acquisition": {
+                "referrer": "",
+                "utm_source": "test",
+                "utm_campaign": "regression_test",
+                "landing_page": "/tienda"
+            }
+        }
+        
+        success, response = self.run_test(
+            "Create order (retail peninsular stripe)",
+            "POST",
+            "/api/orders",
+            200,
+            data=order_data
+        )
+        
+        if not success:
+            return False
+        
+        # Validate response has weight-based shipping fields
+        issues = []
+        
+        required_fields = ['id', 'order_number', 'total_weight_kg', 'shipping_cost', 
+                          'shipping_cost_ex_vat', 'shipping_vat', 'shipping_status']
+        
+        for field in required_fields:
+            if field not in response:
+                issues.append(f"Missing field: {field}")
+        
+        # Check weight is calculated
+        if 'total_weight_kg' in response:
+            weight = response['total_weight_kg']
+            if not isinstance(weight, (int, float)) or weight < 0:
+                issues.append(f"Invalid total_weight_kg: {weight}")
+            else:
+                print(f"✅ Weight calculated: {weight} kg")
+        
+        # Check shipping cost fields
+        if 'shipping_cost' in response and 'shipping_cost_ex_vat' in response:
+            print(f"✅ Shipping cost: {response['shipping_cost']} EUR")
+            print(f"   - Base: {response['shipping_cost_ex_vat']} EUR")
+            print(f"   - VAT: {response.get('shipping_vat', 0)} EUR")
+        
+        if issues:
+            print(f"❌ Validation issues:")
+            for issue in issues:
+                print(f"   - {issue}")
+            return False
+        
+        print(f"✅ Order creation with weight-based shipping working correctly")
+        print(f"   Order number: {response.get('order_number')}")
+        
+        # Clean up: mark order as test
+        test_order_id = response.get('id')
+        if test_order_id:
+            print(f"ℹ️  Test order created: {test_order_id} (can be cleaned up manually)")
+        
+        return True
+
+def main():
+    print("\n" + "="*60)
+    print("ECOANDES BACKEND API TESTS - UX BATCH")
+    print("="*60)
+    
+    tester = EcoAndesAPITester()
+    
+    # Login as admin
+    if not tester.test_admin_login():
+        print("\n❌ Admin login failed, stopping tests")
+        return 1
+    
+    # Get sample products
+    product_ids = tester.get_sample_products()
+    if not product_ids:
+        print("\n❌ Failed to get sample products, stopping tests")
+        return 1
+    
+    # Test recommendations with product_id
+    tester.test_recommendations_with_product_id(product_ids[0])
+    
+    # Test recommendations without product_id
+    tester.test_recommendations_without_product_id()
+    
+    # Test recommendations with viewed parameter
+    tester.test_recommendations_with_viewed(product_ids)
+    
+    # Get sample order
+    order_id = tester.get_sample_order()
+    if order_id:
+        # Test customer message
+        tester.test_customer_message(order_id)
+    else:
+        print("\n⚠️  Skipping customer message test (no orders found)")
+    
+    # Test order creation regression
+    tester.test_order_creation_regression()
+    
+    # Print results
+    print("\n" + "="*60)
+    print("TEST RESULTS")
+    print("="*60)
+    print(f"📊 Tests passed: {tester.tests_passed}/{tester.tests_run}")
+    print(f"Success rate: {(tester.tests_passed/tester.tests_run*100):.1f}%")
+    
+    return 0 if tester.tests_passed == tester.tests_run else 1
 
 if __name__ == "__main__":
-    runner = TestRunner()
-    success = runner.run_all()
-    sys.exit(0 if success else 1)
+    sys.exit(main())

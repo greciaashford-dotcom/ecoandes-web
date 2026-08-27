@@ -1,14 +1,26 @@
 [
   {
-    "content": "Backfill weight_kg en BD desde el nombre del formato",
+    "content": "Backend: endpoint /api/products/recommendations (4 secciones) + compare_at_price en modelo",
     "status": "completed"
   },
   {
-    "content": "CartContext: peso resuelto en agregación + migración de carritos persistidos",
+    "content": "Backend: endpoint mensaje personalizado al cliente + mailer con plantilla de marca",
     "status": "completed"
   },
   {
-    "content": "Verificar E2E: 5kg en 2 productos incrementa portes (retail y pro)",
+    "content": "Frontend: CartContext lastAdded + CartRecommendations + CartDrawer (confirmación, carruseles, SEGUIR COMPRANDO)",
+    "status": "completed"
+  },
+  {
+    "content": "Frontend: Navbar móvil (icono persona), ProductCard sin categoría, Home 2 columnas móvil, historial vistos",
+    "status": "completed"
+  },
+  {
+    "content": "Frontend: AdminOrderDetail mensaje al cliente + i18n 7 idiomas",
+    "status": "completed"
+  },
+  {
+    "content": "Testing agent + verificación visual móvil/escritorio",
     "status": "completed"
   }
 ]

@@ -118,12 +118,27 @@ export default function Navbar() {
           <Link
             to="/lista-deseos"
             data-testid="nav-wishlist-btn"
-            className="relative flex items-center text-ink hover:text-sage-600 transition-colors"
+            className="relative hidden md:flex items-center text-ink hover:text-sage-600 transition-colors"
             aria-label={t("nav.wishlist")}
           >
             <Heart size={20} />
             {wishlistCount > 0 && (
               <span data-testid="wishlist-count" className="absolute -top-2 -right-2 bg-terracotta text-white text-[10px] h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center font-medium">{wishlistCount}</span>
+            )}
+          </Link>
+          {/* Móvil: icono de cuenta (persona). Verde con punto cuando hay sesión iniciada. */}
+          <Link
+            to={user ? "/cuenta" : "/login"}
+            data-testid="nav-mobile-account"
+            className={`relative flex md:hidden items-center transition-colors ${user ? "text-sage-600" : "text-ink hover:text-sage-600"}`}
+            aria-label={user ? t("nav.account") : t("nav.login")}
+          >
+            <User size={20} />
+            {user && (
+              <span
+                data-testid="nav-mobile-account-dot"
+                className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-sage-500 border-2 border-bone-100"
+              />
             )}
           </Link>
           <button

@@ -61,6 +61,12 @@ export default function ProductDetail() {
           return;
         }
         setProduct(data);
+        // Historial de navegación para "Explorar más artículos" (recomendaciones del carrito)
+        try {
+          const key = "eco_recent_views";
+          const prev = JSON.parse(localStorage.getItem(key) || "[]").filter((id) => id !== data.id);
+          localStorage.setItem(key, JSON.stringify([data.id, ...prev].slice(0, 12)));
+        } catch { /* ignore */ }
         const sorted = sortVariations(data.variations || []);
         setSelectedVariation(sorted.length ? sorted[0] : null);
         setQuantity(1);
