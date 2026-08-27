@@ -1,30 +1,14 @@
 [
   {
-    "content": "Backend: shipping config v2 (escala Excel, IVA 21% envío, zonas manual_quote, migración)",
+    "content": "Backfill weight_kg en BD desde el nombre del formato",
     "status": "completed"
   },
   {
-    "content": "Backend: models, orders, payments, auth, mailer, refunds (desglose)",
+    "content": "CartContext: peso resuelto en agregación + migración de carritos persistidos",
     "status": "completed"
   },
   {
-    "content": "Backend: parser de peso desde formato (34 variaciones sin peso)",
-    "status": "completed"
-  },
-  {
-    "content": "Frontend: Checkout, CartDrawer, Register, PaymentSuccess, CustomerService",
-    "status": "completed"
-  },
-  {
-    "content": "Frontend: AdminOrderDetail (desglose + portes pendientes + fix ruta refund), AdminOrders/StatusPill",
-    "status": "completed"
-  },
-  {
-    "content": "Revisar estado test Stripe/Resend/Verifactu",
-    "status": "completed"
-  },
-  {
-    "content": "Testing agent E2E + corregir bugs",
+    "content": "Verificar E2E: 5kg en 2 productos incrementa portes (retail y pro)",
     "status": "completed"
   }
 ]

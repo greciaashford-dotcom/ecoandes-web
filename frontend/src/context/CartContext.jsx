@@ -4,13 +4,31 @@ import { toast } from "sonner";
 const CartContext = createContext(null);
 const STORAGE_KEY = "eco_cart_v1";
 
+// Peso por unidad: usa weight_kg si existe; si no, lo deriva del formato ("150 g", "1 kg", "500 ml")
+const parseWeightFromName = (name) => {
+  if (!name) return 0;
+  const m = String(name).toLowerCase().match(/(\d+(?:[.,]\d+)?)\s*(kg|kilos?|g|gr|gramos|ml|l|litros?)\b/);
+  if (!m) return 0;
+  const val = parseFloat(m[1].replace(",", "."));
+  if (Number.isNaN(val)) return 0;
+  return m[2].startsWith("k") || m[2].startsWith("l") ? val : val / 1000;
+};
+
+const resolveItemWeight = (it) => {
+  const w = Number(it?.weight_kg);
+  if (Number.isFinite(w) && w > 0) return w;
+  return parseWeightFromName(it?.variation_name || it?.name);
+};
+
 export function CartProvider({ children }) {
   // Lazy-initialize from localStorage synchronously to avoid a load/save effect race
   // that could clear the cart on refresh (esp. under React StrictMode double-invoke).
   const [items, setItems] = useState(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : [];
+      const parsed = raw ? JSON.parse(raw) : [];
+      // Migración: carritos guardados antes del cálculo de peso llevan weight_kg 0
+      return parsed.map((it) => ({ ...it, weight_kg: resolveItemWeight(it) }));
     } catch {
       return [];
     }
@@ -36,15 +54,6 @@ export function CartProvider({ children }) {
         ? src.display_price_ex_vat
         : (isPro ? src.price_professional : src.price_retail);
     const vat_rate = typeof product.vat_rate === "number" ? product.vat_rate : 10;
-    // Peso: usa weight_kg si existe; si no, deriva del formato del producto ("150 g", "1 kg")
-    const parseWeightFromName = (name) => {
-      if (!name) return 0;
-      const m = String(name).toLowerCase().match(/(\d+(?:[.,]\d+)?)\s*(kg|kilos?|g|gr|gramos|ml|l|litros?)\b/);
-      if (!m) return 0;
-      const val = parseFloat(m[1].replace(",", "."));
-      if (Number.isNaN(val)) return 0;
-      return m[2].startsWith("k") || m[2].startsWith("l") ? val : val / 1000;
-    };
     const weight_kg =
       typeof src.weight_kg === "number" && src.weight_kg > 0
         ? src.weight_kg
@@ -56,7 +65,7 @@ export function CartProvider({ children }) {
       if (existing) {
         return prev.map((x) =>
           lineKey(x.product_id, x.variation_name) === key
-            ? { ...x, quantity: x.quantity + quantity }
+            ? { ...x, quantity: x.quantity + quantity, weight_kg }
             : x
         );
       }
@@ -119,8 +128,8 @@ export function CartProvider({ children }) {
     ) * 100
   ) / 100;
   const subtotalWithVat = Math.round((subtotalExVat + vatAmount) * 100) / 100;
-  const totalWeightKg = items.reduce((acc, it) => acc + (it.weight_kg || 0) * it.quantity, 0);
-  const hasBulk = items.some((it) => (it.weight_kg || 0) > 1);
+  const totalWeightKg = items.reduce((acc, it) => acc + resolveItemWeight(it) * it.quantity, 0);
+  const hasBulk = items.some((it) => resolveItemWeight(it) > 1);
   const count = items.reduce((acc, it) => acc + it.quantity, 0);
 
   const value = {
