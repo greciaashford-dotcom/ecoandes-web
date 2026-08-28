@@ -83,15 +83,25 @@ export default function ProductCard({ product }) {
         </div>
       </div>
 
-      <div className="p-4">
-        <h3 className="font-heading text-base text-ink leading-snug line-clamp-2 min-h-[2.6rem] transition-colors duration-200 group-hover:text-sage-700">{product.name}</h3>
+      <div className="p-3 sm:p-4">
+        <h3 className="font-heading text-sm sm:text-base text-ink leading-snug line-clamp-2 min-h-[2.4rem] sm:min-h-[2.6rem] transition-colors duration-200 group-hover:text-sage-700">{product.name}</h3>
         {rating > 0 && (
-          <div className="flex items-center gap-1.5 mt-1.5">
+          <div className="hidden sm:flex items-center gap-1.5 mt-1.5">
             <StarRating value={rating} readOnly size={12} />
             {reviews > 0 && <span className="text-[11px] text-ink-muted">({reviews})</span>}
           </div>
         )}
-        <div className="flex items-center justify-between mt-2.5">
+
+        {/* Móvil: nombre → precio → Ver producto */}
+        <div className="sm:hidden mt-2">
+          <div className="text-sm text-ink font-medium" data-testid={`product-card-price-m-${product.id}`}>{priceLabel}</div>
+          <span className="mt-2.5 flex items-center justify-center w-full border border-sage-500 text-sage-700 rounded-full py-2 text-[10px] uppercase tracking-[0.16em] font-medium transition-colors duration-200 group-active:bg-sage-500 group-active:text-white">
+            {t("product.viewProduct")}
+          </span>
+        </div>
+
+        {/* Escritorio/tablet: precio + acción en fila */}
+        <div className="hidden sm:flex items-center justify-between mt-2.5">
           <span className="text-sm text-ink" data-testid={`product-card-price-${product.id}`}>{priceLabel}</span>
           {hasVariations ? (
             <span className="text-[11px] uppercase tracking-[0.18em] text-sage-600 transition-transform duration-200 group-hover:translate-x-0.5">{t("product.viewProduct")}</span>

@@ -139,6 +139,7 @@ class ProductBase(BaseModel):
     seo: SeoMeta = Field(default_factory=SeoMeta)
     featured: bool = False
     best_seller: bool = False
+    recommended: bool = False  # "Recomendados por EcoAndes" (sección en Home)
     active: bool = True
 
 
@@ -176,6 +177,7 @@ class ProductUpdate(BaseModel):
     seo: Optional[SeoMeta] = None
     featured: Optional[bool] = None
     best_seller: Optional[bool] = None
+    recommended: Optional[bool] = None
     active: Optional[bool] = None
 
 

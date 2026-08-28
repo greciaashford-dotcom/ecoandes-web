@@ -166,7 +166,9 @@
     "b2bTitle": "Tarifas especiais para lojas, padarias, pastelarias e restaurantes BIO.",
     "b2bDesc": "Crie a sua conta profissional e aceda a preços por volume, formatos 20 kg e atendimento personalizado.",
     "b2bCta": "Abrir conta B2B",
-    "collectionImgAlt": "Catálogo"
+    "collectionImgAlt": "Catálogo",
+    "recommendedOverline": "Seleção EcoAndes",
+    "recommendedTitle": "Recomendados pela EcoAndes"
   },
   "shop": {
     "overline": "Loja",

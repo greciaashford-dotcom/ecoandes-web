@@ -67,6 +67,7 @@ export default function ProductEditorModal({ product, onClose, onSaved }) {
         })),
         featured: !!p.featured,
         best_seller: !!p.best_seller,
+        recommended: !!p.recommended,
         active: p.active !== false,
       };
       await api.patch(`/products/${p.id}`, payload);
@@ -119,6 +120,7 @@ export default function ProductEditorModal({ product, onClose, onSaved }) {
               <div className="flex flex-wrap gap-5 pt-1">
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!p.best_seller} onChange={(e) => set({ best_seller: e.target.checked })} data-testid="editor-bestseller" /> Más vendido</label>
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!p.featured} onChange={(e) => set({ featured: e.target.checked })} /> Destacado</label>
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!p.recommended} onChange={(e) => set({ recommended: e.target.checked })} data-testid="editor-recommended" /> Recomendado por EcoAndes</label>
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={p.active !== false} onChange={(e) => set({ active: e.target.checked })} /> Activo</label>
               </div>
             </TabsContent>

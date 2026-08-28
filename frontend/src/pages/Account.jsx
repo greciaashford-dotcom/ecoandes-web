@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Package, ShoppingBag, Heart, ArrowRight } from "lucide-react";
+import { Package, ShoppingBag, Heart, ArrowRight, LogOut } from "lucide-react";
 import { api, formatEUR } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
@@ -51,7 +51,16 @@ export default function Account() {
   return (
     <div className="max-w-6xl mx-auto px-6 lg:px-12 py-12 sm:py-14" data-testid="account-page">
       <div className="overline mb-3">Mi cuenta</div>
-      <h1 className="font-heading text-3xl sm:text-4xl md:text-5xl font-light">Hola, {user.first_name}</h1>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <h1 className="font-heading text-3xl sm:text-4xl md:text-5xl font-light">Hola, {user.first_name}</h1>
+        <button
+          onClick={logout}
+          data-testid="account-logout-btn"
+          className="inline-flex items-center gap-2 bg-terracotta text-white px-6 py-3 rounded-full text-[11px] uppercase tracking-[0.2em] font-medium shadow-md hover:bg-terracotta/90 hover:shadow-lg active:scale-[0.98] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terracotta focus-visible:ring-offset-2"
+        >
+          <LogOut size={15} /> Cerrar sesión
+        </button>
+      </div>
       <div className="flex items-center gap-3 mt-3 text-sm text-ink-soft flex-wrap">
         <span>{user.email}</span>
         <span>·</span>
@@ -167,7 +176,13 @@ export default function Account() {
       </section>
 
       <div className="mt-14">
-        <button onClick={logout} className="btn-outline" data-testid="account-logout-btn">Cerrar sesión</button>
+        <button
+          onClick={logout}
+          data-testid="account-logout-btn-bottom"
+          className="inline-flex items-center gap-2 border border-terracotta text-terracotta px-6 py-3 rounded-full text-[11px] uppercase tracking-[0.2em] font-medium hover:bg-terracotta hover:text-white active:scale-[0.98] transition-all duration-200"
+        >
+          <LogOut size={15} /> Cerrar sesión
+        </button>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-# EcoAndes BIO — Plan de Continuación (UI → Blogs → Testing → Catálogo/Precios/IVA → Envíos → Pagos → SEO/GEO → Imágenes → **SEO Manual + Nombres Legacy + Redirecciones** → **UX/Operaciones (Lote 9)** → **Recuperación de Carritos (Lote 10)** → **Lote 11 (Splash + Recetas + Media links + Emails + Hero dots + 2º recordatorio + Links universales)** → **Fase 14 / Lote 12 (Blog Admin + Site Images Admin + Bug carrusel categorías)** → **Fase 15 / Lote 13 (Carrusel Coverflow 3D de categorías)** → **Fase 16 / Lote 14 (Envíos/Pagos/Reembolsos/Registro: v2)** → **Fase 17 / Lote 15 (Carrito estilo Amazon + UX móvil + Mensajes a cliente)**)
+# EcoAndes BIO — Plan de Continuación (UI → Blogs → Testing → Catálogo/Precios/IVA → Envíos → Pagos → SEO/GEO → Imágenes → **SEO Manual + Nombres Legacy + Redirecciones** → **UX/Operaciones (Lote 9)** → **Recuperación de Carritos (Lote 10)** → **Lote 11 (Splash + Recetas + Media links + Emails + Hero dots + 2º recordatorio + Links universales)** → **Fase 14 / Lote 12 (Blog Admin + Site Images Admin + Bug carrusel categorías)** → **Fase 15 / Lote 13 (Carrusel Coverflow 3D de categorías)** → **Fase 16 / Lote 14 (Envíos/Pagos/Reembolsos/Registro: v2)** → **Fase 17 / Lote 15 (Carrito estilo Amazon + UX móvil + Mensajes a cliente)** → **Fase 18 / Lote 16 (Recomendados EcoAndes + UX móvil tienda/cartas + logout destacado)**)
 
 ## 1) Objetivos
 
@@ -226,25 +226,78 @@ Entregables principales (v2):
 
 ---
 
+### Fase 18 — Lote 16: Recomendados EcoAndes + UX móvil tienda/cartas + logout destacado — **COMPLETADO (2026-08)**
+> **Estado:** **COMPLETADO (implementado + validado; pendiente confirmación de usuario)**.
+
+#### 18.1 Home: “Recomendados por EcoAndes” (curación manual desde productos) — **COMPLETADO**
+**Objetivo:** añadir una segunda sección bajo “Productos destacados” gestionable desde el editor de producto.
+
+**Entregado:**
+- Nuevo flag de producto: `recommended: bool` (por defecto `false`).
+- `GET /api/products` soporta filtro `recommended=true`.
+- Admin `ProductEditorModal`: nuevo checkbox **“Recomendado por EcoAndes”** (`data-testid="editor-recommended"`).
+- Home: nueva sección **Recomendados por EcoAndes** (`data-testid="recommended-section"`) debajo de “Productos destacados”.
+  - Oculta automáticamente si no hay productos marcados.
+- i18n: claves añadidas en 7 locales:
+  - `home.recommendedOverline`
+  - `home.recommendedTitle`
+
+**Nota:** se seedearon 4 productos iniciales como recomendados (Mijo, Quinoa Real, Quinoa Real Negra, Maíz para Palomitas). Se pueden cambiar desde el admin.
+
+#### 18.2 Tienda (móvil): grid de 2 columnas — **COMPLETADO**
+- `/tienda` muestra productos en **2 columnas en móvil** (`grid-cols-2 lg:grid-cols-3`).
+
+#### 18.3 Cartas de producto (móvil): layout optimizado — **COMPLETADO**
+**Nuevo diseño en móvil:**
+- Imagen
+- Nombre (como antes)
+- Precio / rango de precio
+- CTA “Ver producto” como píldora a ancho completo
+
+**Notas:**
+- En móvil se oculta el quick-add y la línea de estrellas (se mantienen en pantallas >= sm).
+- En desktop/tablet no se rompe el layout existente (precio + acción en fila).
+
+#### 18.4 Cuenta: botón “Cerrar sesión” destacado — **COMPLETADO**
+- En `/cuenta`:
+  - Nuevo botón principal destacado en terracota junto al saludo (`data-testid="account-logout-btn"`).
+  - Variante secundaria al final de la página (`data-testid="account-logout-btn-bottom"`).
+
+#### 18.5 Verificación — **COMPLETADO**
+- Backend: compilación OK, filtro `recommended` validado.
+- UI: capturas móviles confirmando:
+  - Home con sección recomendados
+  - Tienda a 2 columnas
+  - Nuevo layout de cards
+  - Logout destacado visible y fácil de localizar
+
+---
+
 ## 3) Próximas Acciones (inmediatas)
 1) **Cierre Fase 8 (SEO/GEO):** spot-check 10–15 productos (ES/EN/FR) y correcciones manuales.
 2) **Fase 9 (P1): migración de imágenes** (WebP + caché 1 año).
 3) **Operativa emails (Resend):** verificar dominio y actualizar `SENDER_EMAIL` a dominio verificado.
 4) **PayPal sandbox:** añadir `PAYPAL_CLIENT_ID` y `PAYPAL_SECRET` (sandbox) si se quiere habilitar PayPal en el entorno preview.
 5) **Verifactu:** definir alcance y estrategia de integración.
-6) **Descuentos/ofertas (futuro):** añadir UI de admin para `compare_at_price` y activar sección “Ofertas” del drawer automáticamente.
+6) **Descuentos/ofertas (futuro):**
+   - Añadir UI de admin para `compare_at_price`.
+   - Activar automáticamente “Ofertas para ti en [Categoría]” del drawer al existir descuentos.
 
 ---
 
 ## 4) Criterios de Éxito
 
-**Se mantienen los criterios anteriores**, y se confirman los de Fase 17 (ya implementados):
+**Se mantienen los criterios anteriores**, y se confirman los de Fase 17–18 (ya implementados):
 - “Añadir al carrito” no redirige: confirmación y recomendaciones dentro del panel.
 - Carruseles muestran productos válidos, sin duplicados y excluyendo el producto seed.
 - UX móvil mejorada (persona visible, favoritos accesibles desde menú).
 - Carrito con “Seguir comprando” + “Finalizar compra”.
 - ProductCard sin categoría.
-- Home destacados a 2 columnas en móvil.
+- Home:
+  - Destacados a 2 columnas en móvil.
+  - Nueva sección “Recomendados por EcoAndes” gestionable por flag `recommended`.
+- Tienda móvil a 2 columnas.
+- Botón “Cerrar sesión” muy visible y rápido de encontrar.
 - Admin permite enviar mensaje personalizado al cliente y registrar el envío (sent true/false según Resend).
 
 ---

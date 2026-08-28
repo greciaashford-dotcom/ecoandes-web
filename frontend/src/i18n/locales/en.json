@@ -166,7 +166,9 @@
     "b2bTitle": "Special rates for BIO shops, bakeries, and restaurants.",
     "b2bDesc": "Create your professional account and access volume pricing, 20kg formats, and personalized attention.",
     "b2bCta": "Open B2B Account",
-    "collectionImgAlt": "Catalog"
+    "collectionImgAlt": "Catalog",
+    "recommendedOverline": "EcoAndes selection",
+    "recommendedTitle": "Recommended by EcoAndes"
   },
   "shop": {
     "overline": "Shop",

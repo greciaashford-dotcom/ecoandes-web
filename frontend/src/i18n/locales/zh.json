@@ -166,7 +166,9 @@
     "b2bTitle": "为BIO商店、烘焙坊和餐厅提供特别价格。",
     "b2bDesc": "创建您的专业账户，享受批量价格、20公斤规格和个性化服务。",
     "b2bCta": "开通B2B账户",
-    "collectionImgAlt": "目录"
+    "collectionImgAlt": "目录",
+    "recommendedOverline": "EcoAndes精选",
+    "recommendedTitle": "EcoAndes推荐"
   },
   "shop": {
     "overline": "商店",

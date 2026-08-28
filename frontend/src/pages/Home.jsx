@@ -20,6 +20,7 @@ const B2B_IMG_LANDSCAPE = "https://assets.zyrosite.com/w7wEiJrqV2hbSrVN/ab2cb895
 export default function Home() {
   const { t, i18n } = useTranslation();
   const [featured, setFeatured] = useState([]);
+  const [recommendedProds, setRecommendedProds] = useState([]);
   const [categories, setCategories] = useState([]);
   const [siteImgs, setSiteImgs] = useState({});
 
@@ -34,11 +35,13 @@ export default function Home() {
   useEffect(() => {
     (async () => {
       try {
-        const [{ data: feat }, { data: cats }] = await Promise.all([
+        const [{ data: feat }, { data: recos }, { data: cats }] = await Promise.all([
           api.get("/products", { params: { featured: true, limit: 8 } }),
+          api.get("/products", { params: { recommended: true, limit: 8 } }),
           api.get("/products/categories"),
         ]);
         setFeatured(feat);
+        setRecommendedProds(recos);
         setCategories(cats);
       } catch (e) { console.error(e); }
     })();
@@ -97,6 +100,26 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      {/* Recomendados por EcoAndes (gestionable desde el editor de productos del admin) */}
+      {recommendedProds.length > 0 && (
+        <section className="max-w-7xl mx-auto px-6 lg:px-12 py-10 md:py-12" data-testid="recommended-section">
+          <div className="flex items-end justify-between mb-8">
+            <div>
+              <div className="overline mb-3">{t("home.recommendedOverline")}</div>
+              <h2 className="font-heading text-3xl md:text-4xl font-light text-ink">{t("home.recommendedTitle")}</h2>
+            </div>
+            <Link to="/tienda" className="text-sm uppercase tracking-[0.22em] text-sage-600 hover:text-sage-700" data-testid="see-all-recommended">
+              {t("common.seeAll")}
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 md:gap-8">
+            {recommendedProds.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Recetas con nuestros productos (vídeos verticales, editable desde admin) */}
       <RecipesSection />

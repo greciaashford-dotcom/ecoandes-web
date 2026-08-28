@@ -140,6 +140,7 @@ async def list_products(
     search: Optional[str] = None,
     featured: Optional[bool] = None,
     best_seller: Optional[bool] = None,
+    recommended: Optional[bool] = None,
     lang: Optional[str] = None,
     limit: int = Query(100, le=500),
     user: Optional[dict] = Depends(get_current_user_optional),
@@ -151,6 +152,8 @@ async def list_products(
         query["featured"] = featured
     if best_seller is not None:
         query["best_seller"] = best_seller
+    if recommended is not None:
+        query["recommended"] = recommended
     if search:
         # Fetch candidates within the active (+category/flags) scope, then rank in
         # Python for precise, accent-insensitive, whole-word-first relevance.

@@ -166,7 +166,9 @@
     "b2bTitle": "BIO店舗、工房、レストラン向けの特別料金。",
     "b2bDesc": "プロフェッショナルアカウントを作成して、ボリューム価格、20kgフォーマット、個別サポートをご利用ください。",
     "b2bCta": "B2Bアカウントを開設する",
-    "collectionImgAlt": "カタログ"
+    "collectionImgAlt": "カタログ",
+    "recommendedOverline": "EcoAndesセレクション",
+    "recommendedTitle": "EcoAndesのおすすめ"
   },
   "shop": {
     "overline": "ショップ",

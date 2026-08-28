@@ -166,7 +166,9 @@
     "b2bTitle": "Tarifs spéciaux pour magasins, ateliers et restaurants BIO.",
     "b2bDesc": "Créez votre compte professionnel et accédez à des prix par volume, des formats de 20 kg et un service personnalisé.",
     "b2bCta": "Ouvrir un compte B2B",
-    "collectionImgAlt": "Catalogue"
+    "collectionImgAlt": "Catalogue",
+    "recommendedOverline": "Sélection EcoAndes",
+    "recommendedTitle": "Recommandés par EcoAndes"
   },
   "shop": {
     "overline": "Boutique",
