@@ -1,26 +1,38 @@
 [
   {
-    "content": "Backend: endpoint /api/products/recommendations (4 secciones) + compare_at_price en modelo",
+    "content": "Backend: shipping v3 (retail tarifa plana 4,12+IVA <50€, gratis ≥50€)",
     "status": "completed"
   },
   {
-    "content": "Backend: endpoint mensaje personalizado al cliente + mailer con plantilla de marca",
+    "content": "Backend: reembolsos por producto (líneas+qty+importes editables, envío solo en total, reembolsos múltiples)",
     "status": "completed"
   },
   {
-    "content": "Frontend: CartContext lastAdded + CartRecommendations + CartDrawer (confirmación, carruseles, SEGUIR COMPRANDO)",
+    "content": "Backend: refund-request cliente + invoice-request profesional + verify-address + emails empresa",
     "status": "completed"
   },
   {
-    "content": "Frontend: Navbar móvil (icono persona), ProductCard sin categoría, Home 2 columnas móvil, historial vistos",
+    "content": "Frontend: Checkout verificación dirección (CP→provincia, teléfono, Nominatim soft)",
     "status": "completed"
   },
   {
-    "content": "Frontend: AdminOrderDetail mensaje al cliente + i18n 7 idiomas",
+    "content": "Frontend: Account (solicitar reembolso modal + solicitar factura + badges)",
     "status": "completed"
   },
   {
-    "content": "Testing agent + verificación visual móvil/escritorio",
+    "content": "Frontend: AdminOrderDetail reembolso por producto + solicitudes visibles",
+    "status": "completed"
+  },
+  {
+    "content": "Frontend: buscador (placeholder, móvil siempre visible, sin zoom) + menú lateral móvil rediseñado",
+    "status": "completed"
+  },
+  {
+    "content": "Frontend: tienda categorías desplegable móvil + paginación 28/página",
+    "status": "completed"
+  },
+  {
+    "content": "Testing agent E2E + fixes",
     "status": "completed"
   }
 ]

@@ -14,7 +14,7 @@
     "discount": "5€ OFF on your first order · coupon {{coupon}} (+60€ purchase)"
   },
   "nav": {
-    "searchPlaceholder": "Search products, categories, SKU…",
+    "searchPlaceholder": "What are you looking for today?",
     "home": "Home",
     "shop": "Shop",
     "blog": "Blog",
@@ -30,7 +30,8 @@
     "openCart": "Open cart",
     "close": "Close",
     "wishlist": "Wishlist",
-    "compare": "Compare"
+    "compare": "Compare",
+    "register": "Create account"
   },
   "cart": {
     "title": "Your Cart",

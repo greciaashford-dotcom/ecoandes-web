@@ -383,6 +383,141 @@ async def my_orders(user: dict = Depends(get_current_user_optional)):
     return orders
 
 
+def _assert_order_owner(order: dict, user: Optional[dict]):
+    if not user:
+        raise HTTPException(status_code=401, detail="Debes iniciar sesión")
+    if user.get("role") == "admin":
+        return
+    if order.get("user_id") != user.get("id") and (order.get("email") or "").lower() != (user.get("email") or "").lower():
+        raise HTTPException(status_code=403, detail="Este pedido no pertenece a tu cuenta")
+
+
+class RefundRequestItemIn(BaseModel):
+    sku: str
+    quantity: int = 1
+
+
+class RefundRequestIn(BaseModel):
+    items: Optional[List[RefundRequestItemIn]] = None  # None / [] => todo el pedido
+    full_order: bool = False
+    reason: Optional[str] = None
+
+
+@router.post("/{order_id}/refund-request")
+async def create_refund_request(order_id: str, payload: RefundRequestIn, user: dict = Depends(get_current_user_optional)):
+    """El cliente solicita el reembolso de 1, varios o todos los productos.
+
+    No devuelve dinero automáticamente: la solicitud llega a EcoAndes (email + panel admin)
+    y la administración la revisa y ejecuta.
+    """
+    order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado")
+    _assert_order_owner(order, user)
+    if order.get("status") in ("Reembolsado", "Cancelado"):
+        raise HTTPException(status_code=400, detail="Este pedido no admite solicitudes de reembolso")
+    if (order.get("refund_request") or {}).get("status") == "pending":
+        raise HTTPException(status_code=400, detail="Ya tienes una solicitud de reembolso pendiente para este pedido")
+
+    full_order = payload.full_order or not payload.items
+    req_items = []
+    if not full_order:
+        by_sku = {it.get("sku"): it for it in order.get("items", [])}
+        for sel in payload.items:
+            src = by_sku.get(sel.sku)
+            if not src:
+                raise HTTPException(status_code=400, detail=f"El producto {sel.sku} no pertenece al pedido")
+            qty = max(1, min(int(sel.quantity), int(src.get("quantity", 1))))
+            req_items.append({
+                "sku": sel.sku,
+                "name": src.get("name"),
+                "variation_name": src.get("variation_name"),
+                "quantity": qty,
+                "unit_price": src.get("unit_price"),
+            })
+        if not req_items:
+            raise HTTPException(status_code=400, detail="Selecciona al menos un producto")
+
+    now = datetime.now(timezone.utc).isoformat()
+    request_doc = {
+        "full_order": full_order,
+        "items": req_items,
+        "reason": (payload.reason or "").strip()[:1000] or None,
+        "status": "pending",
+        "requested_at": now,
+        "requested_by": user.get("email"),
+    }
+    await db.orders.update_one({"id": order_id}, {"$set": {"refund_request": request_doc, "updated_at": now}})
+    # Aviso a la empresa (info@productosecoandes.com y direcciones configuradas)
+    import asyncio as _asyncio
+    from core.mailer import send_refund_request_notice
+    _asyncio.create_task(send_refund_request_notice(order, request_doc))
+    return {"ok": True, "refund_request": request_doc}
+
+
+@router.post("/{order_id}/invoice-request")
+async def create_invoice_request(order_id: str, user: dict = Depends(get_current_user_optional)):
+    """Un profesional solicita la factura de su pedido. Aviso por email a la empresa."""
+    order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado")
+    _assert_order_owner(order, user)
+    if user.get("role") not in ("professional", "admin"):
+        raise HTTPException(status_code=403, detail="La solicitud de factura está disponible para cuentas profesionales")
+    if (order.get("invoice_request") or {}).get("status") == "pending":
+        raise HTTPException(status_code=400, detail="Ya has solicitado la factura de este pedido")
+
+    now = datetime.now(timezone.utc).isoformat()
+    request_doc = {"status": "pending", "requested_at": now, "requested_by": user.get("email")}
+    await db.orders.update_one({"id": order_id}, {"$set": {"invoice_request": request_doc, "updated_at": now}})
+    import asyncio as _asyncio
+    from core.mailer import send_invoice_request_notice
+    _asyncio.create_task(send_invoice_request_notice(order, user))
+    return {"ok": True, "invoice_request": request_doc}
+
+
+@router.get("/verify-address")
+async def verify_address(
+    street: str = "",
+    city: str = "",
+    postal_code: str = "",
+    country: str = "España",
+    province: str = "",
+):
+    """Verificación 'soft' de dirección vía OpenStreetMap/Nominatim.
+
+    found=True (encontrada) · found=False (no encontrada, avisar) · found=None (servicio no disponible).
+    Nunca bloquea la venta por sí sola.
+    """
+    import httpx
+
+    params = {
+        "format": "jsonv2",
+        "limit": 1,
+        "street": street.strip(),
+        "city": city.strip(),
+        "postalcode": postal_code.strip(),
+        "country": country.strip() or "España",
+    }
+    headers = {"User-Agent": "EcoAndesShop/1.0 (info@productosecoandes.com)"}
+    try:
+        async with httpx.AsyncClient(timeout=6.0) as cx:
+            r = await cx.get("https://nominatim.openstreetmap.org/search", params=params, headers=headers)
+            if r.status_code != 200:
+                return {"found": None}
+            data = r.json()
+            if data:
+                return {"found": True, "display_name": data[0].get("display_name")}
+            # segundo intento sin calle (al menos CP + ciudad correctos)
+            params2 = {k: v for k, v in params.items() if k != "street"}
+            r2 = await cx.get("https://nominatim.openstreetmap.org/search", params=params2, headers=headers)
+            if r2.status_code == 200 and r2.json():
+                return {"found": True, "partial": True, "display_name": r2.json()[0].get("display_name")}
+            return {"found": False}
+    except Exception:  # noqa: BLE001
+        return {"found": None}
+
+
 # ---------- Admin ----------
 @router.get("/admin/list", dependencies=[Depends(require_admin)])
 async def admin_list_orders(

@@ -14,7 +14,7 @@
     "discount": "5€ DE RÉD. sur votre première commande · coupon {{coupon}} (+60€ d'achat)"
   },
   "nav": {
-    "searchPlaceholder": "Rechercher produits, catégories, SKU…",
+    "searchPlaceholder": "Que cherchez-vous aujourd'hui ?",
     "home": "Accueil",
     "shop": "Boutique",
     "blog": "Blog",
@@ -30,7 +30,8 @@
     "openCart": "Ouvrir le panier",
     "close": "Fermer",
     "wishlist": "Liste de souhaits",
-    "compare": "Comparer"
+    "compare": "Comparer",
+    "register": "Créer un compte"
   },
   "cart": {
     "title": "Votre panier",

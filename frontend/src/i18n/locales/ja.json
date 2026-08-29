@@ -14,7 +14,7 @@
     "discount": "初回ご注文で5€割引 · クーポン {{coupon}} (60€以上のご購入)"
   },
   "nav": {
-    "searchPlaceholder": "商品、カテゴリー、SKUを検索…",
+    "searchPlaceholder": "今日は何をお探しですか？",
     "home": "ホーム",
     "shop": "ショップ",
     "blog": "ブログ",
@@ -30,7 +30,8 @@
     "openCart": "カートを開く",
     "close": "閉じる",
     "wishlist": "お気に入りリスト",
-    "compare": "比較"
+    "compare": "比較",
+    "register": "アカウント作成"
   },
   "cart": {
     "title": "あなたのカート",

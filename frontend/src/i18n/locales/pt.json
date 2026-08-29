@@ -14,7 +14,7 @@
     "discount": "5€ DESCONTO. no seu primeiro pedido · cupão {{coupon}} (+60€ de compra)"
   },
   "nav": {
-    "searchPlaceholder": "Pesquisar produtos, categorias, SKU…",
+    "searchPlaceholder": "O que procura hoje?",
     "home": "Início",
     "shop": "Loja",
     "blog": "Blog",
@@ -30,7 +30,8 @@
     "openCart": "Abrir carrinho",
     "close": "Fechar",
     "wishlist": "Lista de desejos",
-    "compare": "Comparar"
+    "compare": "Comparar",
+    "register": "Criar conta"
   },
   "cart": {
     "title": "O seu cesto",

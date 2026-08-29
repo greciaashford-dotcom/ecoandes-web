@@ -49,7 +49,7 @@
     ]
   },
   "nav": {
-    "searchPlaceholder": "Buscar productos, categorías, SKU…",
+    "searchPlaceholder": "¿Qué buscas hoy?",
     "home": "Inicio",
     "shop": "Tienda",
     "blog": "Blog",
@@ -65,7 +65,8 @@
     "openCart": "Abrir carrito",
     "close": "Cerrar",
     "wishlist": "Lista de deseos",
-    "compare": "Comparar"
+    "compare": "Comparar",
+    "register": "Crear cuenta"
   },
   "search": {
     "clear": "Borrar",

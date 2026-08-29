@@ -9,7 +9,7 @@ const FAQS = [
   },
   {
     q: "¿Cuál es el coste de envío?",
-    a: "En España/Portugal peninsular y Baleares, los portes se calculan por peso (desde 4 € + IVA hasta un máximo de 29 € + IVA). Envío gratuito a partir de 50 € (IVA incluido) para particulares y a partir de 150 € (base imponible) para profesionales. Para Canarias y destinos fuera de la península, los portes se presupuestan manualmente según peso, volumen y destino: te enviaremos un correo con el importe total antes del pago."
+    a: "Para particulares: 4,99 € (IVA incluido) en pedidos inferiores a 50 €, y envío GRATIS a partir de 50 € (España/Portugal peninsular y Baleares). Para profesionales: portes por peso (desde 4 € + IVA hasta un máximo de 29 € + IVA) y envío gratuito a partir de 150 € (base imponible). Para Canarias y destinos fuera de la península, los portes se presupuestan manualmente según peso, volumen y destino: te enviaremos un correo con el importe total antes del pago."
   },
   {
     q: "¿Puedo devolver un producto?",

@@ -1,4 +1,4 @@
-# EcoAndes BIO — Plan de Continuación (UI → Blogs → Testing → Catálogo/Precios/IVA → Envíos → Pagos → SEO/GEO → Imágenes → **SEO Manual + Nombres Legacy + Redirecciones** → **UX/Operaciones (Lote 9)** → **Recuperación de Carritos (Lote 10)** → **Lote 11 (Splash + Recetas + Media links + Emails + Hero dots + 2º recordatorio + Links universales)** → **Fase 14 / Lote 12 (Blog Admin + Site Images Admin + Bug carrusel categorías)** → **Fase 15 / Lote 13 (Carrusel Coverflow 3D de categorías)** → **Fase 16 / Lote 14 (Envíos/Pagos/Reembolsos/Registro: v2)** → **Fase 17 / Lote 15 (Carrito estilo Amazon + UX móvil + Mensajes a cliente)** → **Fase 18 / Lote 16 (Recomendados EcoAndes + UX móvil tienda/cartas + logout destacado)**)
+# EcoAndes BIO — Plan de Continuación (UI → Blogs → Testing → Catálogo/Precios/IVA → Envíos → Pagos → SEO/GEO → Imágenes → **SEO Manual + Nombres Legacy + Redirecciones** → **UX/Operaciones (Lote 9)** → **Recuperación de Carritos (Lote 10)** → **Lote 11 (Splash + Recetas + Media links + Emails + Hero dots + 2º recordatorio + Links universales)** → **Fase 14 / Lote 12 (Blog Admin + Site Images Admin + Bug carrusel categorías)** → **Fase 15 / Lote 13 (Carrusel Coverflow 3D de categorías)** → **Fase 16 / Lote 14 (Envíos/Pagos/Reembolsos/Registro: v2)** → **Fase 17 / Lote 15 (Carrito estilo Amazon + UX móvil + Mensajes a cliente)** → **Fase 18 / Lote 16 (Recomendados EcoAndes + UX móvil tienda/cartas + logout destacado)** → **Fase 19 / Lote 17 (Envíos retail v3 + verificación dirección + reembolsos tipo WooCommerce + solicitud factura + buscador + menú móvil + paginación tienda)**
 
 ## 1) Objetivos
 
@@ -7,14 +7,14 @@
 - Actualizar el **Blog**: 12 posts mantenidos, ahora gestionables desde dashboard con SEO y JSON‑LD Article. **(COMPLETADO)**
 - Ejecutar **testing end‑to‑end** para asegurar estabilidad (checkout/cupón/búsqueda/registro/blogs/UI). **(COMPLETADO)**
 - **Carrusel categorías Coverflow 3D**: navegación por click + edición admin + descripciones auto/manual. **(COMPLETADO; iteration_21 100%)**
-
-**Estado (sobre lo anterior):** UI + Blog + Operaciones listos.
+- **Carrito estilo Amazon**: confirmación dentro del drawer + carruseles + “Seguir comprando” + pagos por rol + panel de mensajes al cliente. **(COMPLETADO; iteration_23 100%)**
+- **Recomendados por EcoAndes** en Home + tienda móvil 2 columnas + cards móvil + logout destacado. **(COMPLETADO; verificación visual)**
 
 ### Objetivos del scope mayor (estado actual)
 - **Fase 1 (P0): Catálogo + Precios + IVA (Excel‑driven)**
   - **Estado:** **COMPLETADO**.
-- **Fase 2 (P0): Motor de envíos (V1/V2)** por tipo de usuario + zona + peso.
-  - **Estado:** **COMPLETADO (V2)** + validado.
+- **Fase 2 (P0): Motor de envíos (V1/V2/V3)** por tipo de usuario + zona + peso.
+  - **Estado:** **COMPLETADO (V3)** + validado (shipping_config version=3).
 - **Fase 3 (P1): Métodos de pago (V1/V2)** por rol (sin contrareembolso) + scaffolding.
   - **Estado:** **COMPLETADO (V2)**.
   - **Operativa real (pendiente de credenciales/dominio):**
@@ -25,16 +25,6 @@
 - **Fase 5 (P1): Migración P0 de imágenes** a almacenamiento propio (WebP + resize + caché 1 año).
   - **Estado:** **PENDIENTE**.
 - **Fase 6 (P0/P1): SEO Manual + Nombres Legacy + Redirecciones**
-  - **Estado:** **COMPLETADO**.
-- **Fase 7 (P0/P1): UX + Operaciones (Lote 9)**
-  - **Estado:** **COMPLETADO**.
-- **Fase 12 (P0/P1): Recuperación de Carritos Abandonados (Lote 10)**
-  - **Estado:** **COMPLETADO**.
-- **Fase 13 (P0/P1): Lote 11 (Splash/Recetas/Emails/Links)**
-  - **Estado:** **COMPLETADO**.
-- **Fase 14 (P0/P1): Blog Admin + Site Images Admin + bug carrusel categorías**
-  - **Estado:** **COMPLETADO**.
-- **Fase 15 (P0/P1): Coverflow 3D categorías**
   - **Estado:** **COMPLETADO**.
 
 ---
@@ -68,9 +58,10 @@
 
 ### Fase 6 — Motor de Envíos (V1) — **COMPLETADO (P0)**
 - Existe `core/shipping.py` con detección de zonas y reglas.
-- **Nota:** esta fase se considera completada en su V1.
 
 **Actualización v2 (Lote 14) — COMPLETADA:** ver Fase 16.
+
+**Actualización v3 (Lote 17) — COMPLETADA:** ver Fase 19.
 
 ---
 
@@ -139,137 +130,110 @@ Entregables principales (v2):
 7) **Revisión de integraciones** (test): Stripe OK en test; Resend restringido hasta verificar dominio; Verifactu no implementado.
 
 **Nota post‑v2 (bug real detectado y corregido):**
-- El cálculo de portes por peso no subía en algunos casos porque ciertas variaciones carecían de `weight_kg`. Se hizo backfill total (389/389 variaciones) + migración de carritos guardados + fallback parser (formato “150 g”, “1 kg”, “500 ml”…). **(COMPLETADO)**
+- El cálculo de portes por peso no subía en algunos casos porque ciertas variaciones carecían de `weight_kg`. Se hizo backfill total (389/389 variaciones) + migración de carritos guardados + fallback parser. **(COMPLETADO)**
 
 ---
 
 ### Fase 17 — Lote 15: Carrito estilo Amazon + UX móvil + Mensajes a cliente — **COMPLETADO (2026-08)**
 > **Estado:** **COMPLETADO (implementado + validado; pendiente confirmación de usuario)**.
 
-#### 17.1 Objetivo UX: “Añadir al carrito” estilo Amazon — **COMPLETADO**
-**Decisión confirmada:** mantener el **panel lateral deslizante** (CartDrawer), sin redirección a una página aislada.
-
-**Entregado (UX):**
-- Confirmación en el propio panel: **bloque verde “Añadido al carrito”** con miniatura y nombre del producto (`cart-added-confirmation`).
-- Se eliminó el **toast** de “Añadido al carrito” para evitar que tape botones del drawer.
-- Nuevo estado `lastAdded` en `CartContext` para renderizar la confirmación contextual.
-
-#### 17.2 Backend (FastAPI) — recomendaciones para el panel — **COMPLETADO**
-**Nuevo endpoint:**
-- `GET /api/products/recommendations?product_id=...&viewed=...&limit=...`
-
-**Respuesta:**
-```json
-{
-  "category": "...",
-  "related": [...],
-  "recommended": [...],
-  "explore": [...],
-  "offers": [...]
-}
-```
-
-**Heurística (v1):**
-- `related` (cross‑sell): misma categoría, prioriza `best_seller`/`featured`.
-- `recommended` (up‑sell): si usuario logueado, categorías de compras previas; fallback `featured` + `best_seller` + top por rating.
-- `explore`: historial `viewed` (localStorage `eco_recent_views`) + populares (`best_seller`) + top rating.
-- **De-duplicación cross-sección** (un producto no aparece en varias filas) y exclusión del producto seed.
-
-#### 17.3 Frontend — carruseles “Amazon‑like” en el drawer — **COMPLETADO**
-**Nuevo componente:**
-- `frontend/src/components/CartRecommendations.jsx`
-
-**Entregado (UI):**
-- 3 carruseles horizontales modernos (scroll‑snap) dentro del drawer:
-  1) Productos relacionados
-  2) Recomendado para ti
-  3) Explorar más artículos
-- Click en una mini‑card navega al producto y **cierra el drawer** (flujo rápido).
-- Historial de navegación implementado en `ProductDetail` con localStorage `eco_recent_views`.
-
-#### 17.4 Ofertas para ti en [Categoría] — preparado para el futuro — **COMPLETADO (preparación)**
-**Decisión del usuario:** omitir la sección por ahora, y que aparezca automáticamente cuando existan descuentos.
-
-**Preparación entregada:**
-- Campo opcional `compare_at_price` (precio anterior) añadido al modelo de producto.
-- El endpoint devuelve `offers` solo si existen productos con `compare_at_price > precio retail actual`.
-- Las mini-cards soportan badge de % y precio tachado cuando `offers` empiece a tener datos.
-
-#### 17.5 UX móvil: icono de cuenta + reubicación favoritos — **COMPLETADO**
-- En móvil se muestra icono **persona** (`nav-mobile-account`), verde con punto cuando hay sesión (`nav-mobile-account-dot`).
-- El icono **corazón/favoritos** se oculta en el top bar en móvil y queda accesible por menú hamburguesa.
-
-#### 17.6 Carrito: botón “SEGUIR COMPRANDO” — **COMPLETADO**
-- En el footer del drawer:
-  - Botón **SEGUIR COMPRANDO** (`cart-continue-shopping-btn`) encima de
-  - **FINALIZAR COMPRA** (`cart-checkout-btn`).
-
-#### 17.7 Catálogo/UI: cards y home — **COMPLETADO**
-- **ProductCard:** eliminada la etiqueta de categoría.
-- **Home (Destacados):** grid a **2 columnas en móvil**.
-
-#### 17.8 Admin: mensaje personalizado al cliente — **COMPLETADO**
-- En `AdminOrderDetail` se añadió panel **“Mensaje al cliente”** con asunto opcional + textarea.
-- Endpoint: `POST /api/orders/admin/{id}/message`.
-- Envío por email con plantilla corporativa (`send_custom_customer_message` en `core/mailer.py`).
-- Registro en `order.customer_messages[]` + listado en UI.
-- Si Resend está restringido, la UI informa (mensaje se registra igualmente con `sent=false`).
-
-#### 17.9 i18n — **COMPLETADO**
-- Nuevas claves en 7 idiomas (`es,en,fr,it,pt,ja,zh`) bajo `cart.*`:
-  - `addedToCart`, `continueShopping`, `related`, `recommended`, `explore`, `offersIn`.
-
-#### 17.10 Testing / Evidencia — **COMPLETADO**
-- Testing agent: `iteration_23.json` — **backend 100% (10/10)** y **frontend 100%**, sin action items.
-- Verificación visual: drawer desktop (confirmación + carruseles) y móvil (icono persona + 2 columnas).
-- Datos de prueba limpiados.
+(Se mantiene igual que en la versión anterior del plan.)
 
 ---
 
 ### Fase 18 — Lote 16: Recomendados EcoAndes + UX móvil tienda/cartas + logout destacado — **COMPLETADO (2026-08)**
 > **Estado:** **COMPLETADO (implementado + validado; pendiente confirmación de usuario)**.
 
-#### 18.1 Home: “Recomendados por EcoAndes” (curación manual desde productos) — **COMPLETADO**
-**Objetivo:** añadir una segunda sección bajo “Productos destacados” gestionable desde el editor de producto.
+(Se mantiene igual que en la versión anterior del plan.)
 
-**Entregado:**
-- Nuevo flag de producto: `recommended: bool` (por defecto `false`).
-- `GET /api/products` soporta filtro `recommended=true`.
-- Admin `ProductEditorModal`: nuevo checkbox **“Recomendado por EcoAndes”** (`data-testid="editor-recommended"`).
-- Home: nueva sección **Recomendados por EcoAndes** (`data-testid="recommended-section"`) debajo de “Productos destacados”.
-  - Oculta automáticamente si no hay productos marcados.
-- i18n: claves añadidas en 7 locales:
-  - `home.recommendedOverline`
-  - `home.recommendedTitle`
+---
 
-**Nota:** se seedearon 4 productos iniciales como recomendados (Mijo, Quinoa Real, Quinoa Real Negra, Maíz para Palomitas). Se pueden cambiar desde el admin.
+### Fase 19 — Lote 17: Envíos retail v3 + verificación dirección + reembolsos tipo WooCommerce + solicitar factura + buscador + menú móvil + paginación tienda — **COMPLETADO (2026-08)**
+> **Estado:** **COMPLETADO** (implementado + validado; iteration_24 backend 100% 13/13; frontend 15/16, issue LOW confirmado como falso negativo por verificación manual).
 
-#### 18.2 Tienda (móvil): grid de 2 columnas — **COMPLETADO**
-- `/tienda` muestra productos en **2 columnas en móvil** (`grid-cols-2 lg:grid-cols-3`).
+> **Nota de scope:** la **barra inferior fija de iconos en móvil fue descartada** por el usuario.
 
-#### 18.3 Cartas de producto (móvil): layout optimizado — **COMPLETADO**
-**Nuevo diseño en móvil:**
-- Imagen
-- Nombre (como antes)
-- Precio / rango de precio
-- CTA “Ver producto” como píldora a ancho completo
+#### 19.1 Envíos retail v3 (cambio de regla) — **COMPLETADO**
+**Regla (confirmada e implementada):**
+- Particulares (retail):
+  - Si el pedido (IVA incl.) es **< 50€** → **porte único**: **4,12€ (sin IVA)** → **4,99€** con IVA 21%.
+  - Si el pedido es **≥ 50€** → **envío gratis**.
+  - **Se elimina la tabla por kilos para particulares** (tabla Excel queda solo para profesionales).
+- Profesionales verificados:
+  - Se mantiene: envío gratis desde **150€ base imponible** (península/Baleares) y **tabla por peso Excel** por debajo.
+- Canarias / destinos fuera península:
+  - Se mantiene **presupuesto manual** y orden sin pago hasta cotización.
 
-**Notas:**
-- En móvil se oculta el quick-add y la línea de estrellas (se mantienen en pantallas >= sm).
-- En desktop/tablet no se rompe el layout existente (precio + acción en fila).
+**Implementación realizada:**
+- `backend/core/shipping.py`:
+  - Migración config `version: 2 → 3`.
+  - Retail ES/PT/BAL pasa a `flat_with_free_threshold` con `flat_fee = 4.12` (net) y `free_min_amount = 50` (basis `total_with_vat`).
+- Textos/FAQ actualizados.
 
-#### 18.4 Cuenta: botón “Cerrar sesión” destacado — **COMPLETADO**
-- En `/cuenta`:
-  - Nuevo botón principal destacado en terracota junto al saludo (`data-testid="account-logout-btn"`).
-  - Variante secundaria al final de la página (`data-testid="account-logout-btn-bottom"`).
+#### 19.2 Verificación de dirección en Checkout — **COMPLETADO**
+**Objetivo:** reducir direcciones inválidas sin bloquear pedidos por falsos negativos.
 
-#### 18.5 Verificación — **COMPLETADO**
-- Backend: compilación OK, filtro `recommended` validado.
-- UI: capturas móviles confirmando:
-  - Home con sección recomendados
-  - Tienda a 2 columnas
-  - Nuevo layout de cards
-  - Logout destacado visible y fácil de localizar
+**Implementación realizada:**
+- `frontend/src/lib/esPostal.js`:
+  - Mapa de provincias por prefijo CP (01–52).
+  - Validación CP español.
+  - Autocompletado de provincia por CP.
+- `frontend/src/pages/Checkout.jsx`:
+  - **Bloqueo** por entradas claramente inválidas:
+    - CP ES inválido.
+    - Teléfono con menos de 9 dígitos.
+    - Calle demasiado corta.
+  - **Verificación soft** (no bloqueante) con Nominatim:
+    - `GET /api/orders/verify-address`.
+    - Si `found=false` → warning amber + requiere **segundo click de confirmación**.
+- `backend/routes/orders.py`:
+  - `GET /api/orders/verify-address` proxy hacia Nominatim (User-Agent EcoAndes).
+
+#### 19.3 Reembolsos tipo WooCommerce (cliente y admin, por producto) — **COMPLETADO**
+**Requisito (confirmado e implementado):**
+- Cliente: botón visible por pedido “Solicitar reembolso” → modal para:
+  - todo el pedido, o
+  - 1/varios productos con cantidad,
+  - motivo opcional.
+  - Solicitud llega a EcoAndes para revisión (no reembolso automático).
+- Admin: reembolso por líneas (sku/qty/importes editables), múltiples reembolsos parciales por pedido.
+- **Envío solo se devuelve automáticamente** en reembolso total del pedido (aún editable/forzable por admin).
+
+**Implementación realizada:**
+- `POST /api/orders/{id}/refund-request` (owner auth): crea `order.refund_request` con status pending; evita duplicados; email interno.
+- `POST /api/admin/orders/{id}/refund`:
+  - acepta `items[]` por sku/qty/amount + flags de envío.
+  - guarda `order.refunds[]`, `order.refunded_total`, `order.partially_refunded`.
+  - status `Reembolsado` solo cuando el total del pedido está reembolsado.
+  - si había solicitud pendiente → la marca como `processed`.
+- UI:
+  - `/cuenta`: modal de solicitud por pedido.
+  - `AdminOrderDetail`: UI por producto con qty e importes, envío editable, historial de reembolsos, alert de solicitud del cliente con botón “Precargar esta selección”.
+
+#### 19.4 Profesionales: “Solicitar factura” — **COMPLETADO**
+- `/cuenta` (profesional): botón “Solicitar Factura” por pedido.
+- `POST /api/orders/{id}/invoice-request`:
+  - solo profesional (o admin), owner check.
+  - guarda `order.invoice_request` pending y envía aviso interno.
+- Admin: badge “Factura solicitada” en detalle pedido.
+
+#### 19.5 Buscador frontend (móvil y UX) — **COMPLETADO**
+- Placeholder: “¿Qué buscas hoy?” (7 idiomas).
+- Móvil: buscador **siempre visible** bajo la barra superior.
+- Anti-zoom iOS: input `font-size: 16px` en móvil.
+
+#### 19.6 Menú lateral móvil (estética) — **COMPLETADO**
+- Menú hamburger rediseñado con:
+  - panel lateral con backdrop,
+  - tarjeta de usuario / acciones login+registro,
+  - enlaces agrupados con iconos y badges,
+  - botón logout terracota.
+- Fix técnico: render por `createPortal(document.body)` para evitar clipping por `backdrop-blur` del header.
+
+#### 19.7 Tienda: categorías en desplegable móvil + paginación global — **COMPLETADO**
+- Móvil: categorías en desplegable (`shop-categories-toggle` + panel).
+- Todas las vistas: paginación 28 productos/página (≈7 páginas con el catálogo actual), reset con filtros/búsqueda y scroll-to-top.
+- Escritorio: se mantienen chips + sidebar.
 
 ---
 
@@ -287,18 +251,24 @@ Entregables principales (v2):
 
 ## 4) Criterios de Éxito
 
-**Se mantienen los criterios anteriores**, y se confirman los de Fase 17–18 (ya implementados):
-- “Añadir al carrito” no redirige: confirmación y recomendaciones dentro del panel.
-- Carruseles muestran productos válidos, sin duplicados y excluyendo el producto seed.
-- UX móvil mejorada (persona visible, favoritos accesibles desde menú).
-- Carrito con “Seguir comprando” + “Finalizar compra”.
-- ProductCard sin categoría.
-- Home:
-  - Destacados a 2 columnas en móvil.
-  - Nueva sección “Recomendados por EcoAndes” gestionable por flag `recommended`.
-- Tienda móvil a 2 columnas.
-- Botón “Cerrar sesión” muy visible y rápido de encontrar.
-- Admin permite enviar mensaje personalizado al cliente y registrar el envío (sent true/false según Resend).
+**Se mantienen los criterios anteriores**, y se consolidan los de Fase 19 (ya cumplidos):
+- Retail shipping v3:
+  - <50€ → 4,99€ (IVA incl.)
+  - ≥50€ → gratis
+  - sin tabla por peso para retail.
+- Checkout:
+  - bloquea CP/teléfono claramente inválidos,
+  - advierte direcciones no encontradas y permite continuar con doble confirmación.
+- Reembolsos:
+  - Cliente puede solicitar por producto o pedido completo.
+  - Admin puede ejecutar parcial/total; envío solo se devuelve automáticamente en reembolso total.
+  - Montos editables por admin; reembolsos múltiples por pedido.
+- Profesionales: botón “Solicitar factura” por pedido con aviso a info@productosecoandes.com.
+- Buscador móvil siempre visible, placeholder correcto y sin zoom al escribir.
+- Menú lateral móvil mejorado y sin clipping.
+- Tienda:
+  - categorías en desplegable móvil,
+  - paginación 28/página en todas las vistas.
 
 ---
 

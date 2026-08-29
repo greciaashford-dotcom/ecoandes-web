@@ -107,7 +107,7 @@ export default function SearchBar({ compact = false, onNavigate }) {
           onKeyDown={handleKeyDown}
           placeholder={t("nav.searchPlaceholder")}
           data-testid="searchbar-input"
-          className="w-full bg-white border border-bone-200 focus:border-sage-500 focus:ring-2 focus:ring-sage-500/30 rounded-full pl-9 pr-9 py-2.5 text-sm text-ink placeholder:text-ink-muted transition-all duration-200 outline-none"
+          className="w-full bg-white border border-bone-200 focus:border-sage-500 focus:ring-2 focus:ring-sage-500/30 rounded-full pl-9 pr-9 py-2.5 text-base lg:text-sm text-ink placeholder:text-ink-muted transition-all duration-200 outline-none"
         />
         {query && (
           <button

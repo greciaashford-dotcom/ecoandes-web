@@ -250,6 +250,58 @@ async def send_custom_customer_message(order: dict, subject: Optional[str], mess
     return await _send(order.get("email"), subj, _wrap("Mensaje de EcoAndes", body))
 
 
+# ---------- Solicitud de reembolso del cliente (aviso interno) ----------
+async def send_refund_request_notice(order: dict, request: dict) -> Optional[str]:
+    order_no = order.get("order_number", "")
+    if request.get("full_order"):
+        items_html = "<p style='color:#2D332F;font-size:14px;'><strong>Reembolso solicitado: TODO EL PEDIDO</strong></p>"
+    else:
+        rows = "".join(
+            f"<tr><td style='padding:4px 0;color:#2D332F;font-size:13px;'>{it.get('name','')}"
+            f"{' · ' + it.get('variation_name') if it.get('variation_name') else ''}</td>"
+            f"<td style='text-align:right;font-size:13px;'>× {it.get('quantity',1)}</td></tr>"
+            for it in request.get("items", [])
+        )
+        items_html = f"<table style='width:100%;border-collapse:collapse;'>{rows}</table>"
+    reason_html = (
+        f"<div style='margin-top:12px;padding:10px 14px;background:#F4F6F2;border-left:3px solid #B0654F;font-size:13px;color:#2D332F;'>Motivo del cliente: {request.get('reason')}</div>"
+        if request.get("reason") else ""
+    )
+    body = f"""
+      <p style="color:#606962;font-size:14px;line-height:1.7;">
+        El cliente <strong>{order.get('email','')}</strong> ha solicitado un reembolso del pedido
+        <strong>#{order_no}</strong> (total {order.get('total',0):.2f} €).
+      </p>
+      {items_html}
+      {reason_html}
+      <p style="color:#9AA39C;font-size:12px;margin-top:14px;">
+        Revisa y ejecuta el reembolso desde el panel de administración → Pedidos → #{order_no}.
+        El envío solo debe devolverse si el reembolso es del pedido completo.
+      </p>
+    """
+    return await _send_company(f"🔁 Solicitud de reembolso · Pedido #{order_no}", _wrap("Solicitud de reembolso", body))
+
+
+# ---------- Solicitud de factura (profesional) ----------
+async def send_invoice_request_notice(order: dict, user: dict) -> Optional[str]:
+    order_no = order.get("order_number", "")
+    company = user.get("company") or "-"
+    body = f"""
+      <p style="color:#606962;font-size:14px;line-height:1.7;">
+        El cliente profesional <strong>{user.get('first_name','')} {user.get('last_name','')}</strong>
+        ({user.get('email','')}) ha solicitado la <strong>factura</strong> del pedido <strong>#{order_no}</strong>.
+      </p>
+      <table style="width:100%;font-size:13px;color:#2D332F;">
+        <tr><td style="padding:4px 0;color:#606962;">Empresa</td><td style="text-align:right;">{company}</td></tr>
+        <tr><td style="padding:4px 0;color:#606962;">NIF/CIF</td><td style="text-align:right;">{user.get('tax_id') or '-'}</td></tr>
+        <tr><td style="padding:4px 0;color:#606962;">Total pedido</td><td style="text-align:right;">{order.get('total',0):.2f} €</td></tr>
+        <tr><td style="padding:4px 0;color:#606962;">Fecha pedido</td><td style="text-align:right;">{(order.get('created_at') or '')[:10]}</td></tr>
+      </table>
+      <p style="color:#9AA39C;font-size:12px;margin-top:14px;">Emite la factura y envíasela al cliente por email.</p>
+    """
+    return await _send_company(f"🧾 Solicitud de factura · Pedido #{order_no}", _wrap("Solicitud de factura", body))
+
+
 # ---------- Professional account: under review ----------
 async def send_professional_review(user: dict) -> Optional[str]:
     name = user.get("first_name", "")

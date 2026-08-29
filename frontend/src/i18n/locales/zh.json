@@ -14,7 +14,7 @@
     "discount": "首单立减5€ · 优惠码 {{coupon}} (满60€可用)"
   },
   "nav": {
-    "searchPlaceholder": "搜索产品、分类、SKU…",
+    "searchPlaceholder": "今天想找什么？",
     "home": "首页",
     "shop": "商店",
     "blog": "博客",
@@ -30,7 +30,8 @@
     "openCart": "打开购物车",
     "close": "关闭",
     "wishlist": "心愿单",
-    "compare": "比较"
+    "compare": "比较",
+    "register": "创建账户"
   },
   "cart": {
     "title": "您的购物车",

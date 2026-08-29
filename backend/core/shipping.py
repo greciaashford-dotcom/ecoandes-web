@@ -51,9 +51,11 @@ MANUAL_QUOTE_MESSAGE = (
     "(portes incluidos) para realizar el pago."
 )
 
+RETAIL_FLAT_FEE = 4.12  # neto; con IVA 21% = 4,99 € (porte único particulares < 50 €)
+
 DEFAULT_SHIPPING_CONFIG = {
     "id": CONFIG_ID,
-    "version": 2,
+    "version": 3,
     "currency": "EUR",
     "weight_unit": "kg",
     "shipping_vat_rate": SHIPPING_VAT_RATE,
@@ -65,13 +67,13 @@ DEFAULT_SHIPPING_CONFIG = {
     },
     "rules": {
         "retail": {
+            # v3: particulares SIN tabla por peso — porte único 4,12 € (neto) < 50 €, gratis >= 50 €
             "ES_PT_BAL": {
-                "method": "weight_scale_conditional_free",
+                "method": "flat_with_free_threshold",
                 "free_amount_basis": "total_with_vat",
                 "free_min_amount": 50.0,
                 "free_operator": ">=",
-                "weight_scale": EXCEL_WEIGHT_SCALE,
-                "over_scale_fee": 29.0,  # porte máximo (>35 kg)
+                "flat_fee": RETAIL_FLAT_FEE,
             },
             "CANARIAS_EU": {
                 "method": "manual_quote",
@@ -149,8 +151,8 @@ def shipping_with_vat(net_fee: float, vat_rate: int = SHIPPING_VAT_RATE) -> dict
 
 async def get_shipping_config() -> dict:
     cfg = await db.shipping_config.find_one({"id": CONFIG_ID}, {"_id": 0})
-    if not cfg or int(cfg.get("version", 1)) < 2:
-        # v1 -> v2 migration: replace with the new confirmed rules (Excel portes_b2b.xlsx)
+    if not cfg or int(cfg.get("version", 1)) < 3:
+        # migración -> v3: retail con porte único 4,12 € (sin tabla por peso); pro mantiene Excel
         await db.shipping_config.replace_one(
             {"id": CONFIG_ID}, {**DEFAULT_SHIPPING_CONFIG}, upsert=True
         )

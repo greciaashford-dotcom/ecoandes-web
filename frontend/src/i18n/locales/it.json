@@ -14,7 +14,7 @@
     "discount": "5€ SCONTO. sul tuo primo ordine · codice {{coupon}} (+60€ di acquisto)"
   },
   "nav": {
-    "searchPlaceholder": "Cerca prodotti, categorie, SKU…",
+    "searchPlaceholder": "Cosa cerchi oggi?",
     "home": "Inizio",
     "shop": "Negozio",
     "blog": "Blog",
@@ -30,7 +30,8 @@
     "openCart": "Apri carrello",
     "close": "Chiudi",
     "wishlist": "Lista dei desideri",
-    "compare": "Compara"
+    "compare": "Compara",
+    "register": "Crea account"
   },
   "cart": {
     "title": "Il tuo carrello",

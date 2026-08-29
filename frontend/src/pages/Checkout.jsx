@@ -8,6 +8,7 @@ import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import { STORE } from "../data/storeInfo";
 import { buildCartSnapshot, rememberGuestEmail } from "../components/CartTracker";
+import { isSpain, isValidSpanishPostalCode, provinceForPostalCode } from "../lib/esPostal";
 // Logos de medios de pago (SVG inline, sin peticiones externas)
 const CardLogos = () => (
   <span className="inline-flex items-center gap-1.5 align-middle" data-testid="card-logos">
@@ -97,6 +98,18 @@ export default function Checkout() {
 
   const onChange = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
+  // Verificación de dirección: autocompletar provincia desde el CP (coherencia CP↔provincia)
+  // y resetear el estado de verificación cuando cambia cualquier campo de la dirección.
+  const [addressWarn, setAddressWarn] = useState(null); // null | "warn"
+  useEffect(() => {
+    const prov = provinceForPostalCode(form.postal_code, form.country);
+    if (prov && form.province !== prov) {
+      setForm((f) => ({ ...f, province: prov }));
+    }
+    setAddressWarn(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.postal_code, form.country, form.street, form.city]);
+
   // If pickup is chosen, offline methods (transfer / domiciliación) do not apply -> reset to card.
   const selectDelivery = (v) => {
     setDelivery(v);
@@ -156,8 +169,40 @@ export default function Checkout() {
       toast.error("Envío no disponible", { description: shipping?.message || "No realizamos envíos a tu zona." });
       return;
     }
+    // Validación de dirección (datos verídicos)
+    if (!isPickup) {
+      if (isSpain(form.country) && !isValidSpanishPostalCode(form.postal_code)) {
+        toast.error("Código postal no válido", { description: "Introduce un código postal español de 5 dígitos (01–52)." });
+        return;
+      }
+      const phoneDigits = (form.phone || "").replace(/\D/g, "");
+      if (phoneDigits.length < 9) {
+        toast.error("Teléfono no válido", { description: "Introduce un teléfono de contacto válido (mínimo 9 dígitos)." });
+        return;
+      }
+      if ((form.street || "").trim().length < 5) {
+        toast.error("Dirección incompleta", { description: "Introduce la calle y el número completos." });
+        return;
+      }
+    }
     setSubmitting(true);
     try {
+      // Verificación 'soft' de la dirección (OpenStreetMap). Si no se encuentra,
+      // avisamos y pedimos una segunda confirmación; nunca bloquea si el servicio falla.
+      if (!isPickup && addressWarn !== "warn") {
+        try {
+          const { data: ver } = await api.get("/orders/verify-address", {
+            params: { street: form.street, city: form.city, postal_code: form.postal_code, country: form.country },
+          });
+          if (ver?.found === false) {
+            setAddressWarn("warn");
+            toast.warning("No hemos podido verificar tu dirección", {
+              description: "Revisa calle, ciudad y código postal. Si es correcta, pulsa de nuevo el botón para confirmarla.",
+            });
+            return;
+          }
+        } catch { /* servicio no disponible: continuar */ }
+      }
       const shipping_address = isPickup
         ? {
             full_name: form.full_name,
@@ -308,6 +353,12 @@ export default function Checkout() {
                 <input className="input-eco" placeholder="País" value={form.country} onChange={onChange("country")} data-testid="checkout-country" />
                 <textarea className="input-eco md:col-span-2" placeholder="Notas para el envío (opcional)" value={form.notes} onChange={onChange("notes")} data-testid="checkout-notes" />
               </div>
+              {addressWarn === "warn" && (
+                <div className="mt-3 text-xs bg-amber-50 border border-amber-300 text-amber-800 rounded-sm px-3 py-2.5 leading-relaxed" data-testid="address-warning">
+                  ⚠️ No hemos podido verificar esta dirección. Revisa la calle, ciudad y código postal;
+                  si estás seguro de que es correcta, pulsa de nuevo el botón de confirmar pedido.
+                </div>
+              )}
             </section>
           ) : (
             <section>
