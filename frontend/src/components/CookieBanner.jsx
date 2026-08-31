@@ -40,7 +40,7 @@ export default function CookieBanner() {
 
   return (
     <div
-      className="fixed inset-x-0 bottom-0 z-[60] px-4 pb-4 sm:px-6 sm:pb-6 pointer-events-none"
+      className="fixed inset-x-0 bottom-0 z-[60] px-4 pb-20 sm:px-6 sm:pb-24 lg:pb-6 pointer-events-none"
       data-testid="cookie-banner"
     >
       <div className="pointer-events-auto relative max-w-5xl mx-auto bg-white border border-bone-200 shadow-[0_-4px_30px_rgba(0,0,0,0.08)] rounded-sm overflow-hidden">

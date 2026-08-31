@@ -94,7 +94,7 @@ export default function Home() {
             {t("common.seeAll")}
           </Link>
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 md:gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
           {featured.map((p) => (
             <ProductCard key={p.id} product={p} />
           ))}
@@ -113,7 +113,7 @@ export default function Home() {
               {t("common.seeAll")}
             </Link>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 md:gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
             {recommendedProds.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}

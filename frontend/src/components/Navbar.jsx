@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ShoppingBag, User, Menu, X, LogOut, LayoutDashboard, Heart, Scale, Home, Store, BookOpen, Briefcase, Mail, ChevronRight } from "lucide-react";
 import { useCart } from "../context/CartContext";
@@ -16,6 +16,7 @@ export default function Navbar() {
   const { wishlistCount, compareCount } = useWishlist();
   const [mobileOpen, setMobileOpen] = useState(false);
   const nav = useNavigate();
+  const loc = useLocation();
 
   const linkCls = ({ isActive }) =>
     `text-xs uppercase tracking-[0.22em] font-medium transition-colors whitespace-nowrap ${
@@ -116,25 +117,11 @@ export default function Navbar() {
               <span data-testid="wishlist-count" className="absolute -top-2 -right-2 bg-terracotta text-white text-[10px] h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center font-medium">{wishlistCount}</span>
             )}
           </Link>
-          {/* Móvil: icono de cuenta (persona). Verde con punto cuando hay sesión iniciada. */}
-          <Link
-            to={user ? "/cuenta" : "/login"}
-            data-testid="nav-mobile-account"
-            className={`relative flex md:hidden items-center transition-colors ${user ? "text-sage-600" : "text-ink hover:text-sage-600"}`}
-            aria-label={user ? t("nav.account") : t("nav.login")}
-          >
-            <User size={20} />
-            {user && (
-              <span
-                data-testid="nav-mobile-account-dot"
-                className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-sage-500 border-2 border-bone-100"
-              />
-            )}
-          </Link>
+          {/* Móvil: cuenta y carrito viven ahora en la barra inferior fija. */}
           <button
             onClick={openDrawer}
             data-testid="nav-cart-btn"
-            className="relative flex items-center gap-2 text-ink hover:text-sage-600 transition-colors"
+            className="relative hidden lg:flex items-center gap-2 text-ink hover:text-sage-600 transition-colors"
             aria-label={t("nav.openCart")}
           >
             <ShoppingBag size={20} />
@@ -292,6 +279,94 @@ export default function Navbar() {
             </div>
           </div>
         </div>,
+        document.body
+      )}
+
+      {/* Barra inferior fija (solo móvil/tablet): Menú · Inicio · Acceder · Favoritos · Carrito.
+          Mismo fondo que la barra de promociones superior (sage-800). */}
+      {createPortal(
+        <nav
+          data-testid="mobile-bottom-nav"
+          aria-label="Navegación inferior"
+          className="lg:hidden fixed inset-x-0 bottom-0 z-40 bg-sage-800 border-t border-sage-700/50 pb-[env(safe-area-inset-bottom)]"
+        >
+          <div className="grid grid-cols-5 h-[60px]">
+            <button
+              type="button"
+              onClick={() => setMobileOpen(true)}
+              data-testid="bottomnav-menu"
+              aria-label={t("nav.openMenu")}
+              className="flex items-center justify-center text-bone-100/75 hover:text-white active:text-white transition-colors"
+            >
+              <Menu size={22} />
+            </button>
+            <Link
+              to="/"
+              data-testid="bottomnav-home"
+              aria-label={t("nav.home")}
+              className={`flex items-center justify-center transition-colors ${loc.pathname === "/" ? "text-white" : "text-bone-100/75 hover:text-white active:text-white"}`}
+            >
+              <Home size={22} />
+            </Link>
+            <Link
+              to={user ? "/cuenta" : "/login"}
+              data-testid="bottomnav-account"
+              aria-label={user ? t("nav.account") : t("nav.login")}
+              className="flex items-start justify-center"
+            >
+              <span
+                className={`relative -mt-4 flex h-12 w-12 items-center justify-center rounded-full shadow-lg ring-4 ring-sage-800 transition-transform active:scale-95 ${
+                  user ? "bg-sage-500 text-white" : "bg-sage-600 text-bone-100"
+                }`}
+              >
+                <User size={22} />
+                {user && (
+                  <span
+                    data-testid="bottomnav-account-dot"
+                    className="absolute top-0.5 right-0.5 h-2.5 w-2.5 rounded-full bg-white border-2 border-sage-500"
+                  />
+                )}
+              </span>
+            </Link>
+            <Link
+              to="/lista-deseos"
+              data-testid="bottomnav-wishlist"
+              aria-label={t("nav.wishlist")}
+              className={`relative flex items-center justify-center transition-colors ${loc.pathname === "/lista-deseos" ? "text-white" : "text-bone-100/75 hover:text-white active:text-white"}`}
+            >
+              <span className="relative">
+                <Heart size={22} />
+                {wishlistCount > 0 && (
+                  <span
+                    data-testid="bottomnav-wishlist-count"
+                    className="absolute -top-2 -right-2.5 bg-terracotta text-white text-[10px] h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center font-medium"
+                  >
+                    {wishlistCount}
+                  </span>
+                )}
+              </span>
+            </Link>
+            <button
+              type="button"
+              onClick={openDrawer}
+              data-testid="bottomnav-cart"
+              aria-label={t("nav.openCart")}
+              className="relative flex items-center justify-center text-bone-100/75 hover:text-white active:text-white transition-colors"
+            >
+              <span className="relative">
+                <ShoppingBag size={22} />
+                {count > 0 && (
+                  <span
+                    data-testid="bottomnav-cart-count"
+                    className="absolute -top-2 -right-2.5 bg-terracotta text-white text-[10px] h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center font-medium"
+                  >
+                    {count}
+                  </span>
+                )}
+              </span>
+            </button>
+          </div>
+        </nav>,
         document.body
       )}
     </header>

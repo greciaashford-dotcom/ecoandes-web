@@ -35,7 +35,7 @@ const PaypalLogo = () => (
 );
 
 export default function Checkout() {
-  const { items, subtotal, subtotalExVat, subtotalWithVat, vatAmount, totalWeightKg, hasBulk, clearCart } = useCart();
+  const { items, subtotal, subtotalExVat, subtotalWithVat, vatAmount, totalWeightKg, hasBulk, bulkWeightKg, clearCart } = useCart();
   const { user } = useAuth();
   const nav = useNavigate();
   const [submitting, setSubmitting] = useState(false);
@@ -90,11 +90,12 @@ export default function Checkout() {
         subtotal_ex_vat: subtotalExVat,
         total_weight_kg: totalWeightKg,
         has_bulk: hasBulk,
+        bulk_weight_kg: bulkWeightKg,
       })
       .then((r) => { if (active) setShipping(r.data); })
       .catch(() => {});
     return () => { active = false; };
-  }, [subtotalWithVat, subtotalExVat, totalWeightKg, hasBulk, customerType, items.length, isPickup, form.country, form.postal_code]);
+  }, [subtotalWithVat, subtotalExVat, totalWeightKg, hasBulk, bulkWeightKg, customerType, items.length, isPickup, form.country, form.postal_code]);
 
   const onChange = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -462,7 +463,15 @@ export default function Checkout() {
             )}
             {!isPickup && shipping && shipping.weight_tier && (
               <div className="text-[11px] text-ink-muted" data-testid="summary-weight-tier">
-                Tramo {shipping.weight_tier.from_kg}–{shipping.weight_tier.to_kg} kg · peso total {totalWeightKg.toFixed(2)} kg
+                Tramo {shipping.weight_tier.from_kg}–{shipping.weight_tier.to_kg ?? "+"} kg ·{" "}
+                {shipping.bulk_only_shipping
+                  ? `peso a granel ${(shipping.charged_weight_kg ?? bulkWeightKg).toFixed(2)} kg`
+                  : `peso total ${totalWeightKg.toFixed(2)} kg`}
+              </div>
+            )}
+            {!isPickup && shipping?.bulk_only_shipping && (
+              <div className="text-[11px] text-sage-700" data-testid="summary-bulk-note">
+                Portes gratuitos en formatos de hasta 1 kg. Los formatos a granel (más de 1 kg) llevan portes según su peso.
               </div>
             )}
             {!isPickup && shipping && !shipping.free_shipping && shipping.remaining_for_free_shipping > 0 && !isBlocked && !isManual && (

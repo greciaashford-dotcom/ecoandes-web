@@ -85,7 +85,7 @@ export default function WhatsappFab() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.96 }}
             transition={{ type: "tween", duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            className="fixed bottom-24 right-5 sm:bottom-28 sm:right-6 z-50 w-[calc(100vw-2.5rem)] max-w-[340px] bg-white border border-bone-200 rounded-2xl shadow-[0_18px_50px_rgba(45,51,47,0.18)] overflow-hidden"
+            className="fixed bottom-[8.75rem] right-4 sm:right-6 lg:bottom-28 lg:right-6 z-50 w-[calc(100vw-2.5rem)] max-w-[340px] bg-white border border-bone-200 rounded-2xl shadow-[0_18px_50px_rgba(45,51,47,0.18)] overflow-hidden"
             data-testid="whatsapp-form"
           >
             <div className="bg-sage-700 text-bone-100 px-5 py-4 flex items-start justify-between gap-3">
@@ -158,7 +158,7 @@ export default function WhatsappFab() {
         data-testid="whatsapp-fab"
         aria-label={t("whatsapp.aria")}
         aria-expanded={open}
-        className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-50 flex items-center gap-2 sm:gap-3 bg-sage-700 hover:bg-sage-800 text-bone-100 shadow-[0_10px_30px_rgba(44,64,46,0.35)] rounded-full pl-4 pr-5 py-3 sm:pl-5 sm:pr-6 sm:py-4 transition-all duration-300 hover:scale-[1.03] group"
+        className="fixed bottom-[4.75rem] right-4 sm:right-6 lg:bottom-6 lg:right-6 z-50 flex items-center gap-2 sm:gap-3 bg-sage-700 hover:bg-sage-800 text-bone-100 shadow-[0_10px_30px_rgba(44,64,46,0.35)] rounded-full pl-4 pr-5 py-3 sm:pl-5 sm:pr-6 sm:py-4 transition-all duration-300 hover:scale-[1.03] group"
       >
         <WhatsappIcon />
         <span className="hidden sm:inline text-xs uppercase tracking-[0.2em] font-medium">

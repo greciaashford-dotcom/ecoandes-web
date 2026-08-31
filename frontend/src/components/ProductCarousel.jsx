@@ -44,7 +44,7 @@ export default function ProductCarousel({ overline, title, products = [], testid
       <div className="overflow-hidden" ref={emblaRef}>
         <div className="flex gap-4 sm:gap-6">
           {products.map((p) => (
-            <div key={p.id} className="shrink-0 w-[68%] sm:w-[44%] md:w-[31%] lg:w-[23%]">
+            <div key={p.id} className="shrink-0 w-[88%] sm:w-[44%] md:w-[31%] lg:w-[23%]">
               <ProductCard product={p} />
             </div>
           ))}

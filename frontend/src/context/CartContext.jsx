@@ -139,6 +139,11 @@ export function CartProvider({ children }) {
   const subtotalWithVat = Math.round((subtotalExVat + vatAmount) * 100) / 100;
   const totalWeightKg = items.reduce((acc, it) => acc + resolveItemWeight(it) * it.quantity, 0);
   const hasBulk = items.some((it) => resolveItemWeight(it) > 1);
+  // Peso de ítems a granel (>1 kg por unidad): con base B2B >=150€ solo estos pagan portes
+  const bulkWeightKg = items.reduce(
+    (acc, it) => acc + (resolveItemWeight(it) > 1 ? resolveItemWeight(it) * it.quantity : 0),
+    0
+  );
   const count = items.reduce((acc, it) => acc + it.quantity, 0);
 
   const value = {
@@ -149,6 +154,7 @@ export function CartProvider({ children }) {
     vatAmount,
     totalWeightKg,
     hasBulk,
+    bulkWeightKg,
     count,
     lastAdded,
     addItem,

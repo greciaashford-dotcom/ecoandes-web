@@ -38,6 +38,14 @@ html, body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Barra de navegación inferior fija (móvil/tablet): reservar espacio al final
+   de la página para que no tape contenido ni el footer. */
+@media (max-width: 1023.98px) {
+  body {
+    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 h1, h2, h3, h4, h5 {
   font-family: 'Outfit', ui-sans-serif, system-ui, sans-serif;
   letter-spacing: -0.01em;

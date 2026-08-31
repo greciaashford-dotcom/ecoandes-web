@@ -153,7 +153,7 @@ export default function BlogPost() {
           <h3 className="font-heading text-2xl md:text-3xl font-light mb-8">
             Lleva esta historia a tu despensa
           </h3>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-8">
             {related.map((p) => <ProductCard key={p.id} product={p} />)}
           </div>
         </section>

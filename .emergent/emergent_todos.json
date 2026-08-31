@@ -1,38 +1,14 @@
 [
   {
-    "content": "Backend: shipping v3 (retail tarifa plana 4,12+IVA <50€, gratis ≥50€)",
+    "content": "ProductCard: revertir a layout horizontal móvil, píldoras formato arriba/precio abajo, selector de cantidad en todas las tarjetas, sin categoría/descripción; Shop sin prop detailed",
     "status": "completed"
   },
   {
-    "content": "Backend: reembolsos por producto (líneas+qty+importes editables, envío solo en total, reembolsos múltiples)",
+    "content": "ProductDetail móvil: orden categoría+nombre → estrellas → descripción → imagen → precio+formatos → resto (solo orden, mismo diseño; escritorio intacto)",
     "status": "completed"
   },
   {
-    "content": "Backend: refund-request cliente + invoice-request profesional + verify-address + emails empresa",
-    "status": "completed"
-  },
-  {
-    "content": "Frontend: Checkout verificación dirección (CP→provincia, teléfono, Nominatim soft)",
-    "status": "completed"
-  },
-  {
-    "content": "Frontend: Account (solicitar reembolso modal + solicitar factura + badges)",
-    "status": "completed"
-  },
-  {
-    "content": "Frontend: AdminOrderDetail reembolso por producto + solicitudes visibles",
-    "status": "completed"
-  },
-  {
-    "content": "Frontend: buscador (placeholder, móvil siempre visible, sin zoom) + menú lateral móvil rediseñado",
-    "status": "completed"
-  },
-  {
-    "content": "Frontend: tienda categorías desplegable móvil + paginación 28/página",
-    "status": "completed"
-  },
-  {
-    "content": "Testing agent E2E + fixes",
+    "content": "Compilar + screenshots móvil/escritorio + testing",
     "status": "completed"
   }
 ]

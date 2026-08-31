@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import {
-  Minus, Plus, ChevronRight, Heart, Scale, MessageCircle, Share2,
+  Minus, Plus, ChevronRight, ChevronDown, Heart, Scale, MessageCircle, Share2,
   Check, Leaf, FileDown, AlertCircle, Link as LinkIcon,
 } from "lucide-react";
 import { api, formatEUR, resolveAsset } from "../lib/api";
@@ -41,6 +41,7 @@ export default function ProductDetail() {
   const [related, setRelated] = useState([]);
   const [bestSellers, setBestSellers] = useState([]);
   const [allCategories, setAllCategories] = useState([]);
+  const [catsOpen, setCatsOpen] = useState(false); // desplegable "Explora más categorías"
   const [shareOpen, setShareOpen] = useState(false);
   const { addItem } = useCart();
   const { user } = useAuth();
@@ -78,6 +79,9 @@ export default function ProductDetail() {
         if (!alive) return;
         setRelated((rel.data || []).filter((p) => p.id !== data.id).slice(0, 10));
         setBestSellers((bs.data || []).filter((p) => p.id !== data.id).slice(0, 10));
+      } catch {
+        // Producto/slug inexistente o error de red: mostrar estado "no encontrado"
+        if (alive) setProduct(null);
       } finally {
         if (alive) setLoading(false);
       }
@@ -218,7 +222,22 @@ export default function ProductDetail() {
 
       {/* Hero */}
       <div className="max-w-[72rem] mx-auto px-4 sm:px-6 lg:px-8 lg:grid lg:grid-cols-12 lg:gap-x-10">
-        <div className="lg:col-span-7">
+        {/* Móvil: categoría + nombre + estrellas + descripción ANTES de la imagen */}
+        <div className="lg:hidden" data-testid="pdp-mobile-header">
+          <div className="overline text-sage-600">{product.category}</div>
+          <h1 className="font-heading text-3xl sm:text-4xl font-light text-ink mt-2 leading-tight">{product.name}</h1>
+          {product.web_rating > 0 && (
+            <div className="flex items-center gap-2 mt-3">
+              <StarRating value={product.web_rating} readOnly size={15} />
+              {product.web_reviews > 0 && <span className="text-xs text-ink-muted">({product.web_reviews})</span>}
+            </div>
+          )}
+          {product.highlights && (
+            <p className="text-ink-soft mt-4 leading-relaxed">{product.highlights}</p>
+          )}
+        </div>
+
+        <div className="lg:col-span-7 mt-6 lg:mt-0">
           <ProductGallery
             mainImage={product.image_url}
             gallery={product.gallery || []}
@@ -229,25 +248,29 @@ export default function ProductDetail() {
           />
         </div>
 
-        <div className="lg:col-span-5 mt-8 lg:mt-0">
-          <div className="overline text-sage-600">{product.category}</div>
-          <h1 className="font-heading text-3xl sm:text-4xl font-light text-ink mt-2 leading-tight">{product.name}</h1>
+        <div className="lg:col-span-5 mt-6 lg:mt-0 flex flex-col">
+          {/* Escritorio: cabecera en la columna derecha (en móvil va antes de la imagen) */}
+          <div className="hidden lg:block">
+            <div className="overline text-sage-600">{product.category}</div>
+            <h2 className="font-heading text-3xl sm:text-4xl font-light text-ink mt-2 leading-tight">{product.name}</h2>
 
-          {product.web_rating > 0 && (
-            <div className="flex items-center gap-2 mt-3">
-              <StarRating value={product.web_rating} readOnly size={15} />
-              {product.web_reviews > 0 && <span className="text-xs text-ink-muted">({product.web_reviews})</span>}
-            </div>
-          )}
+            {product.web_rating > 0 && (
+              <div className="flex items-center gap-2 mt-3">
+                <StarRating value={product.web_rating} readOnly size={15} />
+                {product.web_reviews > 0 && <span className="text-xs text-ink-muted">({product.web_reviews})</span>}
+              </div>
+            )}
 
-          {product.highlights && (
-            <p className="text-ink-soft mt-4 leading-relaxed">{product.highlights}</p>
-          )}
+            {product.highlights && (
+              <p className="text-ink-soft mt-4 leading-relaxed">{product.highlights}</p>
+            )}
+          </div>
 
-          <TrustBadges badges={product.badges} className="mt-5" />
+          <TrustBadges badges={product.badges} className="mt-5 order-3 lg:order-none" />
 
-          {/* Price */}
-          <div className="mt-6 flex items-baseline gap-3 flex-wrap">
+          {/* Price (en móvil va justo debajo de la imagen) */}
+          <div className="order-1 lg:order-none">
+          <div className="mt-0 lg:mt-6 flex items-baseline gap-3 flex-wrap">
             <span className="font-heading text-3xl font-light text-ink" data-testid="product-price">
               {currentPrice > 0 ? formatEUR(currentPrice) : t("common.consult")}
             </span>
@@ -272,10 +295,11 @@ export default function ProductDetail() {
               {t("product.accessB2B")}
             </Link>
           )}
+          </div>
 
           {/* Variation selector: one-click format pills */}
           {sortedVariations.length > 0 && (
-            <div className="mt-6">
+            <div className="mt-6 max-lg:mt-4 order-2 lg:order-none">
               <div className="overline mb-2">{t("product.format")}</div>
               <div className="flex flex-wrap gap-2" data-testid="product-variant-pills">
                 {sortedVariations.map((v) => {
@@ -305,7 +329,7 @@ export default function ProductDetail() {
           )}
 
           {/* Availability */}
-          <div className="mt-5">
+          <div className="mt-5 order-4 lg:order-none">
             <span
               data-testid="product-availability"
               className={`inline-flex items-center gap-1.5 text-xs uppercase tracking-[0.16em] px-3 py-1.5 rounded-full border ${
@@ -318,7 +342,7 @@ export default function ProductDetail() {
           </div>
 
           {/* Quantity + Add to cart */}
-          <div className="mt-5 flex flex-col sm:flex-row gap-3">
+          <div className="mt-5 order-5 lg:order-none flex flex-col sm:flex-row gap-3">
             <div className="inline-flex items-stretch rounded-sm border border-bone-200 bg-white">
               <button onClick={() => setQuantity((q) => Math.max(1, q - 1))} aria-label="-" data-testid="quantity-decrement-button" className="px-3 text-ink hover:bg-bone-100 transition-colors">
                 <Minus size={16} />
@@ -339,7 +363,7 @@ export default function ProductDetail() {
           </div>
 
           {/* Secondary actions */}
-          <div className="mt-4 flex flex-wrap gap-2" data-testid="secondary-actions">
+          <div className="mt-4 order-6 lg:order-none flex flex-wrap gap-2" data-testid="secondary-actions">
             <button onClick={() => toggleWishlist(product)} className={`${secondaryBtn} ${isWished(product.id) ? "border-terracotta text-terracotta" : ""}`} data-testid="wishlist-button">
               <Heart size={15} fill={isWished(product.id) ? "currentColor" : "none"} /> {t("product.addToWishlist")}
             </button>
@@ -384,13 +408,13 @@ export default function ProductDetail() {
           </div>
 
           {/* Metadata */}
-          <div className="mt-6 pt-4 border-t border-bone-200 flex flex-wrap gap-x-6 gap-y-2 text-xs text-ink-muted">
+          <div className="mt-6 order-7 lg:order-none pt-4 border-t border-bone-200 flex flex-wrap gap-x-6 gap-y-2 text-xs text-ink-muted">
             <span data-testid="product-sku">{t("product.sku")}: {product.sku}</span>
             <span data-testid="product-categories">{t("product.categories")}: {product.category}</span>
           </div>
 
           {/* Organic certifications (all products) */}
-          <div className="mt-5 pt-4 border-t border-bone-200" data-testid="product-certifications">
+          <div className="mt-5 order-8 lg:order-none pt-4 border-t border-bone-200" data-testid="product-certifications">
             <p className="text-xs text-ink-soft leading-relaxed">
               {t("product.certificationLabel")}
             </p>
@@ -413,24 +437,38 @@ export default function ProductDetail() {
             </div>
           </div>
 
-          {/* Explore categories (right column, easy cross-navigation) */}
+          {/* Explore categories (right column, easy cross-navigation) — desplegable */}
           {allCategories.length > 0 && (
-            <div className="mt-5 pt-4 border-t border-bone-200" data-testid="pdp-categories">
-              <div className="overline mb-3">Explora más categorías</div>
-              <div className="flex flex-wrap gap-2">
-                {allCategories.map((c) => (
-                  <Link
-                    key={c.value}
-                    to={`/tienda?cat=${encodeURIComponent(c.value)}`}
-                    data-testid={`pdp-cat-${c.value}`}
-                    className={`text-[11px] uppercase tracking-[0.14em] px-3 py-1.5 rounded-sm border transition ${
-                      categories.includes(c.value) ? "bg-sage-50 border-sage-300 text-sage-700" : "border-bone-200 text-ink-soft hover:border-sage-500 hover:text-sage-700"
-                    }`}
-                  >
-                    {c.label}
-                  </Link>
-                ))}
-              </div>
+            <div className="mt-5 order-9 lg:order-none pt-4 border-t border-bone-200" data-testid="pdp-categories">
+              <button
+                type="button"
+                onClick={() => setCatsOpen((v) => !v)}
+                data-testid="pdp-categories-toggle"
+                aria-expanded={catsOpen}
+                className="w-full flex items-center justify-between gap-3 bg-white border border-bone-200 rounded-xl px-4 py-3 text-left transition-colors hover:border-sage-500"
+              >
+                <span className="overline">Explora más categorías</span>
+                <ChevronDown
+                  size={16}
+                  className={`text-ink-soft shrink-0 transition-transform duration-200 ${catsOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+              {catsOpen && (
+                <div className="mt-3 flex flex-wrap gap-2" data-testid="pdp-categories-panel">
+                  {allCategories.map((c) => (
+                    <Link
+                      key={c.value}
+                      to={`/tienda?cat=${encodeURIComponent(c.value)}`}
+                      data-testid={`pdp-cat-${c.value}`}
+                      className={`text-[11px] uppercase tracking-[0.14em] px-3 py-1.5 rounded-sm border transition ${
+                        categories.includes(c.value) ? "bg-sage-50 border-sage-300 text-sage-700" : "border-bone-200 text-ink-soft hover:border-sage-500 hover:text-sage-700"
+                      }`}
+                    >
+                      {c.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

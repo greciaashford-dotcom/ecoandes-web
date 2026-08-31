@@ -7,8 +7,13 @@ PARTICULARES (retail / B2C) — ES + PT peninsular + Baleares:
   - Por debajo: escala por peso del Excel (misma que profesionales).
 
 PROFESIONALES (B2B verificados) — ES + PT peninsular + Baleares:
-  - Envío gratis desde 150 € (base imponible, SIN IVA).
-  - Por debajo: escala por peso del Excel.
+  - Por debajo de 150 € (base imponible, SIN IVA): escala por peso del Excel
+    aplicada al PESO TOTAL del pedido (todos los productos).
+  - Desde 150 € (base imponible):
+      * Sin formatos a granel (>1 kg/ud): envío gratis total.
+      * Con formatos a granel (>1 kg/ud): los formatos de hasta 1 kg van con
+        portes GRATUITOS y los formatos a granel pagan la escala del Excel
+        calculada SOLO con el peso de esos ítems (bulk_weight_kg).
 
 ESCALA POR PESO (Excel portes_b2b.xlsx, importes SIN IVA):
   0–2 kg: 4 · 2–5: 6 · 5–10: 10 · 10–15: 15 · 15–20: 20 ·
@@ -169,7 +174,8 @@ def evaluate_shipping(
     subtotal_with_vat: float,
     subtotal_ex_vat: float,
     total_weight_kg: float,
-    has_bulk: bool = False,  # kept for API compatibility (no longer gates free shipping)
+    has_bulk: bool = False,  # kept for API compatibility
+    bulk_weight_kg: float = 0.0,  # peso total de ítems a granel (>1 kg por unidad)
 ) -> dict:
     is_retail = customer_type != "professional"
     user_key = "retail" if is_retail else "professional"
@@ -190,6 +196,7 @@ def evaluate_shipping(
         "shipping_vat_rate": vat_rate,
         "total": role_subtotal,
         "free_shipping": False,
+        "bulk_only_shipping": False,
         "free_shipping_threshold": 0.0,
         "remaining_for_free_shipping": 0.0,
         "status": "ok",
@@ -238,7 +245,55 @@ def evaluate_shipping(
         base["amount_basis"] = basis_key
         base["free_shipping_threshold"] = free_min
 
+        def _scale_fee(weight: float):
+            """Devuelve (net_fee, tier_dict) según la escala del Excel, o (None, None) si
+            no hay tramo ni porte máximo definidos (-> presupuesto manual)."""
+            scale = rule.get("weight_scale", EXCEL_WEIGHT_SCALE)
+            tier = _weight_tier(scale, weight)
+            if tier is None:
+                over_fee = rule.get("over_scale_fee")
+                if over_fee is None:
+                    return None, None
+                fee = float(over_fee)
+                return fee, {"from_kg": 35, "to_kg": None, "fee": fee, "max": True}
+            fee = float(tier["fee"])
+            return fee, {"from_kg": tier["from_kg"], "to_kg": tier["to_kg"], "fee": fee}
+
+        def _manual_fallback():
+            base["status"] = "manual_quote"
+            base["shipping_cost"] = None
+            base["shipping_cost_ex_vat"] = None
+            base["shipping_vat"] = None
+            base["total"] = None
+            base["message"] = "Transporte calculado manualmente según peso."
+            return base
+
         is_free = amount > free_min if operator == ">" else amount >= free_min
+        bulk_w = max(0.0, float(bulk_weight_kg or 0.0))
+
+        if is_free and method == "weight_scale_conditional_free" and bulk_w > 0:
+            # ≥150 € base imponible PERO hay formatos a granel (>1 kg/ud):
+            # los formatos ≤1 kg van gratis y los a granel pagan la escala del
+            # Excel calculada SOLO con su peso.
+            net_fee, tier_info = _scale_fee(bulk_w)
+            if net_fee is None:
+                return _manual_fallback()
+            base["weight_tier"] = tier_info
+            base["bulk_only_shipping"] = True
+            base["bulk_weight_kg"] = round(bulk_w, 3)
+            base["charged_weight_kg"] = round(bulk_w, 3)
+            base["remaining_for_free_shipping"] = 0.0
+            base["message"] = (
+                "Portes gratuitos en formatos de hasta 1 kg. Los formatos a granel "
+                "(más de 1 kg) llevan portes calculados según su peso."
+            )
+            parts = shipping_with_vat(net_fee, vat_rate)
+            base["shipping_cost_ex_vat"] = parts["ex_vat"]
+            base["shipping_vat"] = parts["vat"]
+            base["shipping_cost"] = parts["gross"]
+            base["total"] = round(role_subtotal + parts["gross"], 2)
+            return base
+
         if is_free:
             base["shipping_cost"] = 0.0
             base["free_shipping"] = True
@@ -253,24 +308,11 @@ def evaluate_shipping(
         if method == "flat_with_free_threshold":
             net_fee = float(rule.get("flat_fee", 0.0))
         else:
-            scale = rule.get("weight_scale", EXCEL_WEIGHT_SCALE)
-            tier = _weight_tier(scale, total_weight_kg)
-            if tier is None:
-                # peso por encima de la escala -> porte máximo (Excel: >35 kg = 29 €)
-                over_fee = rule.get("over_scale_fee")
-                if over_fee is None:
-                    base["status"] = "manual_quote"
-                    base["shipping_cost"] = None
-                    base["shipping_cost_ex_vat"] = None
-                    base["shipping_vat"] = None
-                    base["total"] = None
-                    base["message"] = "Transporte calculado manualmente según peso."
-                    return base
-                net_fee = float(over_fee)
-                base["weight_tier"] = {"from_kg": 35, "to_kg": None, "fee": net_fee, "max": True}
-            else:
-                net_fee = float(tier["fee"])
-                base["weight_tier"] = {"from_kg": tier["from_kg"], "to_kg": tier["to_kg"], "fee": net_fee}
+            net_fee, tier_info = _scale_fee(total_weight_kg)
+            if net_fee is None:
+                return _manual_fallback()
+            base["weight_tier"] = tier_info
+            base["charged_weight_kg"] = round(total_weight_kg, 3)
 
         parts = shipping_with_vat(net_fee, vat_rate)
         base["shipping_cost_ex_vat"] = parts["ex_vat"]

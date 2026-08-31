@@ -166,7 +166,7 @@ export default function Shop() {
               <div className="text-center py-20 text-ink-soft" data-testid="no-products">{t("shop.noResults")}</div>
             ) : (
               <>
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 md:gap-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
                   {pageProducts.map((p) => (
                     <ProductCard key={p.id} product={p} />
                   ))}

@@ -31,6 +31,7 @@ class ShippingRequest(BaseModel):
     subtotal_ex_vat: float = 0.0
     total_weight_kg: float = 0.0
     has_bulk: bool = False
+    bulk_weight_kg: float = 0.0  # peso de ítems a granel (>1 kg/ud)
     # legacy fallback
     subtotal: Optional[float] = None
 
@@ -79,6 +80,7 @@ async def shipping_quote(payload: ShippingRequest):
         subtotal_ex_vat=sev,
         total_weight_kg=payload.total_weight_kg,
         has_bulk=payload.has_bulk,
+        bulk_weight_kg=payload.bulk_weight_kg,
     )
 
 
@@ -170,6 +172,7 @@ async def create_order(
     subtotal_ex_vat = 0.0
     vat_amount = 0.0
     total_weight_kg = 0.0
+    bulk_weight_kg = 0.0
     has_bulk = False
     is_pro = payload.customer_type == "professional" and user and (
         user.get("role") == "admin"
@@ -206,6 +209,7 @@ async def create_order(
         total_weight_kg += weight_kg * qty
         if weight_kg > 1.0:
             has_bulk = True
+            bulk_weight_kg += weight_kg * qty
         # unit price as charged/displayed: retail incl. VAT, pro ex VAT
         unit_charged = round(unit_ex_vat * (1 + vat_rate / 100), 2) if not is_pro else round(unit_ex_vat, 2)
         recomputed_items.append(
@@ -241,6 +245,7 @@ async def create_order(
         subtotal_ex_vat=subtotal_ex_vat,
         total_weight_kg=total_weight_kg,
         has_bulk=has_bulk,
+        bulk_weight_kg=bulk_weight_kg,
     )
     shipping_status = ship.get("status", "ok")
     payment_method = payload.payment_method
@@ -309,6 +314,7 @@ async def create_order(
         "shipping_status": shipping_status,
         "shipping_zone": ship.get("zone"),
         "total_weight_kg": round(total_weight_kg, 3),
+        "bulk_weight_kg": round(bulk_weight_kg, 3),
         "discount": discount,
         "coupon_code": applied_coupon,
         "total": total,

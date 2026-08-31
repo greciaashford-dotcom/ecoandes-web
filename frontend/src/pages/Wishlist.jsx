@@ -41,7 +41,7 @@ export default function Wishlist() {
           <Link to="/tienda" className="btn-primary inline-block">{t("wishlist.browse")}</Link>
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6" data-testid="wishlist-grid">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6" data-testid="wishlist-grid">
           {items.map((p) => <ProductCard key={p.id} product={p} />)}
         </div>
       )}

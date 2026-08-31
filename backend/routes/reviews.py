@@ -41,6 +41,15 @@ async def _summary(product_id: str) -> dict:
     return {"average": average, "count": total, "distribution": distribution}
 
 
+async def _sync_product_rating(product_id: str):
+    """Mantiene web_rating / web_reviews del producto al día (para las cartas)."""
+    s = await _summary(product_id)
+    await db.products.update_one(
+        {"id": product_id},
+        {"$set": {"web_rating": round(s["average"], 1), "web_reviews": s["count"]}},
+    )
+
+
 @router.get("/{product_id}/reviews")
 async def list_reviews(product_id: str, user: dict = Depends(get_current_user_optional)):
     items = (
@@ -84,6 +93,7 @@ async def create_review(
                 }
             },
         )
+        await _sync_product_rating(product_id)
         return await db.reviews.find_one({"id": existing["id"]}, {"_id": 0})
 
     review = Review(
@@ -94,4 +104,5 @@ async def create_review(
         comment=(payload.comment or "").strip() or None,
     )
     await db.reviews.insert_one(review.model_dump())
+    await _sync_product_rating(product_id)
     return review.model_dump()
